@@ -48,6 +48,8 @@ class Workspace:
                 "model_output_tokens": 0,
                 "model_cached_input_tokens": 0,
                 "model_budget_blocks": 0,
+                "prompt_guard_blocks": 0,
+                "response_guard_blocks": 0,
             }
             if load_persisted:
                 self.state_store.restore(self)

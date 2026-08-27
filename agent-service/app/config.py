@@ -31,6 +31,13 @@ class Settings:
     max_org_per_day: int = 60
     max_concurrent_runs: int = 2
     version: str = "0.1.0"
+    log_level: str = "INFO"
+    service_name: str = "noping-agent-service"
+    otel_exporter_otlp_endpoint: str = ""
+    model_armor_enabled: bool = False
+    model_armor_location: str = "us-central1"
+    model_armor_template_id: str = "noping-enterprise-guard"
+    model_armor_fail_closed: bool = True
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -63,4 +70,11 @@ class Settings:
             max_org_per_day=int(os.getenv("NOPING_MAX_ORG_PER_DAY", "60")),
             max_concurrent_runs=int(os.getenv("NOPING_MAX_CONCURRENT_RUNS", "2")),
             version=os.getenv("NOPING_VERSION", "0.1.0"),
+            log_level=os.getenv("NOPING_LOG_LEVEL", "INFO"),
+            service_name=os.getenv("OTEL_SERVICE_NAME", "noping-agent-service"),
+            otel_exporter_otlp_endpoint=os.getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", ""),
+            model_armor_enabled=flag("NOPING_MODEL_ARMOR_ENABLED", False),
+            model_armor_location=os.getenv("NOPING_MODEL_ARMOR_LOCATION", "us-central1"),
+            model_armor_template_id=os.getenv("NOPING_MODEL_ARMOR_TEMPLATE_ID", "noping-enterprise-guard"),
+            model_armor_fail_closed=flag("NOPING_MODEL_ARMOR_FAIL_CLOSED", True),
         )

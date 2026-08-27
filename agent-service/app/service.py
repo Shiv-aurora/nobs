@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+from .adapters.guard import GoogleModelArmorGuard, LocalPromptGuard
 from .adapters.model import DeterministicDemoModel, GoogleADKModel
 from .config import Settings
 from .evidence import EvidenceRetriever
@@ -47,6 +48,16 @@ class Services:
             max_input_tokens_per_day=self.settings.model_max_input_tokens_per_day,
             max_output_tokens_per_day=self.settings.model_max_output_tokens_per_day,
         )
+        prompt_guard = (
+            GoogleModelArmorGuard(
+                project_id=self.settings.google_cloud_project,
+                location=self.settings.model_armor_location,
+                template_id=self.settings.model_armor_template_id,
+                fail_closed=self.settings.model_armor_fail_closed,
+            )
+            if self.settings.model_armor_enabled
+            else LocalPromptGuard()
+        )
         model = (
             DeterministicDemoModel()
             if self.settings.demo_mode
@@ -65,4 +76,5 @@ class Services:
             now_fn=now_fn,
             ai_enabled=self.settings.ai_enabled,
             usage_guard=self.usage_guard,
+            prompt_guard=prompt_guard,
         )
