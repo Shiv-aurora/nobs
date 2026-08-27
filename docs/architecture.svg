@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1120" viewBox="0 0 1800 1120">
+  <image href="architecture.png" width="1800" height="1120"/>
+  <title>NoPing Fortified Enterprise Fleet architecture</title>
+  <desc>Mattermost and the NoPing plugin invoke a private Cloud Run organizational agent service using Google identity and HMAC. The service uses Google ADK, Gemini, Model Armor, Firestore, Pub/Sub, and Cloud observability. A separate budget guard may stop the small Mattermost VM at 90 percent of a 25 dollar budget.</desc>
+</svg>

@@ -68,7 +68,7 @@ variable "mattermost_disk_size_gb" {
 
 variable "mattermost_site_address" {
   type        = string
-  description = "Caddy site address. Use :80 for an ephemeral-IP demo or a hostname for managed HTTPS."
+  description = "Caddy site address. Use :80 for a stable raw-IP demo or a hostname for managed HTTPS."
   default     = ":80"
 }
 

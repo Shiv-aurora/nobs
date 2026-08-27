@@ -1,0 +1,90 @@
+name: NoPing CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install PyYAML
+      - run: python scripts/static_validate.py
+      - run: python scripts/secret_scan.py
+      - name: Shell syntax
+        run: find scripts deploy -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
+      - run: git diff --check
+
+  agent-service:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -e './agent-service[test]'
+      - run: pytest agent-service/tests
+
+  budget-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -e './deploy/gcp/budget-guard[test]'
+      - run: cd deploy/gcp/budget-guard && pytest tests
+
+  plugin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.x'
+          cache-dependency-path: plugin/go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install webapp dependencies
+        run: npm --prefix plugin/webapp install --no-audit --no-fund
+      - name: Test Go plugin
+        run: cd plugin && go test ./...
+      - name: Type-check webapp
+        run: npm --prefix plugin/webapp run typecheck
+      - name: Build plugin bundle
+        run: ./scripts/build-plugin.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: noping-mattermost-plugin
+          path: plugin/dist/*.tar.gz
+
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.16.0
+      - run: terraform -chdir=deploy/gcp/terraform fmt -check -recursive
+      - run: terraform -chdir=deploy/gcp/terraform init -backend=false
+      - run: terraform -chdir=deploy/gcp/terraform validate
+
+  containers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build agent service image
+        run: docker build --build-arg INSTALL_GOOGLE=true -f agent-service/Dockerfile -t noping-agent:ci .
+      - name: Build budget guard image
+        run: docker build -t noping-budget-guard:ci deploy/gcp/budget-guard

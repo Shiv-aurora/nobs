@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "${ROOT}"
+
+echo '== Python agent runtime =='
+python -m pytest agent-service/tests
+
+echo '== Budget guard =='
+(
+  cd deploy/gcp/budget-guard
+  python -m pytest tests
+)
+
+echo '== Go deterministic core =='
+(
+  cd plugin
+  go test ./internal/...
+)
+
+echo '== Strict TypeScript =='
+tsc -p plugin/webapp/tsconfig.sandbox.json --noEmit
+
+echo '== Python compilation =='
+python -m compileall -q agent-service/app deploy/gcp/budget-guard seed scripts
+
+echo '== Shell syntax =='
+while IFS= read -r -d '' file; do bash -n "${file}"; done < <(find scripts deploy -type f -name '*.sh' -print0)
+
+echo '== Static manifests / Terraform contracts =='
+python scripts/static_validate.py
+
+echo '== Credential scan =='
+python scripts/secret_scan.py
+
+echo '== Git whitespace =='
+git diff --check
+
+echo 'All credential-free Phase 1 checks passed.'

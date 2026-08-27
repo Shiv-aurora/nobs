@@ -1,0 +1,13 @@
+flowchart LR
+  U[Employee] --> M[Mattermost + NoPing React]
+  M --> P[NoPing Go plugin]
+  P -->|Google ID token + HMAC| R[Private Cloud Run agent service]
+  R --> G[Google ADK + Gemini 3.5+]
+  R --> A[Model Armor]
+  R --> F[(Firestore)]
+  E[GitHub / Calendar / Jira / Mattermost] --> Q[Pub/Sub]
+  Q -->|OIDC push| R
+  R --> O[Logging / Trace / Monitoring]
+  B[Cloud Billing] --> BG[Private budget guard]
+  BG -->|get/stop only| VM[Compute Engine]
+  VM --> M
