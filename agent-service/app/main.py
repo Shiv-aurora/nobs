@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .api.routes import router
 from .auth import SignatureVerifier, SignedServiceMiddleware
+from .pubsub import PubSubTokenVerifier
 from .service import Services
 
 
@@ -22,13 +23,18 @@ def create_app(services: Services | None = None) -> FastAPI:
             secret=service_bundle.settings.service_signing_secret,
             demo_mode=service_bundle.settings.demo_mode,
         ),
+        pubsub_verifier=PubSubTokenVerifier(
+            audience=service_bundle.settings.pubsub_push_audience,
+            service_account_email=service_bundle.settings.pubsub_push_service_account,
+            demo_mode=service_bundle.settings.demo_mode,
+        ),
     )
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["http://localhost:8065", "http://localhost:4173", "http://localhost:8080"],
         allow_credentials=True,
         allow_methods=["GET", "POST", "OPTIONS"],
-        allow_headers=["Content-Type", "X-NoPing-Timestamp", "X-NoPing-Signature-Version", "X-NoPing-Signature"],
+        allow_headers=["Content-Type", "X-NoPing-Timestamp", "X-NoPing-Signature-Version", "X-NoPing-Signature", "Authorization"],
     )
     app.include_router(router)
     return app

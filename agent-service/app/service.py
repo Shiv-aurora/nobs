@@ -13,6 +13,7 @@ from .rate_limit import RateLimiter
 from .registry import DelegateRegistry
 from .routing import OrganizationRouter
 from .security import ContentSecurityScanner
+from .usage import ModelUsageGuard
 from .work_state import WorkStateProjector
 from .workspace import Workspace
 
@@ -36,7 +37,24 @@ class Services:
         self.registry = DelegateRegistry(self.workspace)
         self.work_state = WorkStateProjector(self.workspace)
         self.rate_limiter = RateLimiter(self.settings, now_fn)
-        model = DeterministicDemoModel() if self.settings.demo_mode else GoogleADKModel()
+        self.usage_guard = ModelUsageGuard(
+            self.workspace,
+            now_fn,
+            max_calls_per_query=self.settings.model_max_calls_per_query,
+            max_input_tokens_per_query=self.settings.model_max_input_tokens_per_query,
+            max_output_tokens_per_query=self.settings.model_max_output_tokens_per_query,
+            max_calls_per_day=self.settings.model_max_calls_per_day,
+            max_input_tokens_per_day=self.settings.model_max_input_tokens_per_day,
+            max_output_tokens_per_day=self.settings.model_max_output_tokens_per_day,
+        )
+        model = (
+            DeterministicDemoModel()
+            if self.settings.demo_mode
+            else GoogleADKModel(
+                model_name=self.settings.gemini_model,
+                max_output_tokens=min(600, self.settings.model_max_output_tokens_per_query),
+            )
+        )
         self.orchestrator = Orchestrator(
             workspace=self.workspace,
             model=model,
@@ -46,4 +64,5 @@ class Services:
             memory=self.memory,
             now_fn=now_fn,
             ai_enabled=self.settings.ai_enabled,
+            usage_guard=self.usage_guard,
         )

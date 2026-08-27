@@ -250,6 +250,11 @@ class QueryResult(BaseModel):
     created_at: datetime
     completed_at: datetime
     cached: bool = False
+    model_name: str | None = None
+    model_calls: int = 0
+    model_input_tokens: int = 0
+    model_output_tokens: int = 0
+    model_cached_input_tokens: int = 0
 
 
 class BootstrapResponse(BaseModel):

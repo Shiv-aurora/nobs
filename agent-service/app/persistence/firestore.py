@@ -105,7 +105,7 @@ class FirestoreStateStore(StateStore):
 
     def _delete_collection(self, collection, batch_size: int = 100) -> None:
         while True:
-            documents: Iterable[Any] = list(collection.limit(batch_size).stream())
+            documents: Iterable[Any] = collection.limit(batch_size).stream()
             documents = list(documents)
             if not documents:
                 return

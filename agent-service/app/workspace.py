@@ -42,6 +42,12 @@ class Workspace:
                 "restricted_requests_blocked": 0,
                 "poisoned_sources_blocked": 0,
                 "cache_hits": 0,
+                "model_usage_day": 0,
+                "model_calls": 0,
+                "model_input_tokens": 0,
+                "model_output_tokens": 0,
+                "model_cached_input_tokens": 0,
+                "model_budget_blocks": 0,
             }
             if load_persisted:
                 self.state_store.restore(self)
@@ -85,7 +91,9 @@ class Workspace:
         self.state_store.put_stats(snapshot)
 
     def persist_stats(self) -> None:
-        self.state_store.put_stats(self.stats.copy())
+        with self.lock:
+            snapshot = self.stats.copy()
+        self.state_store.put_stats(snapshot)
 
     def snapshot(self) -> dict[str, Any]:
         with self.lock:

@@ -15,6 +15,7 @@ from ..models import (
     RegistryResponse,
     WorkEvent,
 )
+from ..pubsub import PubSubPushEnvelope
 from ..rate_limit import RateLimitExceeded
 from ..service import Services
 
@@ -135,10 +136,34 @@ def audit(limit: int = Query(default=50, ge=1, le=200), services: Services = Dep
     return list(reversed(services.workspace.audit[-limit:]))
 
 
+def _ingest_work_event(event: WorkEvent, services: Services) -> dict:
+    created = services.work_state.ingest(event)
+    if created:
+        services.workspace.append_audit(AuditEvent(
+            event_type="work_state.updated",
+            actor_id=event.actor_user_id,
+            entity_ids=event.entity_ids,
+            summary=f"{event.source} event {event.event_type} updated semantic work state.",
+            created_at=event.occurred_at,
+            metadata={"event_id": event.id},
+        ))
+    return {"accepted": created, "states": services.work_state.project()}
+
+
 @router.post("/v1/events")
 def ingest_event(event: WorkEvent, services: Services = Depends(get_services)):
-    created = services.work_state.ingest(event)
-    return {"accepted": created, "states": services.work_state.project()}
+    return _ingest_work_event(event, services)
+
+
+@router.post("/v1/events/pubsub")
+def ingest_pubsub_event(envelope: PubSubPushEnvelope, services: Services = Depends(get_services)):
+    try:
+        event = envelope.decode_work_event()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    result = _ingest_work_event(event, services)
+    result["message_id"] = envelope.message.message_id
+    return result
 
 
 @router.post("/v1/demo/reset")
@@ -147,6 +172,7 @@ def reset_demo(services: Services = Depends(get_services)):
         raise HTTPException(status_code=403, detail="Demo reset is disabled")
     services.workspace.reset_demo()
     services.rate_limiter.reset()
+    services.usage_guard.reset()
     return {"status": "reset"}
 
 

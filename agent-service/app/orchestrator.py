@@ -19,6 +19,7 @@ from .models import (
 )
 from .policy import PolicyEngine
 from .routing import OrganizationRouter
+from .usage import ModelBudgetExceeded, ModelUsageGuard, estimate_tokens
 from .workspace import Workspace
 
 
@@ -34,6 +35,7 @@ class Orchestrator:
         memory: DecisionMemoryStore,
         now_fn,
         ai_enabled: bool = True,
+        usage_guard: ModelUsageGuard | None = None,
     ):
         self.workspace = workspace
         self.model = model
@@ -43,6 +45,7 @@ class Orchestrator:
         self.memory = memory
         self.now_fn = now_fn
         self.ai_enabled = ai_enabled
+        self.usage_guard = usage_guard
 
     def _facts_hash(self) -> str:
         facts = {
@@ -233,7 +236,82 @@ class Orchestrator:
             self.workspace.save_query_result(result)
             return result
 
-        answer = self.model.synthesize(text=request.text, intent=intent, evidence=evidence)
+        reservation = None
+        if self.usage_guard and self.model.expected_calls:
+            prompt = self.model.build_prompt(text=request.text, intent=intent, evidence=evidence)
+            estimated_input = estimate_tokens(prompt) + estimate_tokens(getattr(self.model, "INSTRUCTION", ""))
+            try:
+                reservation = self.usage_guard.reserve(
+                    calls=self.model.expected_calls,
+                    input_tokens=estimated_input,
+                    output_tokens=self.model.max_output_tokens,
+                )
+            except ModelBudgetExceeded as exc:
+                result = QueryResult(
+                    requester_id=request.requester_id,
+                    query=request.text,
+                    intent=intent,
+                    status=RunStatus.FAILED,
+                    headline="AI budget guard active",
+                    answer="NoPing stopped this model call before it could spend beyond the configured daily or per-query limit. Deterministic policy checks, existing decisions, and Rooms remain available.",
+                    route=route[:1],
+                    evidence=[],
+                    confidence=1.0,
+                    freshness_label="Hard cost limit enforced",
+                    people_interrupted=0,
+                    policy_result=exc.reason,
+                    security_findings=findings,
+                    created_at=now,
+                    completed_at=self.now_fn(),
+                )
+                self.workspace.save_query_result(result)
+                self.workspace.append_audit(AuditEvent(
+                    event_type="cost.model_call_blocked",
+                    actor_id=request.requester_id,
+                    entity_ids=["atlas"],
+                    summary=exc.reason,
+                    created_at=now,
+                    metadata=self.usage_guard.snapshot(),
+                ))
+                return result
+
+        try:
+            synthesis = self.model.synthesize(text=request.text, intent=intent, evidence=evidence)
+        except Exception:
+            # A reservation intentionally remains charged on an unknown model failure.
+            # This is conservative: restarts or ambiguous provider errors cannot hide spend.
+            result = QueryResult(
+                requester_id=request.requester_id,
+                query=request.text,
+                intent=intent,
+                status=RunStatus.FAILED,
+                headline="Organizational synthesis unavailable",
+                answer="The evidence and permissions were resolved safely, but the model service did not return an answer. No person was interrupted and no unsafe fallback was attempted.",
+                route=route,
+                evidence=evidence,
+                confidence=0.0,
+                freshness_label=freshness_label(evidence, now),
+                people_interrupted=0,
+                policy_result="Model execution failed closed.",
+                security_findings=findings,
+                created_at=now,
+                completed_at=self.now_fn(),
+                model_name=self.model.model_name,
+                model_calls=self.model.expected_calls,
+            )
+            self.workspace.save_query_result(result)
+            self.workspace.append_audit(AuditEvent(
+                event_type="model.failed",
+                actor_id=request.requester_id,
+                entity_ids=["atlas"],
+                summary="Model synthesis failed closed after permission-filtered retrieval.",
+                created_at=now,
+                metadata={"model": self.model.model_name},
+            ))
+            return result
+
+        if reservation and self.usage_guard:
+            self.usage_guard.finalize(reservation, synthesis.usage)
         self.workspace.increment_stat("resolved_without_human")
         result = QueryResult(
             requester_id=request.requester_id,
@@ -241,7 +319,7 @@ class Orchestrator:
             intent=intent,
             status=RunStatus.ANSWERED,
             headline="Answered by the organization",
-            answer=answer,
+            answer=synthesis.text,
             route=route,
             evidence=evidence,
             confidence=min((sum(item.confidence for item in evidence) / max(1, len(evidence))), 0.99),
@@ -251,6 +329,11 @@ class Orchestrator:
             security_findings=findings,
             created_at=now,
             completed_at=self.now_fn(),
+            model_name=synthesis.usage.model_name,
+            model_calls=synthesis.usage.calls,
+            model_input_tokens=synthesis.usage.input_tokens,
+            model_output_tokens=synthesis.usage.output_tokens,
+            model_cached_input_tokens=synthesis.usage.cached_input_tokens,
         )
         self.workspace.save_query_result(result)
         self.workspace.append_audit(AuditEvent(
@@ -259,6 +342,13 @@ class Orchestrator:
             entity_ids=["atlas"],
             summary="Cross-department answer returned without interrupting a person.",
             created_at=now,
-            metadata={"route": [step.delegate_id for step in route], "evidence_ids": [item.id for item in evidence]},
+            metadata={
+                "route": [step.delegate_id for step in route],
+                "evidence_ids": [item.id for item in evidence],
+                "model": synthesis.usage.model_name,
+                "model_calls": synthesis.usage.calls,
+                "input_tokens": synthesis.usage.input_tokens,
+                "output_tokens": synthesis.usage.output_tokens,
+            },
         ))
         return result

@@ -17,8 +17,9 @@ dependencies = [
 [project.optional-dependencies]
 test = ["pytest>=8", "pytest-cov>=6"]
 google = [
-  "google-adk>=1.0",
+  "google-adk[gcp]>=2.6,<3",
   "google-cloud-firestore>=2.20",
+  "google-auth>=2.40",
   "google-cloud-pubsub>=2.28",
   "google-cloud-logging>=3.12",
   "opentelemetry-sdk>=1.30"
