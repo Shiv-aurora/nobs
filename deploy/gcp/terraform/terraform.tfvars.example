@@ -1,0 +1,28 @@
+project_id         = "your-noping-project"
+billing_account_id = "000000-000000-000000"
+region             = "us-central1"
+zone               = "us-central1-a"
+
+# Keep the default e2-small unless monitoring proves that the VM is swapping or OOM-killing.
+mattermost_machine_type = "e2-small"
+mattermost_disk_size_gb = 20
+mattermost_image        = "mattermost/mattermost-team-edition:11.10.1"
+mattermost_site_address = ":80"
+auto_shutdown_hour_utc  = 6
+
+# Stage 1: leave false, apply infrastructure, seed secrets, and push images.
+deploy_agent_service = false
+deploy_budget_guard  = false
+agent_image_uri       = ""
+budget_guard_image_uri = ""
+
+# Stage 2: set immutable image digests and enable both services.
+# agent_image_uri        = "us-central1-docker.pkg.dev/.../agent-service@sha256:..."
+# budget_guard_image_uri = "us-central1-docker.pkg.dev/.../budget-guard@sha256:..."
+# deploy_agent_service   = true
+# deploy_budget_guard    = true
+
+# First test the budget guard with dry-run. Change to false only after a signed Pub/Sub test succeeds.
+budget_guard_dry_run = true
+budget_amount_usd    = 25
+budget_stop_ratio    = 0.90

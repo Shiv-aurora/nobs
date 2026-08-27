@@ -24,3 +24,18 @@ coverage.xml
 .runtime/
 *.db
 *.sqlite3
+
+# Terraform local state and plans
+**/.terraform/
+**/.terraform.lock.hcl
+**/*.tfstate
+**/*.tfstate.*
+**/*.tfplan
+**/crash.log
+**/crash.*.log
+deploy/gcp/.images.env
+
+# Generated packages and archives
+*.tar.gz
+*.zip
+!docs/*.zip

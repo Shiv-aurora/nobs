@@ -1,10 +1,14 @@
-# Contribution map
+# Contribution Map
 
-| Area | Foundation | NoPing contribution |
+| Area | Foundation | Original NoPing contribution |
 |---|---|---|
-| Collaboration kernel | Mattermost Team Edition | AI-native default experience and Rooms fallback |
-| Plugin packaging | Mattermost starter conventions | NoPing manifest, server APIs, React application, hooks, configuration |
-| Identity | Mattermost users, teams, roles | Delegate identity, data scopes, authority and acting-approver rules |
-| Messaging | Mattermost posts/channels/DMs | Evidence ingestion and interruption avoidance |
-| AI runtime | None inherited | Routing, evidence synthesis, policy, escalation, memory, traces |
-| Cloud | None inherited | Google Cloud-only deployment and cost guardrails |
+| Collaboration kernel | official Mattermost Team Edition image | AI-native default experience and Rooms fallback |
+| Plugin scaffold | Mattermost plugin starter pinned at `3296cf6...` | new manifest, Go trust boundary/proxy, React product, routes, realtime hooks, packaging |
+| Identity | Mattermost users, teams, sessions | logical delegate identities, data scopes, authority and OOO delegation |
+| Communication | Mattermost rooms/posts/DMs | intent-first Ask, Needs You, evidence results, attention metrics |
+| Organizational intelligence | none inherited | entity graph, router, generic work-state projection, evidence retrieval |
+| Policy and safety | Mattermost RBAC substrate | pre-retrieval authorization, restricted-intent denial, human-only decisions, memory facts hash |
+| AI runtime | none inherited | Google ADK adapter, Gemini budget admission, Model Armor, orchestration, traces |
+| Eventing and state | none inherited | Pub/Sub OIDC, idempotent normalized events, Firestore adapter, audit |
+| Cloud deployment | none inherited | bounded Google Cloud Terraform, scripts, VM stack, private Cloud Run, cost guard |
+| Demo and validation | none inherited | seeded company, malicious source, authority scenario, tests, screenshots, four-minute script |

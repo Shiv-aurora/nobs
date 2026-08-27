@@ -6,7 +6,12 @@ command -v go >/dev/null || { echo "go is required" >&2; exit 1; }
 command -v npm >/dev/null || { echo "npm is required" >&2; exit 1; }
 
 if [[ ! -d webapp/node_modules ]]; then
-  npm --prefix webapp ci
+  if [[ -f webapp/package-lock.json ]]; then
+    npm --prefix webapp ci --no-audit --no-fund
+  else
+    echo "package-lock.json is not present yet; installing once and asking Codex to commit the generated lockfile." >&2
+    npm --prefix webapp install --no-audit --no-fund
+  fi
 fi
 # Ensure sums and modules are reproducible before packaging.
 go mod download

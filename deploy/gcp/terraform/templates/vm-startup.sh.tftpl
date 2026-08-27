@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+export DEBIAN_FRONTEND=noninteractive
+apt-get update
+apt-get install -y --no-install-recommends ca-certificates curl jq docker.io docker-compose-v2
+systemctl enable --now docker
+
+install -d -m 0750 /opt/noping
+
+if ! swapon --show | grep -q /swapfile; then
+  fallocate -l 1G /swapfile
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+
+cat >/etc/systemd/system/noping-compose.service <<'UNIT'
+[Unit]
+Description=NoPing Mattermost stack
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/noping
+ExecStart=/usr/bin/docker compose up -d
+ExecStop=/usr/bin/docker compose down
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+%{ if auto_shutdown_hour_utc >= 0 ~}
+cat >/etc/systemd/system/noping-daily-shutdown.service <<'UNIT'
+[Unit]
+Description=Stop the NoPing VM every day to cap idle spend
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/shutdown -h now
+UNIT
+
+cat >/etc/systemd/system/noping-daily-shutdown.timer <<'UNIT'
+[Unit]
+Description=Daily NoPing cost-control shutdown
+
+[Timer]
+OnCalendar=*-*-* ${format("%02d", auto_shutdown_hour_utc)}:00:00 UTC
+Persistent=false
+Unit=noping-daily-shutdown.service
+
+[Install]
+WantedBy=timers.target
+UNIT
+systemctl enable --now noping-daily-shutdown.timer
+%{ endif ~}
+
+systemctl daemon-reload
