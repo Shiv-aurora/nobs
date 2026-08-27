@@ -82,9 +82,8 @@ class WorkStateProjector:
         return states
 
     def ingest(self, event: WorkEvent) -> bool:
-        if event.id in self.workspace.work_events:
+        if not self.workspace.save_work_event(event):
             return False
-        self.workspace.work_events[event.id] = event
         user = self.workspace.users.get(event.actor_user_id)
         if user and event.event_type == "calendar.out_of_office.ended":
             user.availability.status = "available"

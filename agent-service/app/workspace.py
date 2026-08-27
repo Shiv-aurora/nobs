@@ -6,18 +6,20 @@ from pathlib import Path
 from threading import RLock
 from typing import Any
 
-from .models import Delegation, Decision, DecisionMemory, Evidence, Policy, Project, Team, User, WorkEvent, WorkItem
+from .models import AuditEvent, Decision, DecisionMemory, Evidence, Policy, Project, QueryResult, Team, User, WorkEvent, WorkItem, Delegation
+from .persistence.base import NullStateStore, StateStore
 
 
 class Workspace:
-    """Thread-safe demo persistence with the same contracts as the Firestore adapter."""
+    """Thread-safe organizational state with a pluggable durable runtime store."""
 
-    def __init__(self, source_path: Path):
+    def __init__(self, source_path: Path, state_store: StateStore | None = None):
         self.source_path = source_path
         self.lock = RLock()
-        self.reset()
+        self.state_store = state_store or NullStateStore()
+        self.reset(load_persisted=True)
 
-    def reset(self) -> None:
+    def reset(self, *, load_persisted: bool = True) -> None:
         payload = json.loads(self.source_path.read_text())
         with self.lock:
             self.organization: dict[str, Any] = payload["organization"]
@@ -31,8 +33,8 @@ class Workspace:
             self.work_events = {item["id"]: WorkEvent.model_validate(item) for item in payload["work_events"]}
             self.decisions: dict[str, Decision] = {}
             self.memories: dict[str, DecisionMemory] = {}
-            self.audit: list[Any] = []
-            self.query_results: dict[str, Any] = {}
+            self.audit: list[AuditEvent] = []
+            self.query_results: dict[str, QueryResult] = {}
             self.stats = {
                 "queries_total": 0,
                 "resolved_without_human": 0,
@@ -41,6 +43,49 @@ class Workspace:
                 "poisoned_sources_blocked": 0,
                 "cache_hits": 0,
             }
+            if load_persisted:
+                self.state_store.restore(self)
+
+    def reset_demo(self) -> None:
+        self.state_store.clear_dynamic()
+        self.reset(load_persisted=False)
+
+    def save_query_result(self, result: QueryResult) -> None:
+        with self.lock:
+            self.query_results[result.run_id] = result
+        self.state_store.put_query_result(result)
+
+    def save_decision(self, decision: Decision) -> None:
+        with self.lock:
+            self.decisions[decision.id] = decision
+        self.state_store.put_decision(decision)
+
+    def save_memory(self, memory: DecisionMemory) -> None:
+        with self.lock:
+            self.memories[memory.id] = memory
+        self.state_store.put_memory(memory)
+
+    def append_audit(self, event: AuditEvent) -> None:
+        with self.lock:
+            self.audit.append(event)
+        self.state_store.append_audit(event)
+
+    def save_work_event(self, event: WorkEvent) -> bool:
+        with self.lock:
+            if event.id in self.work_events:
+                return False
+            self.work_events[event.id] = event
+        self.state_store.put_work_event(event)
+        return True
+
+    def increment_stat(self, key: str, amount: int = 1) -> None:
+        with self.lock:
+            self.stats[key] = self.stats.get(key, 0) + amount
+            snapshot = self.stats.copy()
+        self.state_store.put_stats(snapshot)
+
+    def persist_stats(self) -> None:
+        self.state_store.put_stats(self.stats.copy())
 
     def snapshot(self) -> dict[str, Any]:
         with self.lock:

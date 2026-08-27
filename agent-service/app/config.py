@@ -10,6 +10,10 @@ class Settings:
     demo_mode: bool = True
     ai_enabled: bool = True
     service_signing_secret: str = "dev-only-secret"
+    persistence_backend: str = "memory"
+    google_cloud_project: str = ""
+    firestore_database: str = "(default)"
+    organization_id: str = "acme"
     workspace_path: Path = Path(__file__).resolve().parents[2] / "seed" / "demo_workspace.json"
     max_user_per_minute: int = 3
     max_user_per_hour: int = 20
@@ -29,6 +33,10 @@ class Settings:
             demo_mode=flag("NOPING_DEMO_MODE", True),
             ai_enabled=flag("NOPING_AI_ENABLED", True),
             service_signing_secret=os.getenv("NOPING_SERVICE_SIGNING_SECRET", "dev-only-secret"),
+            persistence_backend=os.getenv("NOPING_PERSISTENCE_BACKEND", "memory"),
+            google_cloud_project=os.getenv("GOOGLE_CLOUD_PROJECT", ""),
+            firestore_database=os.getenv("NOPING_FIRESTORE_DATABASE", "(default)"),
+            organization_id=os.getenv("NOPING_ORGANIZATION_ID", "acme"),
             workspace_path=Path(os.getenv("NOPING_WORKSPACE_PATH", str(cls.workspace_path))),
             max_user_per_minute=int(os.getenv("NOPING_MAX_USER_PER_MINUTE", "3")),
             max_user_per_hour=int(os.getenv("NOPING_MAX_USER_PER_HOUR", "20")),

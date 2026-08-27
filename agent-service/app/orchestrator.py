@@ -63,11 +63,11 @@ class Orchestrator:
         route = self.router.build_route(request.requester_id, request.text, intent)
         evidence, findings, denied = self.retriever.retrieve(request.requester_id, request.text, intent)
         facts_hash = self._facts_hash()
-        self.workspace.stats["queries_total"] += 1
+        self.workspace.increment_stat("queries_total")
 
         if findings:
-            self.workspace.stats["poisoned_sources_blocked"] += len(findings)
-            self.workspace.audit.append(AuditEvent(
+            self.workspace.increment_stat("poisoned_sources_blocked", len(findings))
+            self.workspace.append_audit(AuditEvent(
                 event_type="security.content_blocked",
                 actor_id=request.requester_id,
                 entity_ids=[finding.evidence_id for finding in findings],
@@ -77,7 +77,7 @@ class Orchestrator:
             ))
 
         if intent == Intent.RESTRICTED:
-            self.workspace.stats["restricted_requests_blocked"] += 1
+            self.workspace.increment_stat("restricted_requests_blocked")
             result = QueryResult(
                 requester_id=request.requester_id,
                 query=request.text,
@@ -95,8 +95,8 @@ class Orchestrator:
                 created_at=now,
                 completed_at=self.now_fn(),
             )
-            self.workspace.query_results[result.run_id] = result
-            self.workspace.audit.append(AuditEvent(
+            self.workspace.save_query_result(result)
+            self.workspace.append_audit(AuditEvent(
                 event_type="query.refused",
                 actor_id=request.requester_id,
                 entity_ids=["sarah", "people"],
@@ -109,8 +109,8 @@ class Orchestrator:
         if intent == Intent.DECISION:
             valid_memory = self.memory.find_valid(key, "atlas", facts_hash)
             if valid_memory:
-                self.workspace.stats["resolved_without_human"] += 1
-                self.workspace.stats["cache_hits"] += 1
+                self.workspace.increment_stat("resolved_without_human")
+                self.workspace.increment_stat("cache_hits")
                 decider = self.workspace.users[valid_memory.decided_by]
                 result = QueryResult(
                     requester_id=request.requester_id,
@@ -133,7 +133,7 @@ class Orchestrator:
                     completed_at=self.now_fn(),
                     cached=True,
                 )
-                self.workspace.query_results[result.run_id] = result
+                self.workspace.save_query_result(result)
                 return result
 
             authority = self.policy.resolve_authority("atlas_security_approval", "atlas")
@@ -156,7 +156,7 @@ class Orchestrator:
                     created_at=now,
                     completed_at=self.now_fn(),
                 )
-                self.workspace.query_results[result.run_id] = result
+                self.workspace.save_query_result(result)
                 return result
 
             existing = next((item for item in self.workspace.decisions.values() if item.canonical_key == key and item.status.value == "pending"), None)
@@ -181,9 +181,9 @@ class Orchestrator:
                     due_at=now + timedelta(hours=2),
                     facts_hash=facts_hash,
                 )
-                self.workspace.decisions[decision.id] = decision
-                self.workspace.stats["human_interruptions"] += 1
-                self.workspace.audit.append(AuditEvent(
+                self.workspace.save_decision(decision)
+                self.workspace.increment_stat("human_interruptions")
+                self.workspace.append_audit(AuditEvent(
                     event_type="decision.created",
                     actor_id=request.requester_id,
                     entity_ids=[decision.id, decision.assignee_id, "atlas"],
@@ -209,7 +209,7 @@ class Orchestrator:
                 created_at=now,
                 completed_at=self.now_fn(),
             )
-            self.workspace.query_results[result.run_id] = result
+            self.workspace.save_query_result(result)
             return result
 
         if not self.ai_enabled:
@@ -230,11 +230,11 @@ class Orchestrator:
                 created_at=now,
                 completed_at=self.now_fn(),
             )
-            self.workspace.query_results[result.run_id] = result
+            self.workspace.save_query_result(result)
             return result
 
         answer = self.model.synthesize(text=request.text, intent=intent, evidence=evidence)
-        self.workspace.stats["resolved_without_human"] += 1
+        self.workspace.increment_stat("resolved_without_human")
         result = QueryResult(
             requester_id=request.requester_id,
             query=request.text,
@@ -252,8 +252,8 @@ class Orchestrator:
             created_at=now,
             completed_at=self.now_fn(),
         )
-        self.workspace.query_results[result.run_id] = result
-        self.workspace.audit.append(AuditEvent(
+        self.workspace.save_query_result(result)
+        self.workspace.append_audit(AuditEvent(
             event_type="query.answered",
             actor_id=request.requester_id,
             entity_ids=["atlas"],

@@ -112,8 +112,9 @@ def resolve_decision(
     decision.resolved_at = now
     decision.resolved_by = payload.actor_id
     decision.rationale = payload.rationale
+    services.workspace.save_decision(decision)
     memory = services.memory.remember(decision)
-    services.workspace.audit.append(AuditEvent(
+    services.workspace.append_audit(AuditEvent(
         event_type="decision.resolved",
         actor_id=payload.actor_id,
         entity_ids=[decision.id, memory.id, "atlas"],
@@ -144,7 +145,7 @@ def ingest_event(event: WorkEvent, services: Services = Depends(get_services)):
 def reset_demo(services: Services = Depends(get_services)):
     if not services.settings.demo_mode:
         raise HTTPException(status_code=403, detail="Demo reset is disabled")
-    services.workspace.reset()
+    services.workspace.reset_demo()
     services.rate_limiter.reset()
     return {"status": "reset"}
 

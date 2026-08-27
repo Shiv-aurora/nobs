@@ -7,6 +7,7 @@ from .config import Settings
 from .evidence import EvidenceRetriever
 from .memory import DecisionMemoryStore
 from .orchestrator import Orchestrator
+from .persistence import StateStore, build_state_store
 from .policy import PolicyEngine
 from .rate_limit import RateLimiter
 from .registry import DelegateRegistry
@@ -22,10 +23,11 @@ def default_now() -> datetime:
 
 
 class Services:
-    def __init__(self, settings: Settings | None = None, now_fn=default_now):
+    def __init__(self, settings: Settings | None = None, now_fn=default_now, state_store: StateStore | None = None):
         self.settings = settings or Settings.from_env()
         self.now_fn = now_fn
-        self.workspace = Workspace(self.settings.workspace_path)
+        self.state_store = state_store or build_state_store(self.settings)
+        self.workspace = Workspace(self.settings.workspace_path, state_store=self.state_store)
         self.policy = PolicyEngine(self.workspace, now_fn)
         self.scanner = ContentSecurityScanner()
         self.retriever = EvidenceRetriever(self.workspace, self.policy, self.scanner)

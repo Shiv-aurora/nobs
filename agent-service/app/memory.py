@@ -37,5 +37,5 @@ class DecisionMemoryStore:
             created_at=self.now_fn(),
             expires_at=self.now_fn() + timedelta(hours=24),
         )
-        self.workspace.memories[memory.id] = memory
+        self.workspace.save_memory(memory)
         return memory
