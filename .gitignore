@@ -1,0 +1,26 @@
+# Build output
+dist/
+**/dist/
+**/build/
+**/.pytest_cache/
+**/__pycache__/
+**/*.pyc
+**/node_modules/
+**/.coverage
+coverage.xml
+
+# Local configuration
+.env
+.env.*
+!.env.example
+*.local
+
+# IDE / OS
+.DS_Store
+.idea/
+.vscode/
+
+# Runtime data
+.runtime/
+*.db
+*.sqlite3

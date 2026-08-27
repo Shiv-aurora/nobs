@@ -1,0 +1,46 @@
+{
+  "id": "com.noping.enterprise",
+  "name": "NoPing",
+  "description": "AI-native organizational communication for Mattermost.",
+  "homepage_url": "https://github.com/shiv-aurora/noping",
+  "support_url": "https://github.com/shiv-aurora/noping/issues",
+  "icon_path": "assets/noping-icon.svg",
+  "min_server_version": "10.5.0",
+  "server": {
+    "executables": {
+      "linux-amd64": "server/dist/plugin-linux-amd64",
+      "linux-arm64": "server/dist/plugin-linux-arm64",
+      "darwin-amd64": "server/dist/plugin-darwin-amd64",
+      "darwin-arm64": "server/dist/plugin-darwin-arm64",
+      "windows-amd64": "server/dist/plugin-windows-amd64.exe"
+    }
+  },
+  "webapp": {
+    "bundle_path": "webapp/dist/main.js"
+  },
+  "settings_schema": {
+    "header": "NoPing connects Mattermost to the permission-aware organizational agent runtime.",
+    "footer": "Use Demo Mode until the Google Cloud agent service is deployed.",
+    "settings": [
+      {
+        "key": "AgentServiceURL",
+        "display_name": "Agent service URL",
+        "type": "text",
+        "help_text": "Authenticated Cloud Run URL for the NoPing agent service."
+      },
+      {
+        "key": "ServiceSigningSecret",
+        "display_name": "Service signing secret",
+        "type": "generated",
+        "help_text": "HMAC secret shared with the agent service."
+      },
+      {
+        "key": "DemoMode",
+        "display_name": "Demo mode",
+        "type": "bool",
+        "default": true,
+        "help_text": "Use deterministic seeded responses while Google services are disconnected."
+      }
+    ]
+  }
+}
