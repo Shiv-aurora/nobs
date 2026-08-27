@@ -25,9 +25,9 @@ resource "google_billing_budget" "noping" {
   }
 
   all_updates_rule {
-    pubsub_topic                   = google_pubsub_topic.budget_updates.id
-    schema_version                 = "1.0"
-    disable_default_iam_recipients = false
+    pubsub_topic                    = google_pubsub_topic.budget_updates.id
+    schema_version                  = "1.0"
+    disable_default_iam_recipients  = false
     enable_project_level_recipients = true
   }
 }

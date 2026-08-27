@@ -26,3 +26,4 @@ seed_if_empty "$(tf_output service_signing_secret_id)" 32
 seed_if_empty "$(tf_output postgres_password_secret_id)" 24
 seed_if_empty "$(tf_output mattermost_admin_password_secret_id)" 16
 seed_if_empty "$(tf_output demo_user_password_secret_id)" 12
+seed_if_empty "$(tf_output github_webhook_secret_id)" 32

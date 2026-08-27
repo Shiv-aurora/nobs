@@ -23,9 +23,18 @@ SIGNING_SECRET="$(gcloud secrets versions access latest --secret="$(tf_output se
 POSTGRES_PASSWORD="$(gcloud secrets versions access latest --secret="$(tf_output postgres_password_secret_id)" --project="${PROJECT_ID}")"
 ADMIN_PASSWORD="$(gcloud secrets versions access latest --secret="$(tf_output mattermost_admin_password_secret_id)" --project="${PROJECT_ID}")"
 DEMO_PASSWORD="$(gcloud secrets versions access latest --secret="$(tf_output demo_user_password_secret_id)" --project="${PROJECT_ID}")"
+GITHUB_WEBHOOK_SECRET="$(gcloud secrets versions access latest --secret="$(tf_output github_webhook_secret_id)" --project="${PROJECT_ID}")"
+CALENDAR_CREDENTIALS_JSON="$(gcloud secrets versions access latest --secret="$(tf_output google_calendar_credentials_secret_id)" --project="${PROJECT_ID}")"
+CALENDAR_CREDENTIALS_B64="$(printf '%s' "${CALENDAR_CREDENTIALS_JSON}" | base64 | tr -d '\n')"
+GITHUB_IDENTITY_MAP="$(tf_output github_identity_map_json)"
+GITHUB_REPOSITORY_MAP="$(tf_output github_repository_map_json)"
+CALENDAR_IDENTITY_MAP="$(tf_output google_calendar_identity_map_json)"
+[[ "${GITHUB_IDENTITY_MAP}" != "{}" ]] || { echo "Configure github_identity_map_json in terraform.tfvars" >&2; exit 1; }
+[[ "${GITHUB_REPOSITORY_MAP}" != "{}" ]] || { echo "Configure github_repository_map_json in terraform.tfvars" >&2; exit 1; }
+[[ "${CALENDAR_IDENTITY_MAP}" != "{}" ]] || { echo "Configure google_calendar_identity_map_json in terraform.tfvars" >&2; exit 1; }
 
 TMP_DIR="$(mktemp -d)"
-trap 'rm -rf "${TMP_DIR}"; unset SIGNING_SECRET POSTGRES_PASSWORD ADMIN_PASSWORD DEMO_PASSWORD' EXIT
+trap 'rm -rf "${TMP_DIR}"; unset SIGNING_SECRET POSTGRES_PASSWORD ADMIN_PASSWORD DEMO_PASSWORD GITHUB_WEBHOOK_SECRET CALENDAR_CREDENTIALS_JSON CALENDAR_CREDENTIALS_B64 GITHUB_IDENTITY_MAP GITHUB_REPOSITORY_MAP CALENDAR_IDENTITY_MAP' EXIT
 install -d -m 0700 "${TMP_DIR}/plugin-bundle"
 cp "${GCP_DIR}/vm/docker-compose.yml" "${TMP_DIR}/docker-compose.yml"
 cp "${GCP_DIR}/vm/Caddyfile" "${TMP_DIR}/Caddyfile"
@@ -41,6 +50,15 @@ NOPING_AGENT_SERVICE_URL=${AGENT_URL}
 NOPING_CLOUD_RUN_AUDIENCE=${AGENT_URL}
 POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 NOPING_SERVICE_SIGNING_SECRET=${SIGNING_SECRET}
+GOOGLE_CLOUD_PROJECT=${PROJECT_ID}
+NOPING_PUBSUB_TOPIC=noping-work-events
+NOPING_GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET}
+NOPING_GITHUB_IDENTITY_MAP=${GITHUB_IDENTITY_MAP}
+NOPING_GITHUB_REPOSITORY_MAP=${GITHUB_REPOSITORY_MAP}
+NOPING_GOOGLE_CALENDAR_CREDENTIALS_B64=${CALENDAR_CREDENTIALS_B64}
+NOPING_GOOGLE_CALENDAR_IDENTITY_MAP=${CALENDAR_IDENTITY_MAP}
+NOPING_GOOGLE_CALENDAR_ID=primary
+NOPING_GOOGLE_CALENDAR_POLL_MINUTES=5
 EOF
 cat >"${TMP_DIR}/.bootstrap-secrets" <<EOF
 MATTERMOST_ADMIN_PASSWORD=${ADMIN_PASSWORD}

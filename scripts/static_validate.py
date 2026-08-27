@@ -121,7 +121,7 @@ def check_cost_and_security_contract() -> None:
         fail("Mattermost VM must default to e2-small")
     if 'contains(["e2-small", "e2-medium"]' not in variables:
         fail("VM type validation must restrict deployments to e2-small/e2-medium")
-    if 'type  = "pd-standard"' not in compute:
+    if not re.search(r'type\s*=\s*"pd-standard"', compute):
         fail("Mattermost disk must use pd-standard")
     if 'point_in_time_recovery_enablement = "POINT_IN_TIME_RECOVERY_DISABLED"' not in firestore:
         fail("Firestore PITR must remain disabled in the hackathon cost profile")

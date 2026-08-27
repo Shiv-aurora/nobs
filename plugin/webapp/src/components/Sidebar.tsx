@@ -2,12 +2,14 @@ import React from 'react';
 
 import {AuditIcon, HomeIcon, InboxIcon, NetworkIcon, PeopleIcon, ProjectIcon, RoomIcon, SearchIcon, ShieldIcon} from './icons';
 import {Logo} from './Logo';
+import {sitePath} from '../utils/navigation';
 
 export type View = 'home' | 'ask' | 'needs' | 'projects' | 'people' | 'registry' | 'audit' | 'system';
 
 interface Props {
     active: View;
     needsCount: number;
+    organizationID: string;
     onNavigate: (view: View) => void;
 }
 
@@ -22,7 +24,7 @@ const items: Array<{id: View; label: string; icon: React.ReactNode}> = [
     {id: 'system', label: 'Agent operations', icon: <ShieldIcon size={19}/>},
 ];
 
-export function Sidebar({active, needsCount, onNavigate}: Props): JSX.Element {
+export function Sidebar({active, needsCount, organizationID, onNavigate}: Props): JSX.Element {
     return (
         <aside className='np-sidebar'>
             <Logo/>
@@ -41,7 +43,7 @@ export function Sidebar({active, needsCount, onNavigate}: Props): JSX.Element {
                 ))}
             </nav>
             <div className='np-sidebar-spacer'/>
-            <a className='np-rooms-link' href='/channels/town-square'>
+            <a className='np-rooms-link' href={sitePath(`/${organizationID}/channels/town-square`)}>
                 <RoomIcon/>
                 <span><strong>Rooms</strong><small>Human conversation</small></span>
             </a>

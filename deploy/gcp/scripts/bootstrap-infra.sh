@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 source "$(dirname "$0")/common.sh"
+require_command gcloud
 require_command terraform
 require_tfvars
+
+# The provider bills quota to the target project. These two bootstrap APIs must
+# therefore exist before Terraform can inspect or manage the remaining APIs.
+PROJECT_ID="$(sed -nE 's/^project_id[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' "${TFVARS_FILE}" | head -1)"
+gcloud services enable serviceusage.googleapis.com cloudresourcemanager.googleapis.com --project="${PROJECT_ID}"
 
 terraform -chdir="${TF_DIR}" init -upgrade
 terraform -chdir="${TF_DIR}" fmt -recursive

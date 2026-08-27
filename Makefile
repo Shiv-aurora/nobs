@@ -15,7 +15,7 @@ test-go:
 	cd plugin && go test ./internal/...
 
 typecheck:
-	tsc -p plugin/webapp/tsconfig.sandbox.json --noEmit
+	npm --prefix plugin/webapp run typecheck
 
 static:
 	python scripts/static_validate.py

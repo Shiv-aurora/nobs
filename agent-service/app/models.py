@@ -259,6 +259,7 @@ class QueryResult(BaseModel):
 
 
 class BootstrapResponse(BaseModel):
+    organization_id: str
     current_user: User
     projects: list[Project]
     needs_you: list[Decision]

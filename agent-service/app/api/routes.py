@@ -52,6 +52,7 @@ def bootstrap(
         "interruption_avoidance_rate": round(100 * stats["resolved_without_human"] / total, 1),
     }
     return BootstrapResponse(
+        organization_id=str(services.workspace.organization["id"]),
         current_user=services.workspace.users[user_id],
         projects=list(services.workspace.projects.values()),
         needs_you=decisions,

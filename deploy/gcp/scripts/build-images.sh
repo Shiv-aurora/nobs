@@ -10,19 +10,20 @@ PROJECT_ID="$(gcloud config get-value project)"
 REPOSITORY="$(tf_output artifact_registry_repository)"
 GIT_SHA="$(git -C "${REPO_ROOT}" rev-parse --short=12 HEAD)"
 REGISTRY="${REGION}-docker.pkg.dev"
+TARGET_PLATFORM="${TARGET_PLATFORM:-linux/amd64}"
 AGENT_TAG="${REGISTRY}/${PROJECT_ID}/${REPOSITORY}/agent-service:${GIT_SHA}"
 GUARD_TAG="${REGISTRY}/${PROJECT_ID}/${REPOSITORY}/budget-guard:${GIT_SHA}"
 
 gcloud auth configure-docker "${REGISTRY}" --quiet
 
-docker build --build-arg INSTALL_GOOGLE=true -f "${REPO_ROOT}/agent-service/Dockerfile" -t "${AGENT_TAG}" "${REPO_ROOT}"
+docker build --platform "${TARGET_PLATFORM}" --build-arg INSTALL_GOOGLE=true -f "${REPO_ROOT}/agent-service/Dockerfile" -t "${AGENT_TAG}" "${REPO_ROOT}"
 docker push "${AGENT_TAG}"
-docker pull "${AGENT_TAG}" >/dev/null
+docker pull --platform "${TARGET_PLATFORM}" "${AGENT_TAG}" >/dev/null
 AGENT_IMAGE_URI="$(docker inspect --format='{{index .RepoDigests 0}}' "${AGENT_TAG}")"
 
-docker build -t "${GUARD_TAG}" "${REPO_ROOT}/deploy/gcp/budget-guard"
+docker build --platform "${TARGET_PLATFORM}" -t "${GUARD_TAG}" "${REPO_ROOT}/deploy/gcp/budget-guard"
 docker push "${GUARD_TAG}"
-docker pull "${GUARD_TAG}" >/dev/null
+docker pull --platform "${TARGET_PLATFORM}" "${GUARD_TAG}" >/dev/null
 BUDGET_GUARD_IMAGE_URI="$(docker inspect --format='{{index .RepoDigests 0}}' "${GUARD_TAG}")"
 
 umask 077

@@ -53,6 +53,37 @@
         "type": "bool",
         "default": true,
         "help_text": "Use deterministic seeded responses while Google services are disconnected."
+      },
+      {
+        "key": "GitHubWebhookSecret",
+        "display_name": "GitHub webhook secret",
+        "type": "generated",
+        "help_text": "HMAC secret used to authenticate GitHub webhook deliveries. Production deployments inject this from Secret Manager."
+      },
+      {
+        "key": "GitHubIdentityMap",
+        "display_name": "GitHub identity map",
+        "type": "text",
+        "help_text": "JSON mapping of GitHub logins to NoPing user IDs, for example {\"octocat\":\"maya\"}."
+      },
+      {
+        "key": "GitHubRepositoryMap",
+        "display_name": "GitHub repository map",
+        "type": "text",
+        "help_text": "JSON mapping of full repository names to NoPing entity IDs."
+      },
+      {
+        "key": "GoogleCloudProject",
+        "display_name": "Google Cloud project",
+        "type": "text",
+        "help_text": "Project containing the private NoPing Pub/Sub work-event topic."
+      },
+      {
+        "key": "PubSubTopic",
+        "display_name": "Pub/Sub work-event topic",
+        "type": "text",
+        "default": "noping-work-events",
+        "help_text": "Topic receiving normalized connector events."
       }
     ]
   },

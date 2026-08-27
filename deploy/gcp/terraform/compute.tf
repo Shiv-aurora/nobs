@@ -10,9 +10,9 @@ resource "google_compute_instance" "mattermost" {
 
   boot_disk {
     initialize_params {
-      image = "projects/ubuntu-os-cloud/global/images/family/ubuntu-2404-lts-amd64"
-      size  = var.mattermost_disk_size_gb
-      type  = "pd-standard"
+      image  = "projects/ubuntu-os-cloud/global/images/family/ubuntu-2404-lts-amd64"
+      size   = var.mattermost_disk_size_gb
+      type   = "pd-standard"
       labels = local.common_labels
     }
   }

@@ -46,6 +46,26 @@ output "demo_user_password_secret_id" {
   value = google_secret_manager_secret.demo_user_password.secret_id
 }
 
+output "github_webhook_secret_id" {
+  value = google_secret_manager_secret.github_webhook_secret.secret_id
+}
+
+output "google_calendar_credentials_secret_id" {
+  value = google_secret_manager_secret.google_calendar_credentials.secret_id
+}
+
+output "github_identity_map_json" {
+  value = var.github_identity_map_json
+}
+
+output "github_repository_map_json" {
+  value = var.github_repository_map_json
+}
+
+output "google_calendar_identity_map_json" {
+  value = var.google_calendar_identity_map_json
+}
+
 output "pubsub_push_service_account" {
   value = google_service_account.pubsub_push.email
 }

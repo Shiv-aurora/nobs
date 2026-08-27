@@ -26,3 +26,8 @@ budget_guard_image_uri = ""
 budget_guard_dry_run = true
 budget_amount_usd    = 25
 budget_stop_ratio    = 0.90
+
+# External identities are explicit and environment-specific. Never infer them.
+github_identity_map_json         = "{\"your-github-login\":\"maya\"}"
+github_repository_map_json       = "{\"your-org/noping\":[\"atlas\"]}"
+google_calendar_identity_map_json = "{\"person@example.com\":{\"user_id\":\"maya\",\"entity_ids\":[\"atlas\"]}}"

@@ -16,6 +16,9 @@ import (
 
 func (p *Plugin) initRouter() *mux.Router {
 	router := mux.NewRouter()
+	// GitHub cannot hold a Mattermost session; this endpoint is authenticated by
+	// the webhook HMAC before it can publish a normalized event.
+	router.HandleFunc("/connectors/github", p.handleGitHubWebhook).Methods(http.MethodPost)
 	api := router.PathPrefix("/api/v1").Subrouter()
 	api.Use(p.requireUser)
 	api.HandleFunc("/health", p.handleHealth).Methods(http.MethodGet)

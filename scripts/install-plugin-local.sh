@@ -8,6 +8,5 @@ BUNDLE="${1:-$ROOT_DIR/plugin/dist/com.noping.enterprise-0.1.0.tar.gz}"
 "${COMPOSE[@]}" cp "$BUNDLE" mattermost:/tmp/noping.tar.gz
 "${COMPOSE[@]}" exec -T mattermost mmctl --local plugin add /tmp/noping.tar.gz --force
 "${COMPOSE[@]}" exec -T mattermost mmctl --local plugin enable com.noping.enterprise
-"${COMPOSE[@]}" exec -T mattermost rm -f /tmp/noping.tar.gz
 
 echo "NoPing plugin installed and enabled"

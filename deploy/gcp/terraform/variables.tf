@@ -171,6 +171,30 @@ variable "gemini_model" {
   default     = "gemini-3.5-flash"
 }
 
+variable "gemini_location" {
+  type        = string
+  description = "Vertex AI endpoint location for the configured Gemini model."
+  default     = "global"
+}
+
+variable "github_identity_map_json" {
+  type        = string
+  description = "JSON mapping GitHub logins to NoPing user IDs for signed webhook events."
+  default     = "{}"
+}
+
+variable "github_repository_map_json" {
+  type        = string
+  description = "JSON mapping full GitHub repository names to NoPing entity ID arrays."
+  default     = "{}"
+}
+
+variable "google_calendar_identity_map_json" {
+  type        = string
+  description = "JSON mapping approved Calendar identities to privacy-minimal NoPing availability identities."
+  default     = "{}"
+}
+
 variable "labels" {
   type        = map(string)
   description = "Additional labels applied to supported resources."

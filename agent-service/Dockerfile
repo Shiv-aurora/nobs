@@ -4,18 +4,19 @@ ARG INSTALL_GOOGLE=false
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONHASHSEED=random \
+    NOPING_WORKSPACE_PATH=/app/seed/demo_workspace.json \
     PORT=8080
 WORKDIR /app
 
 COPY agent-service/pyproject.toml ./pyproject.toml
 COPY agent-service/app ./app
-COPY seed ./seed
 RUN python -m pip install --no-cache-dir --upgrade pip && \
     if [ "$INSTALL_GOOGLE" = "true" ]; then \
       python -m pip install --no-cache-dir ".[google]"; \
     else \
       python -m pip install --no-cache-dir .; \
     fi
+COPY seed ./seed
 
 RUN addgroup --system --gid 65532 noping && \
     adduser --system --uid 65532 --ingroup noping --home /nonexistent --no-create-home noping

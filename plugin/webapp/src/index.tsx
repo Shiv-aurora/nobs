@@ -53,3 +53,11 @@ export default class NoPingPlugin {
         });
     }
 }
+
+declare global {
+    interface Window {
+        registerPlugin(pluginID: string, plugin: NoPingPlugin): void;
+    }
+}
+
+window.registerPlugin('com.noping.enterprise', new NoPingPlugin());

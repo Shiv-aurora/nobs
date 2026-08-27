@@ -15,6 +15,8 @@ type Plugin struct {
 	router            *mux.Router
 	configurationLock sync.RWMutex
 	configuration     *configuration
+	calendarCancel    func()
+	calendarWG        sync.WaitGroup
 }
 
 func (p *Plugin) OnActivate() error {
@@ -23,5 +25,14 @@ func (p *Plugin) OnActivate() error {
 		return err
 	}
 	p.router = p.initRouter()
+	p.startCalendarPoller()
+	return nil
+}
+
+func (p *Plugin) OnDeactivate() error {
+	if p.calendarCancel != nil {
+		p.calendarCancel()
+		p.calendarWG.Wait()
+	}
 	return nil
 }

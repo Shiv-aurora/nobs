@@ -42,6 +42,28 @@ resource "google_secret_manager_secret" "demo_user_password" {
   depends_on = [google_project_service.required["secretmanager.googleapis.com"]]
 }
 
+resource "google_secret_manager_secret" "github_webhook_secret" {
+  secret_id = "${var.name_prefix}-github-webhook-secret"
+  labels    = local.common_labels
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required["secretmanager.googleapis.com"]]
+}
+
+resource "google_secret_manager_secret" "google_calendar_credentials" {
+  secret_id = "${var.name_prefix}-google-calendar-credentials"
+  labels    = local.common_labels
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required["secretmanager.googleapis.com"]]
+}
+
 resource "google_secret_manager_secret_iam_member" "agent_reads_signing_secret" {
   secret_id = google_secret_manager_secret.service_signing_secret.id
   role      = "roles/secretmanager.secretAccessor"

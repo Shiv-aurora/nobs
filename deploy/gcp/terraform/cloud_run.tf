@@ -43,7 +43,7 @@ resource "google_cloud_run_v2_service" "agent" {
       }
       env {
         name  = "GOOGLE_CLOUD_LOCATION"
-        value = var.region
+        value = var.gemini_location
       }
       env {
         name  = "GOOGLE_GENAI_USE_VERTEXAI"

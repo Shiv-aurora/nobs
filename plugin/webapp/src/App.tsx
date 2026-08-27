@@ -109,7 +109,7 @@ export function App(): JSX.Element {
 
     return (
         <div className='np-app'>
-            <Sidebar active={view} needsCount={bootstrap.needs_you.length} onNavigate={setView}/>
+            <Sidebar active={view} needsCount={bootstrap.needs_you.length} organizationID={bootstrap.organization_id} onNavigate={setView}/>
             <div className='np-main'>
                 <Topbar user={bootstrap.current_user} onReset={() => void reset()} resetting={resetting}/>
                 <main className='np-content'>

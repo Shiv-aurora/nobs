@@ -5,9 +5,11 @@ dist/
 **/.pytest_cache/
 **/__pycache__/
 **/*.pyc
+**/*.egg-info/
 **/node_modules/
 **/.coverage
 coverage.xml
+.venv/
 
 # Local configuration
 .env
@@ -27,13 +29,18 @@ coverage.xml
 
 # Terraform local state and plans
 **/.terraform/
-**/.terraform.lock.hcl
 **/*.tfstate
 **/*.tfstate.*
 **/*.tfplan
 **/crash.log
 **/crash.*.log
 deploy/gcp/.images.env
+deploy/gcp/terraform/terraform.tfvars
+
+# Browser test artifacts
+.playwright-cli/
+e2e/test-results/
+output/
 
 # Generated packages and archives
 *.tar.gz

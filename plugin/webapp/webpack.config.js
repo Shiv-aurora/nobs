@@ -11,7 +11,14 @@ module.exports = {
   resolve: {extensions: ['.ts', '.tsx', '.js']},
   module: {
     rules: [
-      {test: /\.tsx?$/, use: 'ts-loader', exclude: /node_modules/},
+      {
+        test: /\.tsx?$/,
+        use: {
+          loader: 'ts-loader',
+          options: {compilerOptions: {noEmit: false}},
+        },
+        exclude: /node_modules/,
+      },
       {test: /\.css$/, use: ['style-loader', 'css-loader']},
     ],
   },

@@ -12,14 +12,14 @@ echo '== Budget guard =='
   python -m pytest tests
 )
 
-echo '== Go deterministic core =='
+echo '== Go plugin and connector runtime =='
 (
   cd plugin
-  go test ./internal/...
+  GOCACHE="${TMPDIR:-/tmp}/noping-go-cache" go test ./...
 )
 
 echo '== Strict TypeScript =='
-tsc -p plugin/webapp/tsconfig.sandbox.json --noEmit
+npm --prefix plugin/webapp run typecheck
 
 echo '== Python compilation =='
 python -m compileall -q agent-service/app deploy/gcp/budget-guard seed scripts

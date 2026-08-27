@@ -26,11 +26,13 @@ resource "google_pubsub_topic" "budget_updates" {
 }
 
 resource "google_pubsub_topic_iam_member" "billing_budget_publishes_updates" {
-  topic  = google_pubsub_topic.budget_updates.name
-  role   = "roles/pubsub.publisher"
-  member = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-billingbudgets.iam.gserviceaccount.com"
+  topic = google_pubsub_topic.budget_updates.name
+  role  = "roles/pubsub.publisher"
+  # The Budget API grants this Google-managed system principal when a topic is
+  # connected. Manage the same narrow binding so subsequent plans verify it.
+  member = "serviceAccount:billing-budget-alert@system.gserviceaccount.com"
 
-  depends_on = [google_project_service.required["billingbudgets.googleapis.com"]]
+  depends_on = [google_billing_budget.noping]
 }
 
 resource "google_pubsub_topic_iam_member" "vm_publishes_work_events" {
@@ -42,8 +44,8 @@ resource "google_pubsub_topic_iam_member" "vm_publishes_work_events" {
 resource "google_pubsub_subscription" "work_events_push" {
   count = var.deploy_agent_service ? 1 : 0
 
-  name  = "${var.name_prefix}-work-events-push"
-  topic = google_pubsub_topic.work_events.id
+  name   = "${var.name_prefix}-work-events-push"
+  topic  = google_pubsub_topic.work_events.id
   labels = local.common_labels
 
   ack_deadline_seconds       = 120

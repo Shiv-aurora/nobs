@@ -7,11 +7,20 @@ import (
 )
 
 type configuration struct {
-	AgentServiceURL      string
-	ServiceSigningSecret string
-	UseGoogleIdentity    bool
-	CloudRunAudience     string
-	DemoMode             bool
+	AgentServiceURL              string
+	ServiceSigningSecret         string
+	UseGoogleIdentity            bool
+	CloudRunAudience             string
+	DemoMode                     bool
+	GitHubWebhookSecret          string
+	GitHubIdentityMap            string
+	GitHubRepositoryMap          string
+	GoogleCloudProject           string
+	PubSubTopic                  string
+	GoogleCalendarCredentialsB64 string
+	GoogleCalendarIdentityMap    string
+	GoogleCalendarID             string
+	GoogleCalendarPollMinutes    string
 }
 
 func (c *configuration) clone() *configuration {
@@ -44,6 +53,33 @@ func (c *configuration) applyEnvironment() {
 	if value := strings.TrimSpace(os.Getenv("NOPING_DEMO_MODE")); value != "" {
 		c.DemoMode = parseBool(value, c.DemoMode)
 	}
+	if value := strings.TrimSpace(os.Getenv("NOPING_GITHUB_WEBHOOK_SECRET")); value != "" {
+		c.GitHubWebhookSecret = value
+	}
+	if value := strings.TrimSpace(os.Getenv("NOPING_GITHUB_IDENTITY_MAP")); value != "" {
+		c.GitHubIdentityMap = value
+	}
+	if value := strings.TrimSpace(os.Getenv("NOPING_GITHUB_REPOSITORY_MAP")); value != "" {
+		c.GitHubRepositoryMap = value
+	}
+	if value := strings.TrimSpace(os.Getenv("GOOGLE_CLOUD_PROJECT")); value != "" {
+		c.GoogleCloudProject = value
+	}
+	if value := strings.TrimSpace(os.Getenv("NOPING_PUBSUB_TOPIC")); value != "" {
+		c.PubSubTopic = value
+	}
+	if value := strings.TrimSpace(os.Getenv("NOPING_GOOGLE_CALENDAR_CREDENTIALS_B64")); value != "" {
+		c.GoogleCalendarCredentialsB64 = value
+	}
+	if value := strings.TrimSpace(os.Getenv("NOPING_GOOGLE_CALENDAR_IDENTITY_MAP")); value != "" {
+		c.GoogleCalendarIdentityMap = value
+	}
+	if value := strings.TrimSpace(os.Getenv("NOPING_GOOGLE_CALENDAR_ID")); value != "" {
+		c.GoogleCalendarID = value
+	}
+	if value := strings.TrimSpace(os.Getenv("NOPING_GOOGLE_CALENDAR_POLL_MINUTES")); value != "" {
+		c.GoogleCalendarPollMinutes = value
+	}
 }
 
 func parseBool(value string, fallback bool) bool {
@@ -68,6 +104,15 @@ func (c *configuration) setDefaults() {
 	if c.UseGoogleIdentity && strings.TrimSpace(c.CloudRunAudience) == "" {
 		c.CloudRunAudience = c.AgentServiceURL
 	}
+	if strings.TrimSpace(c.PubSubTopic) == "" {
+		c.PubSubTopic = "noping-work-events"
+	}
+	if strings.TrimSpace(c.GoogleCalendarID) == "" {
+		c.GoogleCalendarID = "primary"
+	}
+	if strings.TrimSpace(c.GoogleCalendarPollMinutes) == "" {
+		c.GoogleCalendarPollMinutes = "5"
+	}
 }
 
 func (c *configuration) validate() error {
@@ -77,6 +122,32 @@ func (c *configuration) validate() error {
 	}
 	if c.UseGoogleIdentity && !strings.HasPrefix(strings.TrimSpace(c.CloudRunAudience), "https://") {
 		return errors.New("CloudRunAudience must be an HTTPS URL when Google identity is enabled")
+	}
+	if strings.TrimSpace(c.GitHubWebhookSecret) != "" {
+		if len(c.GitHubWebhookSecret) < 32 {
+			return errors.New("GitHubWebhookSecret must be at least 32 characters")
+		}
+		if strings.TrimSpace(c.GoogleCloudProject) == "" || strings.TrimSpace(c.GitHubIdentityMap) == "" {
+			return errors.New("GoogleCloudProject and GitHubIdentityMap are required when GitHub webhooks are enabled")
+		}
+		if _, err := parseIdentityMap(c.GitHubIdentityMap); err != nil {
+			return err
+		}
+		if _, err := parseRepositoryMap(c.GitHubRepositoryMap); err != nil {
+			return err
+		}
+	}
+	if strings.TrimSpace(c.GoogleCalendarCredentialsB64) != "" {
+		if strings.TrimSpace(c.GoogleCloudProject) == "" || strings.TrimSpace(c.GoogleCalendarIdentityMap) == "" {
+			return errors.New("GoogleCloudProject and GoogleCalendarIdentityMap are required when Calendar sync is enabled")
+		}
+		if _, err := newCalendarTokenSource(c.GoogleCalendarCredentialsB64); err != nil {
+			return err
+		}
+		identities, err := parseCalendarIdentityMap(c.GoogleCalendarIdentityMap)
+		if err != nil || len(identities) == 0 {
+			return errors.New("GoogleCalendarIdentityMap must contain at least one valid identity")
+		}
 	}
 	return nil
 }

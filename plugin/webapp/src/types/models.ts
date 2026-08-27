@@ -126,6 +126,7 @@ export interface SemanticWorkState {
 }
 
 export interface BootstrapResponse {
+    organization_id: string;
     current_user: User;
     projects: Project[];
     needs_you: Decision[];
