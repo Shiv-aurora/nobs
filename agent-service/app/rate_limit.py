@@ -53,3 +53,10 @@ class RateLimiter:
     def release(self) -> None:
         with self.lock:
             self.active_runs = max(0, self.active_runs - 1)
+
+    def reset(self) -> None:
+        """Clear counters only for an explicit demo reset."""
+        with self.lock:
+            self.user_events.clear()
+            self.org_events.clear()
+            self.active_runs = 0

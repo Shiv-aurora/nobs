@@ -142,7 +142,10 @@ def ingest_event(event: WorkEvent, services: Services = Depends(get_services)):
 
 @router.post("/v1/demo/reset")
 def reset_demo(services: Services = Depends(get_services)):
+    if not services.settings.demo_mode:
+        raise HTTPException(status_code=403, detail="Demo reset is disabled")
     services.workspace.reset()
+    services.rate_limiter.reset()
     return {"status": "reset"}
 
 

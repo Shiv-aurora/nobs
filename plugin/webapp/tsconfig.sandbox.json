@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "typeRoots": ["./sandbox-types"],
+    "types": []
+  },
+  "include": ["sandbox-types/**/*.d.ts", "src/**/*.ts", "src/**/*.tsx"]
+}

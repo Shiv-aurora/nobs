@@ -13,20 +13,28 @@ type configuration struct {
 
 func (c *configuration) clone() *configuration {
 	if c == nil {
-		return &configuration{DemoMode: true}
+		return &configuration{
+			AgentServiceURL:      "http://agent-service:8080",
+			ServiceSigningSecret: "dev-only-secret",
+			DemoMode:             true,
+		}
 	}
 	copy := *c
 	return &copy
 }
 
-func (c *configuration) validate() error {
-	if c.DemoMode {
-		return nil
-	}
+func (c *configuration) setDefaults() {
 	if strings.TrimSpace(c.AgentServiceURL) == "" {
-		return errors.New("AgentServiceURL is required when DemoMode is disabled")
+		c.AgentServiceURL = "http://agent-service:8080"
 	}
-	if strings.TrimSpace(c.ServiceSigningSecret) == "" {
+	if strings.TrimSpace(c.ServiceSigningSecret) == "" && c.DemoMode {
+		c.ServiceSigningSecret = "dev-only-secret"
+	}
+}
+
+func (c *configuration) validate() error {
+	c.setDefaults()
+	if !c.DemoMode && strings.TrimSpace(c.ServiceSigningSecret) == "" {
 		return errors.New("ServiceSigningSecret is required when DemoMode is disabled")
 	}
 	return nil

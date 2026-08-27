@@ -1,0 +1,9 @@
+{
+  "version": "v1",
+  "secret": "shared-test-secret",
+  "timestamp": "1787850000",
+  "method": "POST",
+  "target": "/v1/query?trace=true",
+  "body": "{\"requester_id\":\"maya\",\"text\":\"Why is Atlas delayed?\"}",
+  "signature": "4f795a00c16e608dd833fc09f09a59b23cc7b4335868a9f69263df73b3d7575b"
+}

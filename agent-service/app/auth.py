@@ -3,18 +3,44 @@ from __future__ import annotations
 import hashlib
 import hmac
 import time
+from dataclasses import dataclass
+from typing import Any, Awaitable, Callable
+
+from starlette.responses import JSONResponse
 
 
+SIGNATURE_VERSION = "v1"
+
+
+@dataclass(frozen=True)
 class SignatureVerifier:
-    def __init__(self, secret: str, demo_mode: bool, max_skew_seconds: int = 300):
-        self.secret = secret.encode()
-        self.demo_mode = demo_mode
-        self.max_skew_seconds = max_skew_seconds
+    secret: str
+    demo_mode: bool
+    max_skew_seconds: int = 300
 
-    def verify(self, body: bytes, timestamp: str | None, signature: str | None) -> bool:
-        if self.demo_mode and not timestamp and not signature:
+    @staticmethod
+    def canonical_message(timestamp: str, method: str, target: str, body: bytes) -> bytes:
+        prefix = f"{SIGNATURE_VERSION}\n{timestamp}\n{method.upper()}\n{target}\n".encode()
+        return prefix + body
+
+    def sign(self, timestamp: str, method: str, target: str, body: bytes) -> str:
+        message = self.canonical_message(timestamp, method, target, body)
+        return hmac.new(self.secret.encode(), message, hashlib.sha256).hexdigest()
+
+    def verify(
+        self,
+        *,
+        body: bytes,
+        timestamp: str | None,
+        signature: str | None,
+        version: str | None,
+        method: str,
+        target: str,
+    ) -> bool:
+        # Local UI and test harnesses remain frictionless in explicit demo mode.
+        if self.demo_mode and not timestamp and not signature and not version:
             return True
-        if not timestamp or not signature:
+        if version != SIGNATURE_VERSION or not timestamp or not signature:
             return False
         try:
             ts = int(timestamp)
@@ -22,6 +48,76 @@ class SignatureVerifier:
             return False
         if abs(int(time.time()) - ts) > self.max_skew_seconds:
             return False
-        message = timestamp.encode() + b"." + body
-        expected = hmac.new(self.secret, message, hashlib.sha256).hexdigest()
+        expected = self.sign(timestamp, method, target, body)
         return hmac.compare_digest(expected, signature)
+
+
+class SignedServiceMiddleware:
+    """Authenticates Mattermost plugin-to-agent-service requests.
+
+    This is a pure ASGI middleware so request bodies are buffered once and then
+    replayed exactly to FastAPI. Signatures bind the HTTP method and request
+    target in addition to the body, preventing cross-endpoint replay.
+    """
+
+    def __init__(self, app: Any, verifier: SignatureVerifier):
+        self.app = app
+        self.verifier = verifier
+
+    async def __call__(
+        self,
+        scope: dict[str, Any],
+        receive: Callable[[], Awaitable[dict[str, Any]]],
+        send: Callable[[dict[str, Any]], Awaitable[None]],
+    ) -> None:
+        if scope.get("type") != "http" or scope.get("method") == "OPTIONS":
+            await self.app(scope, receive, send)
+            return
+
+        chunks: list[bytes] = []
+        more_body = True
+        while more_body:
+            message = await receive()
+            if message.get("type") == "http.disconnect":
+                await self.app(scope, receive, send)
+                return
+            chunks.append(message.get("body", b""))
+            more_body = bool(message.get("more_body", False))
+        body = b"".join(chunks)
+
+        headers = {key.lower(): value for key, value in scope.get("headers", [])}
+        raw_path = scope.get("raw_path") or scope.get("path", "").encode()
+        query = scope.get("query_string", b"")
+        target = raw_path.decode("latin-1") + ("?" + query.decode("latin-1") if query else "")
+
+        valid = self.verifier.verify(
+            body=body,
+            timestamp=_decode_header(headers.get(b"x-noping-timestamp")),
+            signature=_decode_header(headers.get(b"x-noping-signature")),
+            version=_decode_header(headers.get(b"x-noping-signature-version")),
+            method=scope.get("method", "GET"),
+            target=target,
+        )
+        if not valid:
+            response = JSONResponse(
+                status_code=401,
+                content={"detail": "Invalid or expired NoPing service signature"},
+                headers={"WWW-Authenticate": "NoPing-HMAC"},
+            )
+            await response(scope, receive, send)
+            return
+
+        delivered = False
+
+        async def replay_receive() -> dict[str, Any]:
+            nonlocal delivered
+            if delivered:
+                return {"type": "http.request", "body": b"", "more_body": False}
+            delivered = True
+            return {"type": "http.request", "body": body, "more_body": False}
+
+        await self.app(scope, replay_receive, send)
+
+
+def _decode_header(value: bytes | None) -> str | None:
+    return value.decode("latin-1") if value is not None else None

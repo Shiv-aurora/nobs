@@ -19,6 +19,9 @@ type Plugin struct {
 
 func (p *Plugin) OnActivate() error {
 	p.client = pluginapi.NewClient(p.API, p.Driver)
+	if err := p.OnConfigurationChange(); err != nil {
+		return err
+	}
 	p.router = p.initRouter()
 	return nil
 }
