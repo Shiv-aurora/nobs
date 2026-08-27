@@ -8,6 +8,8 @@ import (
 type configuration struct {
 	AgentServiceURL      string
 	ServiceSigningSecret string
+	UseGoogleIdentity    bool
+	CloudRunAudience     string
 	DemoMode             bool
 }
 
@@ -30,12 +32,18 @@ func (c *configuration) setDefaults() {
 	if strings.TrimSpace(c.ServiceSigningSecret) == "" && c.DemoMode {
 		c.ServiceSigningSecret = "dev-only-secret"
 	}
+	if c.UseGoogleIdentity && strings.TrimSpace(c.CloudRunAudience) == "" {
+		c.CloudRunAudience = c.AgentServiceURL
+	}
 }
 
 func (c *configuration) validate() error {
 	c.setDefaults()
 	if !c.DemoMode && strings.TrimSpace(c.ServiceSigningSecret) == "" {
 		return errors.New("ServiceSigningSecret is required when DemoMode is disabled")
+	}
+	if c.UseGoogleIdentity && !strings.HasPrefix(strings.TrimSpace(c.CloudRunAudience), "https://") {
+		return errors.New("CloudRunAudience must be an HTTPS URL when Google identity is enabled")
 	}
 	return nil
 }

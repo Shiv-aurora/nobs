@@ -21,7 +21,7 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 		return
 	}
 	config := p.getConfiguration()
-	client, err := newAgentClient(config.AgentServiceURL, config.ServiceSigningSecret)
+	client, err := newAgentClient(config.AgentServiceURL, config.ServiceSigningSecret, config.UseGoogleIdentity, config.CloudRunAudience)
 	if err != nil {
 		return
 	}

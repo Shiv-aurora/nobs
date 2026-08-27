@@ -13,18 +13,24 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shiv-aurora/noping/plugin/internal/googleidentity"
 	"github.com/shiv-aurora/noping/plugin/internal/signing"
 )
 
 var errAgentUnavailable = errors.New("NoPing agent service unavailable")
 
-type agentClient struct {
-	baseURL string
-	secret  []byte
-	client  *http.Client
+type tokenProvider interface {
+	Token(context.Context) (string, error)
 }
 
-func newAgentClient(baseURL, secret string) (*agentClient, error) {
+type agentClient struct {
+	baseURL       string
+	secret        []byte
+	client        *http.Client
+	tokenProvider tokenProvider
+}
+
+func newAgentClient(baseURL, secret string, useGoogleIdentity bool, cloudRunAudience string) (*agentClient, error) {
 	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
 	if baseURL == "" {
 		return nil, errors.New("agent service URL is empty")
@@ -33,9 +39,17 @@ func newAgentClient(baseURL, secret string) (*agentClient, error) {
 	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
 		return nil, fmt.Errorf("invalid agent service URL: %q", baseURL)
 	}
+	var provider tokenProvider
+	if useGoogleIdentity {
+		provider, err = googleidentity.New(cloudRunAudience)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return &agentClient{
-		baseURL: baseURL,
-		secret:  []byte(secret),
+		baseURL:       baseURL,
+		secret:        []byte(secret),
+		tokenProvider: provider,
 		client: &http.Client{
 			Timeout: 125 * time.Second,
 			Transport: &http.Transport{
@@ -65,6 +79,13 @@ func (c *agentClient) do(ctx context.Context, method, path string, body any) ([]
 		return nil, 0, nil, fmt.Errorf("create request: %w", err)
 	}
 	request.Header.Set("Content-Type", "application/json")
+	if c.tokenProvider != nil {
+		token, tokenErr := c.tokenProvider.Token(ctx)
+		if tokenErr != nil {
+			return nil, 0, nil, fmt.Errorf("obtain Google service identity: %w", tokenErr)
+		}
+		request.Header.Set("Authorization", "Bearer "+token)
+	}
 	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
 	request.Header.Set("X-NoPing-Timestamp", timestamp)
 	request.Header.Set("X-NoPing-Signature-Version", signing.Version)

@@ -35,6 +35,19 @@
         "help_text": "HMAC secret shared with the agent service."
       },
       {
+        "key": "UseGoogleIdentity",
+        "display_name": "Require Google Cloud service identity",
+        "type": "bool",
+        "default": false,
+        "help_text": "On Compute Engine, mint an OIDC identity token from the metadata server so Cloud Run can require IAM authentication."
+      },
+      {
+        "key": "CloudRunAudience",
+        "display_name": "Cloud Run audience",
+        "type": "text",
+        "help_text": "Audience used for the Google-signed identity token. Normally the exact Cloud Run service URL."
+      },
+      {
         "key": "DemoMode",
         "display_name": "Demo mode",
         "type": "bool",

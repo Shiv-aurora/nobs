@@ -39,7 +39,7 @@ func (p *Plugin) ServeHTTP(_ *plugin.Context, w http.ResponseWriter, r *http.Req
 
 func (p *Plugin) currentAgentClient() (*agentClient, error) {
 	config := p.getConfiguration()
-	return newAgentClient(config.AgentServiceURL, config.ServiceSigningSecret)
+	return newAgentClient(config.AgentServiceURL, config.ServiceSigningSecret, config.UseGoogleIdentity, config.CloudRunAudience)
 }
 
 func (p *Plugin) proxy(w http.ResponseWriter, r *http.Request, method, path string, body any) ([]byte, int, bool) {
