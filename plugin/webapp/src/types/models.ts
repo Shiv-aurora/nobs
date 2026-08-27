@@ -76,11 +76,17 @@ export interface QueryResult {
     freshness_label: string;
     people_interrupted: number;
     decision_id?: string | null;
+    decision_assignee_id?: string | null;
     policy_result?: string | null;
     security_findings: SecurityFinding[];
     created_at: string;
     completed_at: string;
     cached: boolean;
+    model_name?: string | null;
+    model_calls: number;
+    model_input_tokens: number;
+    model_output_tokens: number;
+    model_cached_input_tokens: number;
 }
 
 export interface DecisionOption {
@@ -151,4 +157,30 @@ export interface AuditEvent {
     summary: string;
     created_at: string;
     metadata: Record<string, unknown>;
+}
+
+
+export interface HealthResponse {
+    status: string;
+    mode: string;
+    ai_enabled: boolean;
+    version: string;
+}
+
+export interface MetricsResponse {
+    queries_total: number;
+    resolved_without_human: number;
+    human_interruptions: number;
+    restricted_requests_blocked: number;
+    poisoned_sources_blocked: number;
+    cache_hits: number;
+    model_usage_day: number;
+    model_calls: number;
+    model_input_tokens: number;
+    model_output_tokens: number;
+    model_cached_input_tokens: number;
+    model_budget_blocks: number;
+    active_runs: number;
+    delegates: number;
+    decision_memories: number;
 }

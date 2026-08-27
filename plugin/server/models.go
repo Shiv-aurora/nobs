@@ -35,3 +35,12 @@ type bootstrapContext struct {
 	UserID string `json:"user_id"`
 	TeamID string `json:"team_id,omitempty"`
 }
+
+type queryResultNotification struct {
+	RunID              string `json:"run_id"`
+	Status             string `json:"status"`
+	Headline           string `json:"headline"`
+	DecisionID         string `json:"decision_id,omitempty"`
+	DecisionAssigneeID string `json:"decision_assignee_id,omitempty"`
+	PeopleInterrupted  int    `json:"people_interrupted"`
+}

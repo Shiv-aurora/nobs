@@ -207,6 +207,7 @@ class Orchestrator:
                 freshness_label=freshness_label(evidence, now),
                 people_interrupted=1,
                 decision_id=decision.id,
+                decision_assignee_id=decision.assignee_id,
                 policy_result="Human authority required; model is not permitted to decide.",
                 security_findings=findings,
                 created_at=now,

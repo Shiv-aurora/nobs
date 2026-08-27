@@ -44,6 +44,7 @@ def test_high_impact_request_escalates_to_valid_human_authority(services):
     assert result.decision_id
     decision = services.workspace.decisions[result.decision_id]
     assert decision.assignee_id == "alex"
+    assert result.decision_assignee_id == "alex"
     assert decision.canonical_key == "atlas_security_exception"
     assert len(services.workspace.decisions) == 1
 

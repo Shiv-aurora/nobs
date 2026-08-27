@@ -15,6 +15,11 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 	if post == nil || post.UserId == "" || post.Type != "" {
 		return
 	}
+	user, appErr := p.API.GetUser(post.UserId)
+	if appErr != nil || user == nil || user.Username == "" {
+		p.API.LogWarn("NoPing could not resolve Mattermost actor", "user_id", post.UserId)
+		return
+	}
 	config := p.getConfiguration()
 	client, err := newAgentClient(config.AgentServiceURL, config.ServiceSigningSecret)
 	if err != nil {
@@ -24,7 +29,7 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 		ID:          "mattermost-post-" + post.Id,
 		Source:      "mattermost",
 		EventType:   "post.created",
-		ActorUserID: post.UserId,
+		ActorUserID: user.Username,
 		EntityIDs:   []string{post.ChannelId},
 		OccurredAt:  time.UnixMilli(post.CreateAt),
 		Payload: map[string]any{

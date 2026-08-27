@@ -245,6 +245,7 @@ class QueryResult(BaseModel):
     freshness_label: str
     people_interrupted: int
     decision_id: str | None = None
+    decision_assignee_id: str | None = None
     policy_result: str | None = None
     security_findings: list[SecurityFinding] = Field(default_factory=list)
     created_at: datetime

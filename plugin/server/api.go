@@ -26,6 +26,7 @@ func (p *Plugin) initRouter() *mux.Router {
 	api.HandleFunc("/decisions/{decisionID}/resolve", p.handleResolveDecision).Methods(http.MethodPost)
 	api.HandleFunc("/registry", p.handleRegistry).Methods(http.MethodGet)
 	api.HandleFunc("/audit", p.handleAudit).Methods(http.MethodGet)
+	api.HandleFunc("/metrics", p.handleMetrics).Methods(http.MethodGet)
 	api.HandleFunc("/demo/reset", p.handleDemoReset).Methods(http.MethodPost)
 	return router
 }
@@ -41,11 +42,11 @@ func (p *Plugin) currentAgentClient() (*agentClient, error) {
 	return newAgentClient(config.AgentServiceURL, config.ServiceSigningSecret)
 }
 
-func (p *Plugin) proxy(w http.ResponseWriter, r *http.Request, method, path string, body any) {
+func (p *Plugin) proxy(w http.ResponseWriter, r *http.Request, method, path string, body any) ([]byte, int, bool) {
 	client, err := p.currentAgentClient()
 	if err != nil {
 		writeJSONError(w, http.StatusServiceUnavailable, err.Error())
-		return
+		return nil, http.StatusServiceUnavailable, false
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 120*time.Second)
 	defer cancel()
@@ -53,7 +54,7 @@ func (p *Plugin) proxy(w http.ResponseWriter, r *http.Request, method, path stri
 	if err != nil {
 		p.API.LogError("NoPing agent request failed", "path", path, "error", err.Error())
 		writeJSONError(w, http.StatusServiceUnavailable, "The organizational agent service is temporarily unavailable.")
-		return
+		return nil, http.StatusServiceUnavailable, false
 	}
 	if retryAfter := headers.Get("Retry-After"); retryAfter != "" {
 		w.Header().Set("Retry-After", retryAfter)
@@ -61,6 +62,7 @@ func (p *Plugin) proxy(w http.ResponseWriter, r *http.Request, method, path stri
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	_, _ = w.Write(payload)
+	return payload, statusCode, true
 }
 
 func (p *Plugin) handleHealth(w http.ResponseWriter, r *http.Request) {
@@ -68,8 +70,12 @@ func (p *Plugin) handleHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *Plugin) handleBootstrap(w http.ResponseWriter, r *http.Request) {
+	actorKey, ok := p.actorKeyOrError(w, r)
+	if !ok {
+		return
+	}
 	query := url.Values{}
-	query.Set("user_id", authenticatedUserID(r))
+	query.Set("user_id", actorKey)
 	p.proxy(w, r, http.MethodGet, "/v1/bootstrap?"+query.Encode(), nil)
 }
 
@@ -79,7 +85,11 @@ func (p *Plugin) handleQuery(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	request.RequesterID = authenticatedUserID(r)
+	actorKey, ok := p.actorKeyOrError(w, r)
+	if !ok {
+		return
+	}
+	request.RequesterID = actorKey
 	if request.TeamID == "" {
 		request.TeamID = strings.TrimSpace(r.URL.Query().Get("team_id"))
 	}
@@ -87,7 +97,26 @@ func (p *Plugin) handleQuery(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, "Query must be at least 3 characters")
 		return
 	}
-	p.proxy(w, r, http.MethodPost, "/v1/query", request)
+	payload, statusCode, proxied := p.proxy(w, r, http.MethodPost, "/v1/query", request)
+	if !proxied || statusCode >= http.StatusMultipleChoices {
+		return
+	}
+	var notification queryResultNotification
+	if err := json.Unmarshal(payload, &notification); err == nil {
+		p.publishRunUpdate(request.TeamID, authenticatedUserID(r), map[string]any{
+			"run_id":   notification.RunID,
+			"status":   notification.Status,
+			"headline": notification.Headline,
+		})
+		if notification.DecisionAssigneeID != "" {
+			if assigneeUserID := p.userIDForActorKey(notification.DecisionAssigneeID); assigneeUserID != "" {
+				p.publishDecisionUpdate(assigneeUserID, map[string]any{
+					"decision_id": notification.DecisionID,
+					"headline":    notification.Headline,
+				})
+			}
+		}
+	}
 }
 
 func (p *Plugin) handleRun(w http.ResponseWriter, r *http.Request) {
@@ -96,8 +125,12 @@ func (p *Plugin) handleRun(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *Plugin) handleDecisions(w http.ResponseWriter, r *http.Request) {
+	actorKey, ok := p.actorKeyOrError(w, r)
+	if !ok {
+		return
+	}
 	query := url.Values{}
-	query.Set("assignee_id", authenticatedUserID(r))
+	query.Set("assignee_id", actorKey)
 	p.proxy(w, r, http.MethodGet, "/v1/decisions?"+query.Encode(), nil)
 }
 
@@ -107,7 +140,11 @@ func (p *Plugin) handleResolveDecision(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	resolution.ActorID = authenticatedUserID(r)
+	actorKey, ok := p.actorKeyOrError(w, r)
+	if !ok {
+		return
+	}
+	resolution.ActorID = actorKey
 	if resolution.Status != "approved" && resolution.Status != "rejected" && resolution.Status != "discuss" {
 		writeJSONError(w, http.StatusBadRequest, "Invalid decision status")
 		return
@@ -117,7 +154,13 @@ func (p *Plugin) handleResolveDecision(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	decisionID := url.PathEscape(mux.Vars(r)["decisionID"])
-	p.proxy(w, r, http.MethodPost, "/v1/decisions/"+decisionID+"/resolve", resolution)
+	_, statusCode, proxied := p.proxy(w, r, http.MethodPost, "/v1/decisions/"+decisionID+"/resolve", resolution)
+	if proxied && statusCode < http.StatusMultipleChoices {
+		p.publishDecisionUpdate(authenticatedUserID(r), map[string]any{
+			"decision_id": decisionID,
+			"status":      resolution.Status,
+		})
+	}
 }
 
 func (p *Plugin) handleRegistry(w http.ResponseWriter, r *http.Request) {
@@ -133,6 +176,10 @@ func (p *Plugin) handleAudit(w http.ResponseWriter, r *http.Request) {
 		path += "?" + query.Encode()
 	}
 	p.proxy(w, r, http.MethodGet, path, nil)
+}
+
+func (p *Plugin) handleMetrics(w http.ResponseWriter, r *http.Request) {
+	p.proxy(w, r, http.MethodGet, "/v1/metrics", nil)
 }
 
 func (p *Plugin) handleDemoReset(w http.ResponseWriter, r *http.Request) {

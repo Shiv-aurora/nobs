@@ -1,4 +1,4 @@
-import type {AuditEvent, BootstrapResponse, Decision, QueryResult, RegistryResponse} from '../types/models';
+import type {AuditEvent, BootstrapResponse, Decision, HealthResponse, MetricsResponse, QueryResult, RegistryResponse} from '../types/models';
 
 const BASE = '/plugins/com.noping.enterprise/api/v1';
 
@@ -25,6 +25,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+    health: (): Promise<HealthResponse> => request('/health'),
     bootstrap: (): Promise<BootstrapResponse> => request('/bootstrap'),
     query: (text: string): Promise<QueryResult> => request('/query', {
         method: 'POST',
@@ -37,5 +38,6 @@ export const api = {
     }),
     registry: (): Promise<RegistryResponse> => request('/registry'),
     audit: (): Promise<AuditEvent[]> => request('/audit?limit=100'),
+    metrics: (): Promise<MetricsResponse> => request('/metrics'),
     resetDemo: (): Promise<{status: string}> => request('/demo/reset', {method: 'POST', body: '{}'}),
 };

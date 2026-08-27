@@ -1,9 +1,9 @@
 import React from 'react';
 
-import {AuditIcon, HomeIcon, InboxIcon, NetworkIcon, PeopleIcon, ProjectIcon, RoomIcon, SearchIcon} from './icons';
+import {AuditIcon, HomeIcon, InboxIcon, NetworkIcon, PeopleIcon, ProjectIcon, RoomIcon, SearchIcon, ShieldIcon} from './icons';
 import {Logo} from './Logo';
 
-export type View = 'home' | 'ask' | 'needs' | 'projects' | 'people' | 'registry' | 'audit';
+export type View = 'home' | 'ask' | 'needs' | 'projects' | 'people' | 'registry' | 'audit' | 'system';
 
 interface Props {
     active: View;
@@ -19,6 +19,7 @@ const items: Array<{id: View; label: string; icon: React.ReactNode}> = [
     {id: 'people', label: 'People', icon: <PeopleIcon/>},
     {id: 'registry', label: 'Agent registry', icon: <NetworkIcon/>},
     {id: 'audit', label: 'Audit trail', icon: <AuditIcon/>},
+    {id: 'system', label: 'Agent operations', icon: <ShieldIcon size={19}/>},
 ];
 
 export function Sidebar({active, needsCount, onNavigate}: Props): JSX.Element {
