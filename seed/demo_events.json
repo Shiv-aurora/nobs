@@ -1,0 +1,20 @@
+[
+  {
+    "id": "event-pr-892-updated",
+    "source": "github",
+    "event_type": "pull_request.reviewed",
+    "actor_user_id": "daniel",
+    "entity_ids": ["atlas", "auth-392"],
+    "occurred_at": "2026-08-27T13:20:00-04:00",
+    "payload": {"number": 892, "review_state": "approved", "mergeable": true}
+  },
+  {
+    "id": "event-sarah-returned",
+    "source": "google_calendar",
+    "event_type": "calendar.out_of_office.ended",
+    "actor_user_id": "sarah",
+    "entity_ids": ["atlas", "security"],
+    "occurred_at": "2026-08-28T09:00:00-04:00",
+    "payload": {}
+  }
+]
