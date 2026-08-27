@@ -32,8 +32,18 @@ PATTERNS = {
 
 
 def tracked_files() -> list[Path]:
-    output = subprocess.check_output(["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"], cwd=ROOT)
-    return [ROOT / item.decode() for item in output.split(b"\0") if item]
+    try:
+        output = subprocess.check_output(
+            ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
+            cwd=ROOT,
+            stderr=subprocess.DEVNULL,
+        )
+        return [ROOT / item.decode() for item in output.split(b"\0") if item]
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        # Source archives intentionally omit .git. Scan the extracted tree instead
+        # so `make check` remains a valid distribution-level verification command.
+        ignored = {".git", ".pytest_cache", "__pycache__", "node_modules", ".terraform", "dist"}
+        return [path for path in ROOT.rglob("*") if path.is_file() and not any(part in ignored for part in path.parts)]
 
 
 def main() -> int:

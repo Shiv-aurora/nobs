@@ -34,6 +34,10 @@ echo '== Credential scan =='
 python scripts/secret_scan.py
 
 echo '== Git whitespace =='
-git diff --check
+if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  git diff --check
+else
+  echo 'Skipped: source archive has no Git metadata.'
+fi
 
 echo 'All credential-free Phase 1 checks passed.'
