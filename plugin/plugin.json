@@ -55,5 +55,6 @@
         "help_text": "Use deterministic seeded responses while Google services are disconnected."
       }
     ]
-  }
+  },
+  "version": "0.1.0"
 }

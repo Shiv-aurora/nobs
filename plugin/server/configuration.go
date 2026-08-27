@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"os"
 	"strings"
 )
 
@@ -25,7 +26,39 @@ func (c *configuration) clone() *configuration {
 	return &copy
 }
 
+func (c *configuration) applyEnvironment() {
+	// Environment overrides let immutable Compute Engine/Docker deployments inject
+	// Cloud Run identity and secrets without writing them into Mattermost's database.
+	if value := strings.TrimSpace(os.Getenv("NOPING_AGENT_SERVICE_URL")); value != "" {
+		c.AgentServiceURL = value
+	}
+	if value := strings.TrimSpace(os.Getenv("NOPING_SERVICE_SIGNING_SECRET")); value != "" {
+		c.ServiceSigningSecret = value
+	}
+	if value := strings.TrimSpace(os.Getenv("NOPING_CLOUD_RUN_AUDIENCE")); value != "" {
+		c.CloudRunAudience = value
+	}
+	if value := strings.TrimSpace(os.Getenv("NOPING_USE_GOOGLE_IDENTITY")); value != "" {
+		c.UseGoogleIdentity = parseBool(value, c.UseGoogleIdentity)
+	}
+	if value := strings.TrimSpace(os.Getenv("NOPING_DEMO_MODE")); value != "" {
+		c.DemoMode = parseBool(value, c.DemoMode)
+	}
+}
+
+func parseBool(value string, fallback bool) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return fallback
+	}
+}
+
 func (c *configuration) setDefaults() {
+	c.applyEnvironment()
 	if strings.TrimSpace(c.AgentServiceURL) == "" {
 		c.AgentServiceURL = "http://agent-service:8080"
 	}
