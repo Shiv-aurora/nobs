@@ -24,8 +24,13 @@ POSTGRES_PASSWORD="$(gcloud secrets versions access latest --secret="$(tf_output
 ADMIN_PASSWORD="$(gcloud secrets versions access latest --secret="$(tf_output mattermost_admin_password_secret_id)" --project="${PROJECT_ID}")"
 DEMO_PASSWORD="$(gcloud secrets versions access latest --secret="$(tf_output demo_user_password_secret_id)" --project="${PROJECT_ID}")"
 GITHUB_WEBHOOK_SECRET="$(gcloud secrets versions access latest --secret="$(tf_output github_webhook_secret_id)" --project="${PROJECT_ID}")"
-CALENDAR_CREDENTIALS_JSON="$(gcloud secrets versions access latest --secret="$(tf_output google_calendar_credentials_secret_id)" --project="${PROJECT_ID}")"
-CALENDAR_CREDENTIALS_B64="$(printf '%s' "${CALENDAR_CREDENTIALS_JSON}" | base64 | tr -d '\n')"
+CALENDAR_CREDENTIALS_JSON=""
+if CALENDAR_CREDENTIALS_JSON="$(gcloud secrets versions access latest --secret="$(tf_output google_calendar_credentials_secret_id)" --project="${PROJECT_ID}" 2>/dev/null)"; then
+  CALENDAR_CREDENTIALS_B64="$(printf '%s' "${CALENDAR_CREDENTIALS_JSON}" | base64 | tr -d '\n')"
+else
+  CALENDAR_CREDENTIALS_B64=""
+  echo "Google Calendar credentials are not authorized yet; deploying with the deterministic availability fallback."
+fi
 GITHUB_IDENTITY_MAP="$(tf_output github_identity_map_json)"
 GITHUB_REPOSITORY_MAP="$(tf_output github_repository_map_json)"
 CALENDAR_IDENTITY_MAP="$(tf_output google_calendar_identity_map_json)"
