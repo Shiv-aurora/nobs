@@ -29,6 +29,8 @@ services:
         condition: service_healthy
     expose:
       - "8065"
+    ports:
+      - "127.0.0.1:8065:8065"
     environment:
       TZ: UTC
       MM_SERVICESETTINGS_SITEURL: ${MATTERMOST_SITE_URL:?missing MATTERMOST_SITE_URL}
@@ -66,12 +68,6 @@ services:
       - mattermost-client-plugins:/mattermost/client/plugins
       - mattermost-bleve:/mattermost/bleve-indexes
       - ./plugin-bundle:/plugin-bundle:ro
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8065/api/v4/system/ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 30
-      start_period: 30s
     logging:
       driver: json-file
       options:
@@ -83,7 +79,7 @@ services:
     restart: unless-stopped
     depends_on:
       mattermost:
-        condition: service_healthy
+        condition: service_started
     ports:
       - "80:80"
       - "443:443"
