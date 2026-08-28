@@ -24,10 +24,16 @@ def default_now() -> datetime:
     return datetime(2026, 8, 27, 13, 10, tzinfo=timezone.utc).astimezone()
 
 
+def wall_clock_now() -> datetime:
+    """Return real time for operational limits that must expire in production."""
+    return datetime.now(timezone.utc).astimezone()
+
+
 class Services:
     def __init__(self, settings: Settings | None = None, now_fn=default_now, state_store: StateStore | None = None):
         self.settings = settings or Settings.from_env()
         self.now_fn = now_fn
+        operational_now_fn = wall_clock_now if now_fn is default_now else now_fn
         self.state_store = state_store or build_state_store(self.settings)
         self.workspace = Workspace(self.settings.workspace_path, state_store=self.state_store)
         self.policy = PolicyEngine(self.workspace, now_fn)
@@ -37,10 +43,10 @@ class Services:
         self.memory = DecisionMemoryStore(self.workspace, now_fn)
         self.registry = DelegateRegistry(self.workspace)
         self.work_state = WorkStateProjector(self.workspace)
-        self.rate_limiter = RateLimiter(self.settings, now_fn)
+        self.rate_limiter = RateLimiter(self.settings, operational_now_fn)
         self.usage_guard = ModelUsageGuard(
             self.workspace,
-            now_fn,
+            operational_now_fn,
             max_calls_per_query=self.settings.model_max_calls_per_query,
             max_input_tokens_per_query=self.settings.model_max_input_tokens_per_query,
             max_output_tokens_per_query=self.settings.model_max_output_tokens_per_query,

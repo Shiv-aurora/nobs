@@ -23,8 +23,12 @@ async function login(page: Page, username: string): Promise<void> {
 
 async function ask(page: Page, question: string): Promise<void> {
     const input = page.getByRole('textbox', {name: 'Ask your company'});
+    const submit = input.locator('xpath=..').getByRole('button');
     await input.fill(question);
+    await expect(submit).toBeEnabled();
+    const queryResponse = page.waitForResponse((response) => response.url().endsWith('/api/v1/query') && response.request().method() === 'POST');
     await input.press('Enter');
+    await expect((await queryResponse).status()).toBe(200);
 }
 
 test('routes evidence, protects private data, escalates authority, and reuses the decision', async ({page}) => {
@@ -47,7 +51,7 @@ test('routes evidence, protects private data, escalates authority, and reuses th
     await expect(page.getByText('No private employee record was retrieved or exposed.', {exact: false})).toBeVisible();
     await expect(page.getByText('Permission enforced before retrieval')).toBeVisible();
 
-    await ask(page, 'Can we bypass security review for the $200K customer?');
+    await ask(page, 'Should Atlas launch for the $200K customer?');
     await expect(page.getByText('Human decision required')).toBeVisible();
     await expect(page.getByText('One complete decision card was sent to Alex Morgan.', {exact: false})).toBeVisible();
     await expect(page.getByText('1 person interrupted')).toBeVisible();
@@ -60,7 +64,7 @@ test('routes evidence, protects private data, escalates authority, and reuses th
     await expect(page.getByText('Nothing needs you')).toBeVisible();
 
     await login(page, 'priya');
-    await ask(page, 'Can we bypass security review for the $200K customer?');
+    await ask(page, 'Should Atlas launch for the $200K customer?');
     await expect(page.getByText('Existing decision applied')).toBeVisible();
     await expect(page.getByText('Decision memory', {exact: true})).toBeVisible();
     await expect(page.getByText('0 people interrupted')).toBeVisible();

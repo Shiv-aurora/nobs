@@ -1,75 +1,68 @@
 # Google Cloud Deployment
 
-## Prerequisites
+## Live deployment
 
-- a dedicated Google Cloud project with billing attached;
-- `gcloud`, Terraform 1.16+, Docker, Git, Go 1.23+, Node 22+, npm, Python 3.11+;
-- permission to enable APIs, create service accounts/IAM, Compute, Cloud Run, Firestore, Pub/Sub, Artifact Registry, Secret Manager, Model Armor, and budgets;
-- a billing account ID if the Terraform budget should be created.
+| Item | Value |
+|---|---|
+| project | `noping-agentic-shiv-2026` |
+| region / zone | `us-central1` / `us-central1-a` |
+| Mattermost | http://35.202.201.122/noping |
+| agent service | `noping-agent-service` (private Cloud Run) |
+| budget guard | `noping-budget-guard` (private Cloud Run, armed) |
+| plugin | `com.noping.enterprise` version `0.2.1` |
+| model | `gemini-3.5-flash`, Vertex location `global` |
 
-## Configure
+The Mattermost VM service account mints a Google OIDC token for the exact Cloud Run audience, then the plugin adds a timestamped HMAC request signature. Pub/Sub uses its own pinned push identity. Cloud Run does not allow unauthenticated invocation.
+
+## Reproducible deployment
+
+Prerequisites are `gcloud`, Terraform, Docker, Git, Go, Node/npm, Python 3.11+, a dedicated billed project, and permissions for the services declared in Terraform.
 
 ```bash
 cp deploy/gcp/terraform/terraform.tfvars.example deploy/gcp/terraform/terraform.tfvars
-```
-
-Set at minimum:
-
-```hcl
-project_id         = "your-project-id"
-billing_account_id = "000000-000000-000000"
-```
-
-Keep the default `e2-small`, 20 GB `pd-standard`, `$25` budget, Cloud Run max 1/min 0, and daily shutdown unless measured evidence justifies the approved `e2-medium` fallback.
-
-## Automated two-stage deployment
-
-```bash
+# Set project_id and billing_account_id; retain the bounded defaults.
 deploy/gcp/scripts/deploy-all.sh
 ```
 
-The script sequence:
-
-1. preflight and cost-policy checks;
-2. stage-one Terraform for APIs, IAM, network, VM, topics, secrets, Firestore, and registry;
-3. add secret versions locally without putting values in Terraform state;
-4. create Model Armor template;
-5. build and push images, then resolve immutable digests;
-6. stage-two Terraform for private Cloud Run and authenticated push subscriptions;
-7. package/install the Mattermost plugin and seed the demo organization;
-8. publish a synthetic 90% billing notification while the budget guard is dry-run;
-9. verify IAM/scaling/VM and application reachability.
-
-After inspecting budget-guard logs:
+The deployment sequence performs cost preflight, two-stage Terraform, local secret-version creation, Model Armor configuration, immutable image builds, private Cloud Run rollout, Mattermost/plugin installation, deterministic organization seeding, a dry-run budget notification, and deployment verification. After reviewing the guard log:
 
 ```bash
 deploy/gcp/scripts/arm-budget-guard.sh
 ```
 
-This requires typing `ARM` and redeploys only the guard setting.
+The repository carries `.budget-guard-armed` as an ignored local marker, so later service deployments preserve `dry_run=false`.
 
-## Start and stop
+## Compatibility decisions discovered in production
+
+- Mattermost Team Edition `11.10.1` is distroless, so it has no shell or `curl`. Container-local shell health checks were removed; bootstrap probes the loopback-only host mapping `127.0.0.1:8065` instead.
+- Replacing `/opt/noping` requires `docker compose --force-recreate` so containers receive the new bind mounts while named PostgreSQL/Mattermost volumes preserve data.
+- The plugin archive path is derived from `plugin.json`; this prevents an old versioned archive from being silently redeployed.
+- Cloud Run's edge did not forward the application's `/healthz` path in this deployment. Platform health still uses `/healthz`; signed plugin traffic uses the equivalent `/v1/health` alias.
+- Vertex `gemini-3.5-flash` uses location `global`, and thinking output is bounded so the answer fits inside the application token ceiling.
+- Traces are exported directly over authenticated OTLP HTTP to Google Telemetry with a simple processor. This works with request-based Cloud Run CPU and avoids an always-on collector.
+- Google Calendar credentials are optional at deployment time. When no authorized-user secret version exists, the connector announces and uses deterministic availability fallback rather than failing or pretending a live read occurred.
+
+## Calendar authorization
+
+Calendar uses the read-only `calendar.events.readonly` scope. Complete the interactive user consent, then store Application Default Credentials without committing them:
 
 ```bash
-deploy/gcp/scripts/start-demo.sh
-deploy/gcp/scripts/stop-all.sh
+gcloud auth application-default login --no-launch-browser \
+  --scopes=cloud-platform,calendar.events.readonly
+deploy/gcp/scripts/store-calendar-credentials.sh \
+  "$HOME/.config/gcloud/application_default_credentials.json"
+deploy/gcp/scripts/deploy-mattermost.sh
 ```
 
-Cloud Run has minimum instances zero. `stop-all.sh` stops the only fixed Compute Engine workload.
+The connector maps only configured identities and projects and publishes normalized availability/work-state facts—not event descriptions or unrelated private calendar content.
 
-## Verify
+## Verify and operate
 
 ```bash
 deploy/gcp/scripts/verify-deployment.sh
 deploy/gcp/scripts/resource-inventory.sh
+deploy/gcp/scripts/start-demo.sh
+deploy/gcp/scripts/stop-all.sh
 ```
 
-Append real command output and screenshots to `docs/COST_MODEL.md` and `docs/TEST_REPORT.md` before submission.
-
-## Teardown
-
-```bash
-deploy/gcp/scripts/teardown.sh
-```
-
-The script requires typing `DESTROY-NOPING` and supplies the same second-stage image variables so Terraform can destroy all managed resources consistently.
+Final verification passed with both Cloud Run services private and bounded to min 0/max 1. Use `stop-all.sh` after recording. Full teardown remains guarded by the explicit phrase `DESTROY-NOPING`.

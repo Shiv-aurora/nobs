@@ -1,10 +1,8 @@
-from __future__ import annotations
-
 import base64
 import binascii
 import json
 from collections.abc import Callable
-from typing import Annotated, Any
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -15,7 +13,7 @@ class PubSubMessage(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     data: str
-    message_id: Annotated[str, Field(alias="messageId")]
+    message_id: str = Field(alias="messageId")
     attributes: dict[str, str] = Field(default_factory=dict)
     publish_time: str | None = Field(default=None, alias="publishTime")
     ordering_key: str | None = Field(default=None, alias="orderingKey")
@@ -24,7 +22,7 @@ class PubSubMessage(BaseModel):
 class PubSubPushEnvelope(BaseModel):
     message: PubSubMessage
     subscription: str
-    delivery_attempt: int | None = Field(default=None, alias="deliveryAttempt")
+    deliveryAttempt: int | None = None
 
     def decode_work_event(self) -> WorkEvent:
         try:

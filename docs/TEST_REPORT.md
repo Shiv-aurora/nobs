@@ -1,73 +1,69 @@
-# Phase 1 Test Report
+# Phase 2 Test Report
 
-Final credential-free verification date: **2026-08-27**  
-Repository marker: **tag `phase1-complete`** (created after final packaging checks)
+Final verification date: **2026-08-28 UTC**
 
-Phase 2 must append Docker, complete dependency, Terraform-provider, Google Cloud, and production-browser results. This report deliberately separates code that executed in the sandbox from code that could only be statically validated.
+Google Cloud project: **`noping-agentic-shiv-2026`**
 
-## Executed successfully in Phase 1
+Hosted application: **http://35.202.201.122/noping**
 
-| Layer | Command | Result |
+## Automated verification
+
+| Layer | Command / proof | Result |
 |---|---|---|
-| agent runtime | `python -m pytest agent-service/tests` | **43 passed** |
-| budget guard | `(cd deploy/gcp/budget-guard && python -m pytest tests)` | **8 passed** |
-| Go deterministic core | `(cd plugin && go test ./internal/...)` | **3 packages passed** |
-| React/TypeScript strict check | `tsc -p plugin/webapp/tsconfig.sandbox.json --noEmit` | **passed** |
-| Python compilation | `python -m compileall -q agent-service/app deploy/gcp/budget-guard seed scripts` | **passed** |
-| shell syntax | `bash -n` across every `scripts/` and `deploy/` shell file | **passed** |
-| manifests/HCL contracts | `python scripts/static_validate.py` | **passed** |
-| credential scan | `python scripts/secret_scan.py` | **passed** |
-| whitespace | `git diff --check` | **passed** |
-| aggregate gate | `./scripts/check.sh` | **passed** |
+| aggregate source gate | `make check` | **45 agent tests, 8 guard tests, all Go packages, strict TypeScript, Python compile, shell/static/security checks passed** |
+| local product | Docker Compose Mattermost + plugin + agent, then Playwright | **2/2 passed** |
+| production authority flow | Playwright against hosted Mattermost and private Cloud Run | **passed in 44.4 s** |
+| production safety/fallback flow | Playwright malicious prompt + reload + Rooms fallback | **passed in 11.6 s** |
+| evidence capture | gated Playwright capture against production | **1/1 passed in 25.9 s** |
+| Terraform | provider-backed validate, apply, and final plan | **passed; zero unplanned resources** |
+| deployment contract | `deploy/gcp/scripts/verify-deployment.sh` | **passed; private Cloud Run, min 0/max 1, Mattermost reachable** |
+| credentials | `scripts/secret_scan.py` and Secret Manager metadata review | **passed** |
 
-## Behavior covered by automated tests
+The production authority flow proved all of the following in one browser journey:
 
-- factual organizational routing;
-- live-status intent;
-- policy and decision classification;
-- restricted HR request refusal before retrieval/model use;
-- prompt-injection refusal before retrieval;
-- poisoned-evidence quarantine;
-- evidence authorization;
-- active and expired delegated authority;
-- human-only decision creation and resolution;
-- scoped decision memory and facts hashes;
-- user, organization, and concurrency rate limits;
-- model-call/token reservation and daily ceilings;
-- conservative accounting after ambiguous provider failures;
-- Google ADK runner contract and usage extraction;
-- Model Armor prompt, response, and fail-closed contracts;
-- HMAC vectors, replay, target tampering, and demo behavior;
-- Pub/Sub envelope parsing, OIDC identity pinning, malformed data, and deduplication;
-- persistence adapter restore/write behavior;
-- generic semantic work-state projection;
-- independent budget notification parsing, dry-run, idempotence, and VM-stop behavior;
-- Compute metadata identity-token provider and caching;
-- plugin deterministic security packages.
+- Maya received a sourced, four-delegate Atlas answer with zero interruptions;
+- poisoned evidence was quarantined before synthesis;
+- salary data was denied before retrieval or model execution;
+- a security exception created exactly one complete decision for delegated approver Alex;
+- Alex rejected it; and
+- Priya's materially identical request reused scoped decision memory with zero new interruptions.
 
-## Broader builds attempted but not claimed
+The original phrase “bypass security review” was correctly but over-conservatively rejected by live Model Armor. The production example now uses “Should Atlas launch for the $200K customer?”, which reaches the human-authority branch without weakening the separate malicious-prompt control.
 
-`go test ./...` was attempted. It stopped before compilation because the sandbox could not download the Mattermost/Gorilla modules and the repository intentionally does not invent a `go.sum`. Phase 2 must run `go mod tidy`, commit the generated `go.sum`, and rerun the complete suite.
+## Live Google Cloud evidence
 
-The webpack production bundle was not attempted without npm dependencies. Phase 2 must run `npm install`, commit `plugin/webapp/package-lock.json`, then run `npm run typecheck`, `npm run build`, and the Mattermost plugin bundle build.
+- **Google ADK + Vertex AI:** `gemini-3.5-flash` in `global`; production run `run-5a37b31b9180` completed with one model call, 791 input tokens, 160 output tokens, four route hops, six authorized evidence records, and zero human interruptions.
+- **Model Armor:** clean prompt accepted; malicious prompt rejected; response screening and fail-closed behavior exercised.
+- **Cloud Run authentication:** unauthenticated external request returned `403`; unsigned, invalid-signature, and expired-replay HMAC requests returned `401`.
+- **Firestore:** cold-start restoration retained normalized work state and audit records; a duplicate delivery did not create a second audit entry.
+- **Pub/Sub:** authenticated push, duplicate suppression, and dead-letter inspection were exercised.
+- **GitHub:** live signed webhook delivery GUID `14341326-a289-11f1-8f2e-cf446830ac6d` returned `202`; normalized `repository.pushed` state for `Shiv-aurora/noping` persisted exactly once.
+- **Google Calendar:** API and connector are deployed, identity mapping and privacy-preserving availability normalization are tested, but authorized-user consent is still pending. Production therefore uses the explicit deterministic OOO availability fallback and does not claim a live Calendar read.
+- **Trace:** Cloud Trace returned seven spans for trace `911bf362b57e01127de8d7999a4d2a9a`, including `/v1/bootstrap` receive/send spans.
+- **Budget guard:** synthetic 90% notification was verified in dry-run, then the guard was armed; current Cloud Run setting is `dry_run=false`.
 
-## Statically validated, not executed against providers
+## Captured browser evidence
 
-- Terraform delimiters, required files, private-IAM constraints, stable Compute address, VM/disk bounds, Cloud Run min/max/concurrency, Firestore PITR disablement, budget thresholds, Billing Budgets Pub/Sub publisher, and application limits;
-- Google Cloud deployment shell syntax and two-stage secret/image flow;
-- Mattermost/PostgreSQL/Caddy Compose manifests;
-- Cloud Run/Firestore/Pub/Sub/Model Armor adapter contracts;
-- architecture and OSS disclosure artifacts.
+- [`phase2-organization-answer.png`](evidence/phase2-organization-answer.png)
+- [`phase2-decision-memory.png`](evidence/phase2-decision-memory.png)
+- [`phase2-audit-trail.png`](evidence/phase2-audit-trail.png)
+- [`phase2-agent-operations.png`](evidence/phase2-agent-operations.png)
 
-## Not executed in Phase 1
+Refresh these artifacts explicitly with:
 
-- Docker Compose Mattermost stack;
-- complete plugin server build and webpack bundle;
-- Terraform `init`, provider-backed `validate`, `plan`, or `apply`;
-- `gcloud` deployment scripts;
-- real Google ADK/Gemini, Model Armor, Firestore, Pub/Sub, Secret Manager, Cloud Billing, or Compute calls;
-- real GitHub and Google Calendar connectors;
-- remote GitHub push;
-- real Mattermost browser E2E.
+```bash
+NOPING_CAPTURE_EVIDENCE=true \
+MATTERMOST_URL=http://35.202.201.122 \
+NOPING_DEMO_USER_PASSWORD="$(gcloud secrets versions access latest --secret=noping-demo-user-password)" \
+npm --prefix e2e test -- evidence.spec.ts
+```
 
-CI and [`docs/CODEX_HANDOFF.md`](CODEX_HANDOFF.md) define those required Phase 2 gates. No claim of Google Cloud deployment is made by this report.
+## Known limitations
+
+- Google Calendar consent requires an interactive account sign-in and remains the only incomplete external connector proof.
+- The judging URL is HTTP on a reserved IP; production TLS requires a domain.
+- Mattermost email notifications are intentionally unconfigured for the demo.
+- The repository is private; no irreversible visibility change was made without owner approval.
+- The fixed VM should be stopped after demo recording; Cloud Run already scales to zero.
+
+Phase 1 remains marked by tag `phase1-complete`; Phase 2 adds real provider, connector, browser, cost-control, and observability evidence without rewriting Phase 1 history.

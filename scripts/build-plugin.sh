@@ -17,4 +17,5 @@ fi
 go mod download
 go mod verify
 make bundle
-printf '%s\n' "$ROOT_DIR/plugin/dist/com.noping.enterprise-0.1.0.tar.gz"
+PLUGIN_VERSION="$(python3 -c 'import json; print(json.load(open("plugin.json"))["version"])')"
+printf '%s\n' "$ROOT_DIR/plugin/dist/com.noping.enterprise-${PLUGIN_VERSION}.tar.gz"

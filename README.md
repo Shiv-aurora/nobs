@@ -62,7 +62,7 @@ The seeded organization contains Maya (overnight support), Sarah (security lead)
 
 1. **Cross-department answer** — Maya asks why Atlas is blocked. NoPing routes through project, engineering, and security delegates, quarantines a malicious uploaded note, and returns evidence without pinging anyone.
 2. **Restricted-data refusal** — Maya asks for Sarah’s salary. The request is denied before the HR record is retrieved or sent to Gemini.
-3. **Authority-aware escalation** — Maya asks whether a $200K customer opportunity justifies bypassing security review. NoPing refuses to let the model decide, sees Sarah is OOO, validates Alex’s active delegation, and creates one Needs You card.
+3. **Authority-aware escalation** — Maya asks whether Atlas should launch for a $200K customer. NoPing refuses to let the model decide, sees Sarah is OOO, validates Alex’s active delegation, and creates one Needs You card.
 4. **Organizational memory** — Alex rejects the exception. A materially identical request later uses the scoped decision memory without another interruption; changed facts or expired authority force re-evaluation.
 
 ## Credential-free verification
@@ -103,6 +103,8 @@ This starts PostgreSQL, Mattermost Team Edition, the NoPing agent service in det
 
 ## Google Cloud deployment
 
+The Phase 2 deployment is live at **http://35.202.201.122/noping** in project `noping-agentic-shiv-2026`. The Cloud Run services are private; access is mediated by the Mattermost plugin at the hosted URL.
+
 The production design uses only Google Cloud for deployment:
 
 - Compute Engine: one `e2-small` Mattermost/PostgreSQL/Caddy VM;
@@ -138,7 +140,7 @@ deploy/gcp/scripts/arm-budget-guard.sh
 
 ## Phase status
 
-Phase 1 builds and validates the product, plugin boundaries, deterministic orchestration, Google adapters, security controls, infrastructure code, deployment automation, and documentation. Phase 2 must use real credentials to run Docker, install complete dependencies, provision Google Cloud, connect Gemini/ADK and external integrations, perform browser E2E against Mattermost, push GitHub, and capture submission evidence. The exact boundary is documented in [`docs/CODEX_HANDOFF.md`](docs/CODEX_HANDOFF.md).
+Phase 2 is deployed and verified: real Mattermost, private Cloud Run, Google ADK/Gemini, Model Armor, Firestore, authenticated Pub/Sub, live GitHub webhooks, Cloud Trace, an armed budget guard, and production Playwright evidence. Google Calendar's read-only connector is deployed and tested but still awaits interactive user consent, so the hosted demo explicitly uses its deterministic OOO fallback. See [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md) for exact proof and limitations.
 
 ## License and attribution
 

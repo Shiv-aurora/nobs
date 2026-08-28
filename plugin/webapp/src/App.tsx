@@ -68,7 +68,7 @@ export function App(): JSX.Element {
             setResult(next);
             setView('ask');
             setError(null);
-            await refresh();
+            void refresh();
         } catch (caught) {
             setError(caught instanceof APIError ? caught.message : 'The query failed.');
         } finally {
