@@ -43,6 +43,7 @@ locals {
     "run.googleapis.com",
     "secretmanager.googleapis.com",
     "serviceusage.googleapis.com",
+    "telemetry.googleapis.com",
   ])
 
   agent_project_roles = toset([
@@ -53,6 +54,8 @@ locals {
     "roles/modelarmor.user",
     "roles/modelarmor.viewer",
     "roles/monitoring.metricWriter",
+    "roles/serviceusage.serviceUsageConsumer",
+    "roles/telemetry.tracesWriter",
   ])
 
   vm_project_roles = toset([

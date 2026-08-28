@@ -73,13 +73,33 @@ def configure_opentelemetry(app: Any, *, service_name: str, endpoint: str) -> bo
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
         from opentelemetry.sdk.resources import Resource
         from opentelemetry.sdk.trace import TracerProvider
-        from opentelemetry.sdk.trace.export import BatchSpanProcessor
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
     except ImportError:
         logging.getLogger(__name__).warning("OpenTelemetry endpoint configured but optional packages are unavailable")
         return False
 
-    provider = TracerProvider(resource=Resource.create({"service.name": service_name}))
-    provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint)))
+    attributes = {"service.name": service_name}
+    project_id = os.getenv("GOOGLE_CLOUD_PROJECT", "")
+    if project_id:
+        attributes["gcp.project_id"] = project_id
+    provider = TracerProvider(resource=Resource.create(attributes))
+
+    if endpoint.startswith("https://telemetry.googleapis.com"):
+        try:
+            import google.auth
+            from google.auth.transport.requests import AuthorizedSession
+
+            credentials, _ = google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
+            exporter = OTLPSpanExporter(endpoint=endpoint, session=AuthorizedSession(credentials))
+        except ImportError:
+            logging.getLogger(__name__).warning("Google Telemetry endpoint configured but google-auth is unavailable")
+            return False
+        # Cloud Run request-based CPU can be suspended immediately after a
+        # response. Synchronous export guarantees the bounded request span is
+        # delivered without an always-on collector or instance-based billing.
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+    else:
+        provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint)))
     trace.set_tracer_provider(provider)
     FastAPIInstrumentor.instrument_app(app, excluded_urls="healthz")
     return True

@@ -1,6 +1,7 @@
 import {expect, type Page, test} from '@playwright/test';
 
 const demoPassword = process.env.NOPING_DEMO_USER_PASSWORD || 'NoPing-Demo-2026!';
+const resetDemo = process.env.NOPING_SKIP_RESET !== 'true';
 
 async function login(page: Page, username: string): Promise<void> {
     await page.context().clearCookies();
@@ -25,9 +26,11 @@ async function ask(page: Page, question: string): Promise<void> {
 
 test('routes evidence, protects private data, escalates authority, and reuses the decision', async ({page}) => {
     await login(page, 'maya');
-    const resetResponse = page.waitForResponse((response) => response.url().includes('/api/v1/demo/reset'));
-    await page.getByRole('button', {name: 'Reset demo workspace'}).click();
-    await expect((await resetResponse).status()).toBe(200);
+    if (resetDemo) {
+        const resetResponse = page.waitForResponse((response) => response.url().includes('/api/v1/demo/reset'));
+        await page.getByRole('button', {name: 'Reset demo workspace'}).click();
+        await expect((await resetResponse).status()).toBe(200);
+    }
 
     await ask(page, 'Why has Atlas not shipped?');
     await expect(page.getByText('Answered by the organization')).toBeVisible();

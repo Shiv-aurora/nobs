@@ -51,6 +51,10 @@ resource "google_cloud_run_v2_service" "agent" {
         value = "TRUE"
       }
       env {
+        name  = "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"
+        value = "https://telemetry.googleapis.com/v1/traces"
+      }
+      env {
         name  = "NOPING_DEMO_MODE"
         value = "false"
       }
