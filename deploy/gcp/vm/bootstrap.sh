@@ -2,6 +2,8 @@
 set -euo pipefail
 cd /opt/noping
 chmod 0600 .env .bootstrap-secrets
+chmod 0755 plugin-bundle
+chmod 0644 plugin-bundle/*.tar.gz
 set -a
 source .bootstrap-secrets
 set +a
