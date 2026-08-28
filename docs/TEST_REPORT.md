@@ -11,6 +11,7 @@ Hosted application: **https://35-202-201-122.sslip.io/noping**
 | Layer | Command / proof | Result |
 |---|---|---|
 | aggregate source gate | `make check` | **45 agent tests, 8 guard tests, all Go packages, strict TypeScript, Python compile, shell/static/security checks passed** |
+| clean-clone release gate | fresh clone at `4e697f5`, `npm ci` in both Node workspaces, `make check`, `scripts/build-plugin.sh` | **passed; reproducible `com.noping.enterprise-0.2.1.tar.gz` built for Linux, macOS, and Windows targets** |
 | local product | Docker Compose Mattermost + plugin + agent, then Playwright | **4/4 passed across messaging, responsive, authority/memory, and malicious-input flows** |
 | production messaging flow | real Project Atlas post + threaded `@noping` bot reply | **passed in 18.7 s** |
 | production responsive flow | phone 390×844 + short laptop 1024×600, no horizontal overflow | **passed in 13.2 s** |

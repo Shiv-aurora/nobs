@@ -22,7 +22,7 @@
 
 - [x] hosted Mattermost/NoPing URL and judge credentials reference
 - [x] repository URL
-- [ ] README spin-up instructions tested from a clean clone
+- [x] README spin-up instructions tested from a clean clone
 - [x] `docs/architecture.png` ready to upload
 - [ ] public YouTube/Vimeo video no longer than 4 minutes
 - [ ] video visibly shows Google Cloud console/logs/URL
