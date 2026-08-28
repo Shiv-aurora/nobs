@@ -40,5 +40,10 @@ PLUGIN_BUNDLE="/plugin-bundle/${PLUGIN_FILENAME}"
 docker compose --env-file .env exec -T --user root mattermost mmctl --local plugin add --force "${PLUGIN_BUNDLE}" >/dev/null
 docker compose --env-file .env exec -T mattermost mmctl --local plugin enable com.noping.enterprise >/dev/null
 
+curl -fsS http://127.0.0.1:8065/noping -o /tmp/noping-mattermost-shell.html
+python3 /opt/noping/customize_mattermost_shell.py /tmp/noping-mattermost-shell.html /opt/noping/login/app-shell.html
+chmod 0644 /opt/noping/login/app-shell.html
+rm -f /tmp/noping-mattermost-shell.html
+
 systemctl enable noping-compose.service >/dev/null
 rm -f .bootstrap-secrets

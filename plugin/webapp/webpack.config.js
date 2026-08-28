@@ -20,6 +20,11 @@ module.exports = {
         exclude: /node_modules/,
       },
       {test: /\.css$/, use: ['style-loader', 'css-loader']},
+      {
+        test: /\.(png|jpg|jpeg|gif|webp)$/i,
+        type: 'asset/resource',
+        generator: {filename: 'assets/[name].[contenthash:8][ext]'},
+      },
     ],
   },
   externals: {

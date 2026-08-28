@@ -4,7 +4,7 @@
 
 NoPing is an AI-native workplace communication layer built on Mattermost. Every employee, project, team, and policy has a permission-aware logical delegate. A frontline employee can ask a cross-department question without knowing the org chart; NoPing finds the relevant delegates, retrieves authorized evidence, returns a sourced answer, and interrupts a human only when judgment or formal authority is required.
 
-> **10-second demo:** “Why has Atlas not shipped?” → four organizational delegates consult live project evidence → a sourced answer appears → **0 people interrupted**. A $200K security exception then becomes one complete decision card for the acting approver rather than a burst of messages.
+> **10-second demo:** In `# Project Atlas`, Maya posts `@noping Why is Atlas delayed?` → four organizational delegates consult live project evidence → a sourced reply appears in the thread → **0 people interrupted**. A $200K security exception then becomes one complete decision card for the acting approver rather than a burst of messages.
 
 ## Why this is not a chatbot
 
@@ -27,7 +27,7 @@ Answer ────────────────or───────�
 
 The product includes:
 
-- a real Mattermost Go + React plugin with a full-screen NoPing application;
+- a real Mattermost Go + React plugin with NoPing-owned channel, message, thread, and agent-reply surfaces;
 - employee, project, team, policy, router, and authority delegates;
 - evidence-level authorization and restricted-intent denial before retrieval;
 - semantic work state projected from normalized GitHub, issue, calendar, and Mattermost events;
@@ -60,7 +60,7 @@ ui-harness/                     browser-validation harness only; not production 
 
 The seeded organization contains Maya (overnight support), Sarah (security lead), Alex (delegated approver), Daniel (mobile engineer), Priya (product manager), Project Atlas, AUTH-392, SEC-184, and policy SEC-POL-12.
 
-1. **Cross-department answer** — Maya asks why Atlas is blocked. NoPing routes through project, engineering, and security delegates, quarantines a malicious uploaded note, and returns evidence without pinging anyone.
+1. **Inline cross-department answer** — Maya posts `@noping Why is Atlas delayed?` in `# Project Atlas`. NoPing routes through project, engineering, and security delegates, quarantines a malicious uploaded note, and replies inside the conversation without pinging anyone.
 2. **Restricted-data refusal** — Maya asks for Sarah’s salary. The request is denied before the HR record is retrieved or sent to Gemini.
 3. **Authority-aware escalation** — Maya asks whether Atlas should launch for a $200K customer. NoPing refuses to let the model decide, sees Sarah is OOO, validates Alex’s active delegation, and creates one Needs You card.
 4. **Organizational memory** — Alex rejects the exception. A materially identical request later uses the scoped decision memory without another interruption; changed facts or expired authority force re-evaluation.
@@ -103,7 +103,7 @@ This starts PostgreSQL, Mattermost Team Edition, the NoPing agent service in det
 
 ## Google Cloud deployment
 
-The Phase 2 deployment is live at **http://35.202.201.122/noping** in project `noping-agentic-shiv-2026`. The Cloud Run services are private; access is mediated by the Mattermost plugin at the hosted URL.
+The Phase 2 deployment is live at **https://35-202-201-122.sslip.io/noping** in project `noping-agentic-shiv-2026`. Caddy provides HTTPS, the Cloud Run services are private, and access is mediated by the Mattermost plugin at the hosted URL.
 
 The production design uses only Google Cloud for deployment:
 
@@ -140,7 +140,7 @@ deploy/gcp/scripts/arm-budget-guard.sh
 
 ## Phase status
 
-Phase 2 is deployed and verified: real Mattermost, private Cloud Run, Google ADK/Gemini, Model Armor, Firestore, authenticated Pub/Sub, live GitHub webhooks, a live read-only Google Calendar work-state connector, Cloud Trace, an armed budget guard, and production Playwright evidence. The dedicated demo Calendar contains clearly labeled meeting fixtures plus a privacy-tagged out-of-office block; the deployed credential can read but cannot create or edit events. See [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md) for exact proof and limitations.
+Phase 2 is deployed and verified: Mattermost-backed channels/messages/threads with inline NoPing agent replies, private Cloud Run, Google ADK/Gemini, Model Armor, Firestore, authenticated Pub/Sub, live GitHub webhooks, a live read-only Google Calendar work-state connector, Cloud Trace, an armed budget guard, and production Playwright evidence. The dedicated demo Calendar contains clearly labeled meeting fixtures plus a privacy-tagged out-of-office block; the deployed credential can read but cannot create or edit events. See [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md) for exact proof and limitations.
 
 ## License and attribution
 

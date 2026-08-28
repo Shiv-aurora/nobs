@@ -6,13 +6,15 @@
 |---|---|
 | project | `noping-agentic-shiv-2026` |
 | region / zone | `us-central1` / `us-central1-a` |
-| Mattermost | http://35.202.201.122/noping |
+| application | https://35-202-201-122.sslip.io/noping |
 | agent service | `noping-agent-service` (private Cloud Run) |
 | budget guard | `noping-budget-guard` (private Cloud Run, armed) |
 | plugin | `com.noping.enterprise` version `0.2.1` |
 | model | `gemini-3.5-flash`, Vertex location `global` |
 
 The Mattermost VM service account mints a Google OIDC token for the exact Cloud Run audience, then the plugin adds a timestamped HMAC request signature. Pub/Sub uses its own pinned push identity. Cloud Run does not allow unauthenticated invocation.
+
+Mattermost remains the collaboration substrate and system of record for users, channels, posts, threads, files, permissions, and realtime delivery. The registered `/noping` product route owns the visible shell, reads and writes those resources through the authenticated same-origin Mattermost API, and publishes `@noping` answers as a dedicated bot identity. Caddy serves the custom NoPing login and prevents the native desktop-app chooser from interrupting the browser flow.
 
 ## Reproducible deployment
 

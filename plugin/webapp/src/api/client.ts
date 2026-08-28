@@ -1,4 +1,5 @@
 import type {AuditEvent, BootstrapResponse, Decision, HealthResponse, MetricsResponse, QueryResult, RegistryResponse} from '../types/models';
+import type {MattermostPost} from '../types/messaging';
 
 const BASE = '/plugins/com.noping.enterprise/api/v1';
 
@@ -34,6 +35,10 @@ export const api = {
     query: (text: string): Promise<QueryResult> => request('/query', {
         method: 'POST',
         body: JSON.stringify({text}),
+    }),
+    agentReply: (text: string, channelID: string, sourcePostID: string, rootID: string): Promise<{result: QueryResult; post: MattermostPost; message: string}> => request('/messages/agent-reply', {
+        method: 'POST',
+        body: JSON.stringify({text, channel_id: channelID, source_post_id: sourcePostID, root_id: rootID}),
     }),
     decisions: (): Promise<Decision[]> => request('/decisions'),
     resolveDecision: (decisionID: string, status: string, rationale: string): Promise<unknown> => request(`/decisions/${encodeURIComponent(decisionID)}/resolve`, {

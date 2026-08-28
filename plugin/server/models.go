@@ -44,3 +44,21 @@ type queryResultNotification struct {
 	DecisionAssigneeID string `json:"decision_assignee_id,omitempty"`
 	PeopleInterrupted  int    `json:"people_interrupted"`
 }
+
+type channelAgentReplyRequest struct {
+	Text         string `json:"text"`
+	ChannelID    string `json:"channel_id"`
+	SourcePostID string `json:"source_post_id,omitempty"`
+	RootID       string `json:"root_id,omitempty"`
+}
+
+type channelAgentResult struct {
+	RunID             string `json:"run_id"`
+	Status            string `json:"status"`
+	Answer            string `json:"answer"`
+	Headline          string `json:"headline"`
+	PeopleInterrupted int    `json:"people_interrupted"`
+	Route             []struct {
+		DelegateName string `json:"delegate_name"`
+	} `json:"route"`
+}

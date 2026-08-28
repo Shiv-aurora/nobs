@@ -4,7 +4,7 @@
   "description": "AI-native organizational communication for Mattermost.",
   "homepage_url": "https://github.com/shiv-aurora/noping",
   "support_url": "https://github.com/shiv-aurora/noping/issues",
-  "icon_path": "assets/noping-icon.svg",
+  "icon_path": "assets/logo.png",
   "min_server_version": "10.5.0",
   "server": {
     "executables": {

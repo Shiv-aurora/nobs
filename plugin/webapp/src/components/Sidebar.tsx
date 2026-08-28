@@ -1,33 +1,27 @@
 import React from 'react';
 
-import {AuditIcon, HomeIcon, InboxIcon, NetworkIcon, PeopleIcon, ProjectIcon, RoomIcon, SearchIcon, ShieldIcon} from './icons';
-import {Logo} from './Logo';
-import {sitePath} from '../utils/navigation';
+import logo from '../assets/logo.png';
+import {HomeIcon, InboxIcon, PeopleIcon, RoomIcon} from './icons';
 
-export type View = 'home' | 'ask' | 'needs' | 'projects' | 'people' | 'registry' | 'audit' | 'system';
+export type View = 'messages' | 'home' | 'ask' | 'needs' | 'projects' | 'people' | 'registry' | 'audit' | 'system';
 
 interface Props {
     active: View;
     needsCount: number;
-    organizationID: string;
     onNavigate: (view: View) => void;
 }
 
 const items: Array<{id: View; label: string; icon: React.ReactNode}> = [
-    {id: 'home', label: 'Home', icon: <HomeIcon/>},
-    {id: 'ask', label: 'Ask your company', icon: <SearchIcon size={19}/>},
+    {id: 'messages', label: 'Messages', icon: <RoomIcon/>},
     {id: 'needs', label: 'Needs you', icon: <InboxIcon/>},
-    {id: 'projects', label: 'Projects & teams', icon: <ProjectIcon/>},
     {id: 'people', label: 'People', icon: <PeopleIcon/>},
-    {id: 'registry', label: 'Agent registry', icon: <NetworkIcon/>},
-    {id: 'audit', label: 'Audit trail', icon: <AuditIcon/>},
-    {id: 'system', label: 'Agent operations', icon: <ShieldIcon size={19}/>},
+    {id: 'home', label: 'Insights', icon: <HomeIcon/>},
 ];
 
-export function Sidebar({active, needsCount, organizationID, onNavigate}: Props): JSX.Element {
+export function Sidebar({active, needsCount, onNavigate}: Props): JSX.Element {
     return (
         <aside className='np-sidebar'>
-            <Logo/>
+            <button type='button' className='np-rail-logo' onClick={() => onNavigate('messages')} aria-label='NoPing messages'><img src={logo} alt=''/></button>
             <nav className='np-nav' aria-label='NoPing navigation'>
                 {items.map((item) => (
                     <button
@@ -35,22 +29,16 @@ export function Sidebar({active, needsCount, organizationID, onNavigate}: Props)
                         className={`np-nav-item ${active === item.id ? 'is-active' : ''}`}
                         onClick={() => onNavigate(item.id)}
                         key={item.id}
+                        title={item.label}
                     >
                         <span className='np-nav-icon'>{item.icon}</span>
-                        <span>{item.label}</span>
+                        <small>{item.label}</small>
                         {item.id === 'needs' && needsCount > 0 && <span className='np-nav-count'>{needsCount}</span>}
                     </button>
                 ))}
             </nav>
             <div className='np-sidebar-spacer'/>
-            <a className='np-rooms-link' href={sitePath(`/${organizationID}/channels/town-square`)}>
-                <RoomIcon/>
-                <span><strong>Rooms</strong><small>Human conversation</small></span>
-            </a>
-            <div className='np-sidebar-note'>
-                <span className='np-status-dot'/>
-                <span>Agent network healthy</span>
-            </div>
+            <span className='np-rail-status' title='Agent network healthy'/>
         </aside>
     );
 }

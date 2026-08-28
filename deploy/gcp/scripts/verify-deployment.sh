@@ -20,12 +20,21 @@ for service in "${AGENT_SERVICE}" "${BUDGET_GUARD}"; do
 import json, sys
 service=json.loads(sys.argv[1]); policy=json.loads(sys.argv[2]); name=sys.argv[3]
 scaling=service.get('scaling', {})
-assert int(scaling.get('maxInstanceCount', 1)) == 1, f'{name}: max instances must be 1'
-assert int(scaling.get('minInstanceCount', 0)) == 0, f'{name}: min instances must be 0'
+service_annotations=service.get('metadata', {}).get('annotations', {})
+service_max=scaling.get('maxInstanceCount', service_annotations.get('run.googleapis.com/maxScale'))
+service_min=scaling.get('minInstanceCount', service_annotations.get('run.googleapis.com/minScale', 0))
+assert service_max is not None and int(service_max) == 1, f'{name}: max instances must be 1'
+assert int(service_min) == 0, f'{name}: min instances must be 0'
+template_scaling=service.get('template', {}).get('scaling', {})
+template_annotations=service.get('spec', {}).get('template', {}).get('metadata', {}).get('annotations', {})
+template_max=template_scaling.get('maxInstanceCount', template_annotations.get('autoscaling.knative.dev/maxScale'))
+template_min=template_scaling.get('minInstanceCount', template_annotations.get('autoscaling.knative.dev/minScale', 0))
+assert template_max is not None and int(template_max) == 1, f'{name}: active revision max instances must be 1'
+assert int(template_min) == 0, f'{name}: active revision min instances must be 0'
 for binding in policy.get('bindings', []):
     assert 'allUsers' not in binding.get('members', []), 'Cloud Run must not grant allUsers'
     assert 'allAuthenticatedUsers' not in binding.get('members', []), 'Cloud Run must not grant allAuthenticatedUsers'
-print(f'Verified {name}: private IAM, min=0, max=1')
+print(f'Verified {name}: private IAM, service and active revision min=0, max=1')
 PY
 done
 

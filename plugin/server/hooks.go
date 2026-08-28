@@ -12,7 +12,7 @@ import (
 // MessageHasBeenPosted emits a metadata-first work event. Full message bodies remain in Mattermost
 // and are retrieved only through permission-aware evidence adapters at query time.
 func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
-	if post == nil || post.UserId == "" || post.Type != "" {
+	if post == nil || post.UserId == "" || post.Type != "" || post.UserId == p.botUserID {
 		return
 	}
 	user, appErr := p.API.GetUser(post.UserId)

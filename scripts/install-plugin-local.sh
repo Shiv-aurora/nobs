@@ -2,7 +2,8 @@
 set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE=(docker compose --env-file "$ROOT_DIR/deploy/local/.env" -f "$ROOT_DIR/deploy/local/docker-compose.yml")
-BUNDLE="${1:-$ROOT_DIR/plugin/dist/com.noping.enterprise-0.1.0.tar.gz}"
+PLUGIN_VERSION="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "$ROOT_DIR/plugin/plugin.json")"
+BUNDLE="${1:-$ROOT_DIR/plugin/dist/com.noping.enterprise-${PLUGIN_VERSION}.tar.gz}"
 [[ -f "$BUNDLE" ]] || { echo "Plugin bundle not found: $BUNDLE" >&2; exit 1; }
 
 "${COMPOSE[@]}" cp "$BUNDLE" mattermost:/tmp/noping.tar.gz

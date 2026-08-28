@@ -9,6 +9,7 @@ ZONE="$(tf_output zone)"
 PROJECT_ID="$(gcloud config get-value project)"
 SITE_URL="$(tf_output mattermost_url)"
 SITE_ADDRESS="$(tf_output mattermost_site_address)"
+LEGACY_IP="$(tf_output mattermost_external_ip)"
 MATTERMOST_IMAGE="$(tf_output mattermost_image)"
 AGENT_URL="$(tf_output agent_service_url)"
 [[ -n "${AGENT_URL}" ]] || {
@@ -44,6 +45,8 @@ install -d -m 0700 "${TMP_DIR}/plugin-bundle"
 cp "${GCP_DIR}/vm/docker-compose.yml" "${TMP_DIR}/docker-compose.yml"
 cp "${GCP_DIR}/vm/Caddyfile" "${TMP_DIR}/Caddyfile"
 cp "${GCP_DIR}/vm/bootstrap.sh" "${TMP_DIR}/bootstrap.sh"
+cp "${GCP_DIR}/vm/customize_mattermost_shell.py" "${TMP_DIR}/customize_mattermost_shell.py"
+cp -R "${GCP_DIR}/vm/login" "${TMP_DIR}/login"
 cp "${BUNDLE}" "${TMP_DIR}/plugin-bundle/"
 
 umask 077
@@ -51,6 +54,7 @@ cat >"${TMP_DIR}/.env" <<EOF
 MATTERMOST_IMAGE=${MATTERMOST_IMAGE}
 MATTERMOST_SITE_URL=${SITE_URL}
 NOPING_SITE_ADDRESS=${SITE_ADDRESS}
+NOPING_LEGACY_IP=${LEGACY_IP}
 NOPING_AGENT_SERVICE_URL=${AGENT_URL}
 NOPING_CLOUD_RUN_AUDIENCE=${AGENT_URL}
 POSTGRES_PASSWORD=${POSTGRES_PASSWORD}

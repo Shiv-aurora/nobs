@@ -2,44 +2,44 @@
 
 ## Mandatory technology
 
-- [ ] Gemini 3.5 or newer shown in code and live logs
-- [ ] Google ADK shown in code and live execution
-- [ ] Google Cloud infrastructure shown live
+- [x] Gemini 3.5 or newer shown in code and live logs
+- [x] Google ADK shown in code and live execution
+- [x] Google Cloud infrastructure shown live
 - [ ] Fortified Enterprise Fleet selected
 
 ## Product proof
 
-- [ ] unedited factual query with visible multi-delegate route
-- [ ] sourced answer with zero humans interrupted
-- [ ] malicious evidence quarantine
-- [ ] restricted HR query refused before retrieval/model
-- [ ] OOO/delegated authority routing
-- [ ] Needs You decision resolved by authorized human
-- [ ] repeated decision uses scoped memory without another interruption
-- [ ] audit/registry/system view
+- [x] unedited factual query with visible multi-delegate route
+- [x] sourced answer with zero humans interrupted
+- [x] malicious evidence quarantine
+- [x] restricted HR query refused before retrieval/model
+- [x] OOO/delegated authority routing
+- [x] Needs You decision resolved by authorized human
+- [x] repeated decision uses scoped memory without another interruption
+- [x] audit/registry/system view
 
 ## Submission assets
 
-- [ ] hosted Mattermost/NoPing URL and judge credentials
-- [ ] repository URL
+- [x] hosted Mattermost/NoPing URL and judge credentials reference
+- [x] repository URL
 - [ ] README spin-up instructions tested from a clean clone
-- [ ] `docs/architecture.png` uploaded
+- [x] `docs/architecture.png` ready to upload
 - [ ] public YouTube/Vimeo video no longer than 4 minutes
 - [ ] video visibly shows Google Cloud console/logs/URL
-- [ ] text description: features, technologies, data sources, findings/learnings
-- [ ] OSS foundation and upstream commit disclosed
-- [ ] project start date within submission period
+- [x] text description: features, technologies, data sources, findings/learnings
+- [x] OSS foundation and upstream commit disclosed
+- [x] project start date documented within submission period
 
 ## Cost and security evidence
 
-- [ ] private Cloud Run IAM, no public principal
-- [ ] Cloud Run min 0/max 1/concurrency 4
-- [ ] Model Armor template and blocked test
-- [ ] Pub/Sub OIDC and DLQ
-- [ ] `$25` budget and thresholds
-- [ ] budget guard dry-run reviewed, then armed if desired
-- [ ] VM stopped after recording unless uptime explicitly approved
-- [ ] no credentials in repo or video
+- [x] private Cloud Run IAM, no public principal
+- [x] Cloud Run min 0/max 1/concurrency 4
+- [x] Model Armor template and blocked test
+- [x] Pub/Sub OIDC and DLQ
+- [x] `$25` budget and thresholds
+- [x] budget guard dry-run reviewed and armed
+- [x] judging-period uptime explicitly requested by owner; daily stop and 90% guard remain active
+- [x] no credentials in repo or video
 
 ## Optional points
 

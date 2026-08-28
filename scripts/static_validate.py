@@ -195,6 +195,35 @@ def check_required_files() -> None:
             fail(f"required handoff file missing: {relative}")
 
 
+def check_noping_shell_contract() -> None:
+    transformer = (ROOT / "deploy/gcp/vm/customize_mattermost_shell.py").read_text()
+    login = (ROOT / "deploy/gcp/vm/login/index.html").read_text()
+    caddy = (ROOT / "deploy/gcp/vm/Caddyfile").read_text()
+    required_brand_markers = (
+        "/noping-brand/logo.png",
+        "/noping-brand/text-logo.png",
+    )
+    for marker in required_brand_markers:
+        if marker not in transformer:
+            fail(f"NoPing startup shell is missing {marker}")
+    required_browser_markers = (
+        "__landingPageSeen__",
+        "__landing-preference__",
+        "'browser'",
+        "response.headers.get('Token')",
+        "MMAUTHTOKEN=",
+        "MMUSERID=",
+        "Secure; SameSite=Lax",
+    )
+    for marker in required_browser_markers:
+        if marker not in login:
+            fail(f"NoPing sign-in is missing browser preference marker {marker}")
+    required_proxy_markers = ("@authenticatedNoPing", "MMAUTHTOKEN", "rewrite * /app-shell.html", "/login?redirect_to=/noping", "@legacyLanding")
+    for marker in required_proxy_markers:
+        if marker not in caddy:
+            fail(f"Caddy NoPing authentication boundary is missing {marker}")
+
+
 def iter_files(patterns: Iterable[str]) -> Iterable[Path]:
     for pattern in patterns:
         yield from ROOT.glob(pattern)
@@ -211,6 +240,7 @@ def main() -> int:
         balanced_hcl(path)
     check_cost_and_security_contract()
     check_required_files()
+    check_noping_shell_contract()
     check_markdown_links()
 
     if FAILURES:

@@ -37,6 +37,21 @@ services:
       MM_SERVICESETTINGS_LISTENADDRESS: :8065
       MM_SERVICESETTINGS_ENABLELOCALMODE: "true"
       MM_SERVICESETTINGS_ENABLEDEVELOPER: "false"
+      MM_TEAMSETTINGS_SITENAME: NoPing
+      MM_TEAMSETTINGS_CUSTOMDESCRIPTIONTEXT: Ask the organization, not the person.
+      MM_TEAMSETTINGS_ENABLEOPENSERVER: "false"
+      MM_TEAMSETTINGS_ENABLEUSERCREATION: "false"
+      MM_EMAILSETTINGS_ENABLESIGNUPWITHEMAIL: "false"
+      MM_SERVICESETTINGS_ENABLEEMAILINVITATIONS: "false"
+      MM_RATELIMITSETTINGS_ENABLE: "true"
+      MM_RATELIMITSETTINGS_PERSEC: "20"
+      # Mattermost's code-split web client fetches many static chunks at once.
+      # Keep sustained traffic low while allowing one legitimate cold page load.
+      MM_RATELIMITSETTINGS_MAXBURST: "250"
+      MM_RATELIMITSETTINGS_MEMORYSTORESIZE: "1000"
+      MM_RATELIMITSETTINGS_VARYBYREMOTEADDR: "true"
+      MM_RATELIMITSETTINGS_VARYBYUSER: "true"
+      MM_RATELIMITSETTINGS_VARYBYHEADER: X-Forwarded-For
       MM_SQLSETTINGS_DRIVERNAME: postgres
       MM_SQLSETTINGS_DATASOURCE: postgres://noping:${POSTGRES_PASSWORD}@postgres:5432/mattermost?sslmode=disable&connect_timeout=10
       MM_PLUGINSETTINGS_ENABLE: "true"
@@ -86,8 +101,10 @@ services:
       - "443:443/udp"
     environment:
       NOPING_SITE_ADDRESS: ${NOPING_SITE_ADDRESS:-:80}
+      NOPING_LEGACY_IP: ${NOPING_LEGACY_IP:-127.0.0.1}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./login:/srv/noping-login:ro
       - caddy-data:/data
       - caddy-config:/config
     logging:

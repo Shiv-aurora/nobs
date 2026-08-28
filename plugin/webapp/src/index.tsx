@@ -4,9 +4,10 @@ import {App} from './App';
 import './styles/noping.css';
 import type {PluginRegistry} from './types/mattermost';
 import {sitePath, teamScopedNoPingPath} from './utils/navigation';
+import logo from './assets/logo.png';
 
 function NoPingGlyph(): JSX.Element {
-    return <span style={{fontWeight: 800, fontSize: 16}}>N</span>;
+    return <img src={logo} alt='' style={{width: 22, height: 22, objectFit: 'contain'}}/>;
 }
 
 function EmptyHeader(): null {

@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#10152b">
+    <title>NoPing · Sign in</title>
+    <link rel="icon" href="/noping-brand/logo.png">
+    <style>
+        :root {
+            color-scheme: light;
+            --ink: #11162c;
+            --muted: #6d7486;
+            --line: #e1e4ec;
+            --violet: #5d4bc0;
+            --cyan: #36b9d6;
+            font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+        * {box-sizing: border-box;}
+        html, body {min-height: 100%; margin: 0;}
+        body {background: #f7f8fc; color: var(--ink);}
+        button, input {font: inherit;}
+        .shell {min-height: 100vh; min-height: 100dvh; display: grid; grid-template-columns: minmax(390px, .92fr) minmax(520px, 1.08fr);}
+        .story {position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; padding: clamp(34px, 5vw, 72px); color: #fff; background: radial-gradient(circle at 18% 8%, rgba(61, 205, 235, .26), transparent 28%), radial-gradient(circle at 100% 75%, rgba(125, 83, 220, .32), transparent 38%), linear-gradient(145deg, #0b1021, #171b3c 60%, #10142b);}
+        .story::after {content: ""; position: absolute; width: 460px; height: 460px; right: -270px; top: 12%; border: 1px solid rgba(255,255,255,.08); border-radius: 50%; box-shadow: 0 0 0 70px rgba(255,255,255,.025), 0 0 0 140px rgba(255,255,255,.018);}
+        .story-mark {position: relative; z-index: 1; width: 64px; height: 64px; object-fit: contain; filter: drop-shadow(0 16px 30px rgba(68, 187, 238, .28));}
+        .story-copy {position: relative; z-index: 1; max-width: 610px; margin: 80px 0;}
+        .eyebrow {display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px; border: 1px solid rgba(114, 222, 240, .22); border-radius: 999px; background: rgba(71, 196, 222, .09); color: #86e2f1; font-size: 11px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase;}
+        .story h1 {max-width: 650px; margin: 18px 0 16px; font-size: clamp(42px, 5vw, 72px); line-height: .98; letter-spacing: -.058em;}
+        .story p {max-width: 530px; margin: 0; color: #aeb8d1; font-size: clamp(15px, 1.4vw, 18px); line-height: 1.65;}
+        .signal-row {position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 8px;}
+        .signal-row span {padding: 8px 11px; border: 1px solid rgba(255,255,255,.09); border-radius: 999px; background: rgba(255,255,255,.045); color: #aeb8cf; font-size: 10px; font-weight: 650;}
+        .auth {display: grid; place-items: center; padding: 42px; background: radial-gradient(circle at 90% 0, rgba(102, 78, 205, .07), transparent 30%), #f8f9fc;}
+        .auth-card {width: min(100%, 490px); padding: clamp(32px, 4.5vw, 56px); border: 1px solid var(--line); border-radius: 24px; background: rgba(255,255,255,.96); box-shadow: 0 24px 75px rgba(22, 27, 55, .11);}
+        .wordmark {display: block; width: 148px; height: 50px; margin: 0 0 44px auto; object-fit: contain; object-position: right center;}
+        .workspace {margin-bottom: 30px;}
+        .workspace span {color: var(--violet); font-size: 10px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase;}
+        .workspace h2 {margin: 7px 0 6px; font-size: 31px; line-height: 1.12; letter-spacing: -.04em;}
+        .workspace p {margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55;}
+        .field {display: block; margin-top: 17px;}
+        .field > span {display: block; margin-bottom: 7px; color: #4e5669; font-size: 11px; font-weight: 720;}
+        .input-wrap {position: relative;}
+        input {width: 100%; height: 52px; padding: 0 15px; border: 1px solid #d9dde7; border-radius: 12px; outline: none; background: #fbfcfe; color: var(--ink); font-size: 14px; transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;}
+        input:focus {border-color: #7665cd; background: #fff; box-shadow: 0 0 0 4px rgba(101, 79, 195, .1);}
+        .input-wrap input {padding-right: 66px;}
+        .show-password {position: absolute; right: 8px; top: 8px; height: 36px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: #7164a8; font-size: 10px; font-weight: 750; cursor: pointer;}
+        .show-password:hover {background: #f2effa;}
+        .submit {width: 100%; height: 52px; margin-top: 22px; border: 0; border-radius: 12px; background: linear-gradient(135deg, #247fb7, #644fc3); color: #fff; font-weight: 780; box-shadow: 0 12px 28px rgba(72, 68, 171, .22); cursor: pointer; transition: transform .16s ease, box-shadow .16s ease, opacity .16s ease;}
+        .submit:hover:not(:disabled) {transform: translateY(-1px); box-shadow: 0 16px 34px rgba(72, 68, 171, .27);}
+        .submit:disabled {cursor: wait; opacity: .68;}
+        .error {display: none; margin: 15px 0 0; padding: 10px 12px; border: 1px solid #f0c9ce; border-radius: 10px; background: #fff2f3; color: #a83f4c; font-size: 11px; line-height: 1.45;}
+        .error.is-visible {display: block;}
+        .privacy {display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 25px; padding-top: 19px; border-top: 1px solid #eceef3; color: #8b92a2; font-size: 9.5px;}
+        .privacy strong {color: #4d566a; font-weight: 700;}
+        @media (max-width: 880px) {
+            .shell {grid-template-columns: 1fr;}
+            .story {min-height: 310px; padding: 30px;}
+            .story-mark {width: 50px; height: 50px;}
+            .story-copy {margin: 42px 0 36px;}
+            .story h1 {max-width: 500px; font-size: clamp(38px, 11vw, 58px);}
+            .story p {font-size: 14px;}
+            .signal-row {display: none;}
+            .auth {padding: 24px 18px 44px;}
+            .auth-card {margin-top: -38px; padding: 30px 24px; border-radius: 20px; position: relative; z-index: 2;}
+            .wordmark {width: 124px; height: 42px; margin-bottom: 28px;}
+        }
+        @media (max-width: 480px) {
+            .story {min-height: 270px;}
+            .story-copy {margin: 30px 0;}
+            .story p {display: none;}
+            .workspace h2 {font-size: 27px;}
+            .privacy {align-items: flex-start; flex-direction: column;}
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {scroll-behavior: auto !important; transition: none !important;}
+        }
+    </style>
+</head>
+<body>
+    <main class="shell">
+        <section class="story" aria-label="About NoPing">
+            <img class="story-mark" src="/noping-brand/logo.png" alt="NoPing">
+            <div class="story-copy">
+                <span class="eyebrow">Your organization, available</span>
+                <h1>Ask the company.<br>Not the person.</h1>
+                <p>NoPing routes questions through employee, project, team, and policy delegates—saving human attention for the decisions that genuinely need it.</p>
+            </div>
+            <div class="signal-row" aria-label="NoPing capabilities"><span>Permission-aware</span><span>Evidence-backed</span><span>Human attention protected</span></div>
+        </section>
+        <section class="auth">
+            <form class="auth-card" id="login-form" novalidate>
+                <img class="wordmark" src="/noping-brand/text-logo.png" alt="NoPing">
+                <div class="workspace"><span>Acme Systems · Private workspace</span><h2>Welcome back</h2><p>Sign in to ask your organization and see only the work that actually needs you.</p></div>
+                <label class="field"><span>Email or username</span><input id="login-id" name="loginId" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus></label>
+                <label class="field"><span>Password</span><span class="input-wrap"><input id="password" name="password" type="password" autocomplete="current-password" required><button class="show-password" id="show-password" type="button" aria-controls="password" aria-pressed="false">Show</button></span></label>
+                <button class="submit" id="submit" type="submit">Continue to NoPing</button>
+                <p class="error" id="error" role="alert"></p>
+                <div class="privacy"><strong>Secure organizational access</strong><span>Your permissions follow you into every answer.</span></div>
+            </form>
+        </section>
+    </main>
+    <script>
+        (() => {
+            // Keep the Mattermost collaboration substrate in the browser without
+            // exposing its desktop-app chooser as a NoPing product surface.
+            try {
+                localStorage.setItem('__landingPageSeen__', 'true');
+                localStorage.setItem('__landing-preference__' + window.location.origin, 'browser');
+            } catch (_) {}
+
+            const form = document.getElementById('login-form');
+            const loginID = document.getElementById('login-id');
+            const password = document.getElementById('password');
+            const submit = document.getElementById('submit');
+            const error = document.getElementById('error');
+            const showPassword = document.getElementById('show-password');
+            const requested = new URLSearchParams(window.location.search).get('redirect_to');
+            const redirectTo = requested && requested.startsWith('/') && !requested.startsWith('//') ? requested : '/noping';
+
+            showPassword.addEventListener('click', () => {
+                const showing = password.type === 'text';
+                password.type = showing ? 'password' : 'text';
+                showPassword.textContent = showing ? 'Show' : 'Hide';
+                showPassword.setAttribute('aria-pressed', String(!showing));
+                password.focus();
+            });
+
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                error.classList.remove('is-visible');
+                if (!loginID.value.trim() || !password.value) {
+                    error.textContent = 'Enter your username and password to continue.';
+                    error.classList.add('is-visible');
+                    return;
+                }
+                submit.disabled = true;
+                submit.textContent = 'Signing in…';
+                try {
+                    const response = await fetch('/api/v4/users/login', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({login_id: loginID.value.trim(), password: password.value}),
+                    });
+                    if (!response.ok) {
+                        const payload = await response.json().catch(() => ({}));
+                        throw new Error(payload.message || 'Those credentials did not work. Try again.');
+                    }
+                    const user = await response.json().catch(() => null);
+                    const sessionToken = response.headers.get('Token');
+                    if (!sessionToken || !user || typeof user.id !== 'string') {
+                        throw new Error('NoPing could not establish a browser session. Try again.');
+                    }
+                    document.cookie = `MMAUTHTOKEN=${encodeURIComponent(sessionToken)}; Path=/; Secure; SameSite=Lax`;
+                    document.cookie = `MMUSERID=${encodeURIComponent(user.id)}; Path=/; Secure; SameSite=Lax`;
+                    try {
+                        localStorage.setItem('__landingPageSeen__', 'true');
+                        localStorage.setItem('__landing-preference__' + window.location.origin, 'browser');
+                    } catch (_) {}
+                    window.location.assign(redirectTo);
+                } catch (caught) {
+                    error.textContent = caught instanceof Error ? caught.message : 'NoPing could not sign you in. Try again.';
+                    error.classList.add('is-visible');
+                    submit.disabled = false;
+                    submit.textContent = 'Continue to NoPing';
+                }
+            });
+        })();
+    </script>
+</body>
+</html>

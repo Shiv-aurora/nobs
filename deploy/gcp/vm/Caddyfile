@@ -1,12 +1,50 @@
+http://{$NOPING_LEGACY_IP} {
+    redir https://{$NOPING_SITE_ADDRESS}{uri} 308
+}
+
 {$NOPING_SITE_ADDRESS} {
     encode zstd gzip
-    reverse_proxy mattermost:8065
+
+    @workspaceRoot path /
+    redir @workspaceRoot /noping 302
+
+    @legacyLanding path /landing /landing/*
+    redir @legacyLanding /noping 302
+
+    handle_path /noping-brand/* {
+        root * /srv/noping-login
+        file_server
+    }
+
+    handle /login* {
+        root * /srv/noping-login
+        rewrite * /index.html
+        file_server
+    }
+
+    handle /noping {
+        route {
+            @authenticatedNoPing header_regexp Cookie "(?i)(^|;[[:space:]]*)MMAUTHTOKEN="
+            handle @authenticatedNoPing {
+                root * /srv/noping-login
+                rewrite * /app-shell.html
+                header Cache-Control "no-store"
+                file_server
+            }
+            redir * /login?redirect_to=/noping 302
+        }
+    }
+
+    handle {
+        reverse_proxy mattermost:8065
+    }
 
     header {
         -Server
         X-Content-Type-Options nosniff
         Referrer-Policy strict-origin-when-cross-origin
         Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
     }
 
     log {

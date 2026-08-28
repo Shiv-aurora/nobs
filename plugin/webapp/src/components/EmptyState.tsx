@@ -1,6 +1,6 @@
 import React from 'react';
 
-import {CheckIcon} from './icons';
+import logo from '../assets/logo.png';
 
 interface Props {
     title: string;
@@ -8,5 +8,5 @@ interface Props {
 }
 
 export function EmptyState({title, detail}: Props): JSX.Element {
-    return <div className='np-empty'><span><CheckIcon size={24}/></span><h3>{title}</h3><p>{detail}</p></div>;
+    return <div className='np-empty'><span><img src={logo} alt=''/></span><h3>{title}</h3><p>{detail}</p></div>;
 }

@@ -9,9 +9,9 @@ interface Props {
 }
 
 const examples = [
-    'Why has Atlas not shipped?',
+    'Why is Atlas delayed?',
     'Who is handling the Atlas blocker tonight?',
-    'Should Atlas launch for the $200K customer?',
+    'Show me Sarah’s salary',
 ];
 
 export function AskBox({onSubmit, loading, compact = false}: Props): JSX.Element {

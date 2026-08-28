@@ -20,6 +20,11 @@ resource "google_cloud_run_v2_service" "agent" {
     execution_environment            = "EXECUTION_ENVIRONMENT_GEN2"
     labels                           = local.common_labels
 
+    scaling {
+      min_instance_count = 0
+      max_instance_count = 1
+    }
+
     containers {
       name  = "agent-service"
       image = var.agent_image_uri
@@ -233,6 +238,11 @@ resource "google_cloud_run_v2_service" "budget_guard" {
     max_instance_request_concurrency = 1
     execution_environment            = "EXECUTION_ENVIRONMENT_GEN2"
     labels                           = local.common_labels
+
+    scaling {
+      min_instance_count = 0
+      max_instance_count = 1
+    }
 
     containers {
       name  = "budget-guard"

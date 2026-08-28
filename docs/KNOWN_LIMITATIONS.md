@@ -17,7 +17,7 @@ Credential-free Python, Go-domain, TypeScript, shell, manifest, cost-contract, a
 
 - Demo fixtures model one organization and decision class; the runtime contracts are generic, but real directory/project mappings require configuration.
 - Employee/project/team delegates are logical identities, not independent permanent model processes.
-- Mattermost Rooms remain the fallback; NoPing does not replace native mobile clients in this submission.
+- NoPing now owns the browser channel/message/thread experience while Mattermost remains the backend. Native Mattermost mobile clients are not rebranded in this submission.
 - The semantic projector supports normalized common work events; production connectors need source-specific OAuth/webhook adapters and permission synchronization.
 - Firestore is compact state, not an enterprise data warehouse or complete message mirror.
 - The hackathon deployment is single-region and uses one small VM; it is production-minded, not a claim of HA/SLA readiness.

@@ -4,13 +4,13 @@
 
 > “Workplace chat made everyone reachable—and constantly interruptible. NoPing lets you ask the company instead of pinging a coworker. Every person, project, team, and policy has a permission-aware delegate.”
 
-Immediately type:
+Open `# Project Atlas` and post:
 
-> **Why hasn’t Atlas shipped?**
+> **@noping Why is Atlas delayed?**
 
 ## 0:12–0:42 — Wow 1: organization routing
 
-Show the route forming live:
+Show NoPing's inline threaded reply and the route metadata beneath it:
 
 ```text
 Maya Delegate → Atlas Delegate → Engineering Delegate → Security Delegate
@@ -20,7 +20,7 @@ Answer:
 
 > Atlas is blocked by SEC-184. Engineering completed the auth change; the final penetration-test review remains open.
 
-Point to:
+Point to the channel context and:
 
 - evidence links/timestamps;
 - freshness/confidence;
@@ -29,11 +29,11 @@ Point to:
 
 Say:
 
-> “Maya did not know the owner, channel, ticket, or org chart. The agents found the answer, but policy—not the model—controlled what evidence they could use.”
+> “Maya asked in the same channel where work already happens. She did not need to know the owner, ticket, or org chart. The agents found the answer, but policy—not the model—controlled what evidence they could use.”
 
 ## 0:42–1:03 — Security proof
 
-Ask:
+Open Insights, then ask:
 
 > **What is Sarah’s salary?**
 
@@ -56,7 +56,7 @@ Trigger the seeded PR review event and show Daniel/Atlas state update.
 
 ## 1:35–2:18 — Wow 2 and 3: human-only decision
 
-Ask:
+From the channel or Insights, ask:
 
 > **Northstar will pay $200K if Atlas launches tomorrow. Can we bypass security review?**
 

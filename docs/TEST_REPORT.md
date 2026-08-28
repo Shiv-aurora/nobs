@@ -4,16 +4,18 @@ Final verification date: **2026-08-28 UTC**
 
 Google Cloud project: **`noping-agentic-shiv-2026`**
 
-Hosted application: **http://35.202.201.122/noping**
+Hosted application: **https://35-202-201-122.sslip.io/noping**
 
 ## Automated verification
 
 | Layer | Command / proof | Result |
 |---|---|---|
 | aggregate source gate | `make check` | **45 agent tests, 8 guard tests, all Go packages, strict TypeScript, Python compile, shell/static/security checks passed** |
-| local product | Docker Compose Mattermost + plugin + agent, then Playwright | **2/2 passed** |
-| production authority flow | Playwright against hosted Mattermost and private Cloud Run | **passed in 44.4 s** |
-| production safety/fallback flow | Playwright malicious prompt + reload + Rooms fallback | **passed in 11.6 s** |
+| local product | Docker Compose Mattermost + plugin + agent, then Playwright | **4/4 passed across messaging, responsive, authority/memory, and malicious-input flows** |
+| production messaging flow | real Project Atlas post + threaded `@noping` bot reply | **passed in 18.7 s** |
+| production responsive flow | phone 390×844 + short laptop 1024×600, no horizontal overflow | **passed in 13.2 s** |
+| production authority flow | Playwright against hosted Mattermost and private Cloud Run, including enforced cooldown retry | **passed in 1.5 min** |
+| production safety flow | Playwright malicious prompt + reload + NoPing branding assertion | **passed in 15.5 s** |
 | evidence capture | gated Playwright capture against production | **1/1 passed in 25.9 s** |
 | Terraform | provider-backed validate, apply, and final plan | **passed; zero unplanned resources** |
 | deployment contract | `deploy/gcp/scripts/verify-deployment.sh` | **passed; private Cloud Run, min 0/max 1, Mattermost reachable** |
@@ -28,7 +30,11 @@ The production authority flow proved all of the following in one browser journey
 - Alex rejected it; and
 - Priya's materially identical request reused scoped decision memory with zero new interruptions.
 
+The production messaging flow additionally proved that the visible NoPing shell loads real Mattermost channels and seeded posts, Maya can publish a normal post, `@noping` invokes the private organizational agent, the dedicated NoPing bot joins through Mattermost's real team/channel membership model, and the answer is persisted as a threaded post with route and interruption metadata. The complete production suite reported **4 passed, 1 intentionally gated evidence-capture test skipped**. During the suite, the third rapid Maya query received the configured `429`/`Retry-After: 60`; the test honored the cooldown and then passed, proving that public model spend admission is active.
+
 The original phrase “bypass security review” was correctly but over-conservatively rejected by live Model Armor. The production example now uses “Should Atlas launch for the $200K customer?”, which reaches the human-authority branch without weakening the separate malicious-prompt control.
+
+The final local rerun rebuilt the agent image, installed plugin version `0.2.1`, and exercised the same messaging-first browser suite. That run also found and fixed a reproducibility defect in `scripts/install-plugin-local.sh`: the installer now derives the archive version from `plugin/plugin.json` instead of silently selecting the obsolete `0.1.0` bundle.
 
 ## Live Google Cloud evidence
 
@@ -48,12 +54,15 @@ The original phrase “bypass security review” was correctly but over-conserva
 - [`phase2-decision-memory.png`](evidence/phase2-decision-memory.png)
 - [`phase2-audit-trail.png`](evidence/phase2-audit-trail.png)
 - [`phase2-agent-operations.png`](evidence/phase2-agent-operations.png)
+- [`phase2-messaging-agent-reply.png`](evidence/phase2-messaging-agent-reply.png) — messaging-first channel with inline delegate reply
+- [`phase2-messaging-phone.png`](evidence/phase2-messaging-phone.png) — 390×844 responsive proof
+- [`phase2-messaging-short-laptop.png`](evidence/phase2-messaging-short-laptop.png) — 1024×600 responsive proof
 
 Refresh these artifacts explicitly with:
 
 ```bash
 NOPING_CAPTURE_EVIDENCE=true \
-MATTERMOST_URL=http://35.202.201.122 \
+MATTERMOST_URL=https://35-202-201-122.sslip.io \
 NOPING_DEMO_USER_PASSWORD="$(gcloud secrets versions access latest --secret=noping-demo-user-password)" \
 npm --prefix e2e test -- evidence.spec.ts
 ```
@@ -61,7 +70,7 @@ npm --prefix e2e test -- evidence.spec.ts
 ## Known limitations
 
 - Native Google Calendar `outOfOffice` events require an enterprise Calendar. The dedicated personal demo account therefore uses a private `nopingAvailability=out_of_office` marker on a normal event; NoPing queries that marker without requesting the event title, description, location, attendees, or attachments. Native enterprise OOO events remain supported by the same connector.
-- The judging URL is HTTP on a reserved IP; production TLS requires a domain.
+- The judging URL uses Caddy-managed TLS with the stable `sslip.io` hostname. A custom first-party domain remains a post-hackathon branding improvement.
 - Mattermost email notifications are intentionally unconfigured for the demo.
 - The repository is private; no irreversible visibility change was made without owner approval.
 - The fixed VM should be stopped after demo recording; Cloud Run already scales to zero.
