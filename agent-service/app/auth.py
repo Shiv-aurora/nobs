@@ -68,11 +68,13 @@ class SignedServiceMiddleware:
         verifier: SignatureVerifier,
         pubsub_verifier: PubSubTokenVerifier | None = None,
         pubsub_path: str = "/v1/events/pubsub",
+        unauthenticated_paths: frozenset[str] = frozenset({"/healthz"}),
     ):
         self.app = app
         self.verifier = verifier
         self.pubsub_verifier = pubsub_verifier
         self.pubsub_path = pubsub_path
+        self.unauthenticated_paths = unauthenticated_paths
 
     async def __call__(
         self,
@@ -80,7 +82,11 @@ class SignedServiceMiddleware:
         receive: Callable[[], Awaitable[dict[str, Any]]],
         send: Callable[[dict[str, Any]], Awaitable[None]],
     ) -> None:
-        if scope.get("type") != "http" or scope.get("method") == "OPTIONS":
+        if (
+            scope.get("type") != "http"
+            or scope.get("method") == "OPTIONS"
+            or scope.get("path") in self.unauthenticated_paths
+        ):
             await self.app(scope, receive, send)
             return
 

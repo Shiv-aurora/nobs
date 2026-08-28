@@ -6,6 +6,7 @@ resource "google_cloud_run_v2_service" "agent" {
   ingress             = "INGRESS_TRAFFIC_ALL"
   deletion_protection = false
   labels              = local.common_labels
+  custom_audiences    = [local.agent_service_audience]
 
   scaling {
     min_instance_count = 0
@@ -75,7 +76,7 @@ resource "google_cloud_run_v2_service" "agent" {
       }
       env {
         name  = "NOPING_PUBSUB_PUSH_AUDIENCE"
-        value = google_cloud_run_v2_service.agent[0].uri
+        value = local.agent_service_audience
       }
       env {
         name  = "NOPING_PUBSUB_PUSH_SERVICE_ACCOUNT"
@@ -215,6 +216,7 @@ resource "google_cloud_run_v2_service" "budget_guard" {
   ingress             = "INGRESS_TRAFFIC_ALL"
   deletion_protection = false
   labels              = local.common_labels
+  custom_audiences    = [local.budget_guard_audience]
 
   scaling {
     min_instance_count = 0
@@ -240,7 +242,7 @@ resource "google_cloud_run_v2_service" "budget_guard" {
       resources {
         limits = {
           cpu    = "1"
-          memory = "256Mi"
+          memory = "512Mi"
         }
         cpu_idle          = true
         startup_cpu_boost = false

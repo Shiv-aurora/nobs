@@ -18,6 +18,12 @@ locals {
   mattermost_name    = "${var.name_prefix}-mattermost"
   budget_name        = "NoPing $25 guardrail"
 
+  # Stable OIDC audiences avoid a Cloud Run service self-reference during the
+  # first Terraform apply. They do not need to resolve in DNS; Cloud Run accepts
+  # them as additional audiences while requests still use the generated URI.
+  agent_service_audience = "https://${var.project_id}.noping.internal/agent-service"
+  budget_guard_audience  = "https://${var.project_id}.noping.internal/budget-guard"
+
   required_apis = toset([
     "aiplatform.googleapis.com",
     "artifactregistry.googleapis.com",

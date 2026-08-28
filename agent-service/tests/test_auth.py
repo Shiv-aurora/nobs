@@ -60,9 +60,15 @@ def test_signature_cannot_be_replayed_on_another_target() -> None:
     assert response.status_code == 401
 
 
+def test_health_probe_does_not_require_application_signature() -> None:
+    client, _ = production_client()
+    response = client.get("/healthz")
+    assert response.status_code == 200
+
+
 def test_expired_signature_is_rejected() -> None:
     client, verifier = production_client()
-    target = "/healthz"
+    target = "/v1/registry"
     timestamp = str(int(time.time()) - 1_000)
     response = client.get(target, headers=signed_headers(verifier, "GET", target, timestamp=timestamp))
     assert response.status_code == 401

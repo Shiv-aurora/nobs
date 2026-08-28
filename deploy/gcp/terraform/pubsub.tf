@@ -71,7 +71,7 @@ resource "google_pubsub_subscription" "work_events_push" {
 
     oidc_token {
       service_account_email = google_service_account.pubsub_push.email
-      audience              = google_cloud_run_v2_service.agent[0].uri
+      audience              = local.agent_service_audience
     }
 
     attributes = {
@@ -137,7 +137,7 @@ resource "google_pubsub_subscription" "budget_guard_push" {
 
     oidc_token {
       service_account_email = google_service_account.pubsub_push.email
-      audience              = google_cloud_run_v2_service.budget_guard[0].uri
+      audience              = local.budget_guard_audience
     }
   }
 
