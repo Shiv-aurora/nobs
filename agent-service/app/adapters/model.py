@@ -98,12 +98,10 @@ Rules, in priority order:
         model_name: str = "gemini-3.5-flash",
         *,
         max_output_tokens: int = 600,
-        temperature: float = 0.1,
         runner_factory: Callable[[], object] | None = None,
     ) -> None:
         self.model_name = model_name
         self.max_output_tokens = max_output_tokens
-        self.temperature = temperature
         self._runner_factory = runner_factory
 
     def synthesize(self, *, text: str, intent: Intent, evidence: list[Evidence]) -> SynthesisResult:
@@ -128,7 +126,11 @@ Rules, in priority order:
             usage = getattr(event, "usage_metadata", None)
             if usage is not None:
                 input_tokens = max(input_tokens, int(getattr(usage, "prompt_token_count", 0) or 0))
-                output_tokens = max(output_tokens, int(getattr(usage, "candidates_token_count", 0) or 0))
+                candidate_tokens = int(getattr(usage, "candidates_token_count", 0) or 0)
+                thought_tokens = int(getattr(usage, "thoughts_token_count", 0) or 0)
+                # Gemini bills/reports thinking separately from visible candidate
+                # text. Count both against NoPing's output budget conservatively.
+                output_tokens = max(output_tokens, candidate_tokens + thought_tokens)
                 cached_tokens = max(cached_tokens, int(getattr(usage, "cached_content_token_count", 0) or 0))
             if event.is_final_response() and event.content and event.content.parts:
                 final_text = "".join(part.text or "" for part in event.content.parts if getattr(part, "text", None)).strip()
@@ -171,8 +173,8 @@ Rules, in priority order:
             model=self.model_name,
             instruction=self.INSTRUCTION,
             generate_content_config=types.GenerateContentConfig(
-                temperature=self.temperature,
                 max_output_tokens=self.max_output_tokens,
+                thinking_config=types.ThinkingConfig(thinking_level="MINIMAL"),
             ),
         )
         session_service = InMemorySessionService()

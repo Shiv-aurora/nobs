@@ -9,13 +9,15 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 COPY agent-service/pyproject.toml ./pyproject.toml
-COPY agent-service/app ./app
 RUN python -m pip install --no-cache-dir --upgrade pip && \
+    mkdir -p app && touch app/__init__.py && \
     if [ "$INSTALL_GOOGLE" = "true" ]; then \
       python -m pip install --no-cache-dir ".[google]"; \
     else \
       python -m pip install --no-cache-dir .; \
-    fi
+    fi && \
+    rm -rf app
+COPY agent-service/app ./app
 COPY seed ./seed
 
 RUN addgroup --system --gid 65532 noping && \

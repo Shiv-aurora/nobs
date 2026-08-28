@@ -15,11 +15,12 @@ class FakeSessionService:
 
 
 class FakeEvent:
-    def __init__(self, *, text: str = "", final: bool = False, input_tokens: int = 0, output_tokens: int = 0) -> None:
+    def __init__(self, *, text: str = "", final: bool = False, input_tokens: int = 0, output_tokens: int = 0, thought_tokens: int = 0) -> None:
         self.content = SimpleNamespace(parts=[SimpleNamespace(text=text)]) if text else None
         self.usage_metadata = SimpleNamespace(
             prompt_token_count=input_tokens,
             candidates_token_count=output_tokens,
+            thoughts_token_count=thought_tokens,
             cached_content_token_count=7,
         )
         self._final = final
@@ -35,7 +36,7 @@ class FakeRunner:
     async def run_async(self, *, user_id: str, session_id: str, new_message: object):
         self.messages.append(new_message)
         yield FakeEvent(input_tokens=321, output_tokens=0)
-        yield FakeEvent(text="Atlas is blocked by SEC-184.", final=True, input_tokens=321, output_tokens=18)
+        yield FakeEvent(text="Atlas is blocked by SEC-184.", final=True, input_tokens=321, output_tokens=18, thought_tokens=4)
 
 
 def evidence() -> list[Evidence]:
@@ -69,7 +70,7 @@ def test_google_adk_adapter_executes_runner_and_collects_usage() -> None:
     assert result.text == "Atlas is blocked by SEC-184."
     assert result.usage.model_name == "gemini-3.5-flash"
     assert result.usage.input_tokens == 321
-    assert result.usage.output_tokens == 18
+    assert result.usage.output_tokens == 22
     assert result.usage.cached_input_tokens == 7
     assert len(sessions.created) == 1
     assert '"question":"Why is Atlas blocked?"' in runner.messages[0]["text"]
