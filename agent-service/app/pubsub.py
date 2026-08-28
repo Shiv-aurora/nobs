@@ -17,14 +17,14 @@ class PubSubMessage(BaseModel):
     data: str
     message_id: Annotated[str, Field(alias="messageId")]
     attributes: dict[str, str] = Field(default_factory=dict)
-    publish_time: Annotated[str | None, Field(alias="publishTime")] = None
-    ordering_key: Annotated[str | None, Field(alias="orderingKey")] = None
+    publish_time: str | None = Field(default=None, alias="publishTime")
+    ordering_key: str | None = Field(default=None, alias="orderingKey")
 
 
 class PubSubPushEnvelope(BaseModel):
     message: PubSubMessage
     subscription: str
-    delivery_attempt: Annotated[int | None, Field(alias="deliveryAttempt")] = None
+    delivery_attempt: int | None = Field(default=None, alias="deliveryAttempt")
 
     def decode_work_event(self) -> WorkEvent:
         try:

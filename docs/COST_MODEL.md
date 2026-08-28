@@ -13,7 +13,7 @@ A Cloud Billing budget is not treated as an instantaneous hard cap. NoPing combi
 | Mattermost VM | one `e2-small`; `e2-medium` only after measured pressure |
 | disk | 20 GB `pd-standard`, maximum 30 GB |
 | Cloud Run agent | 1 vCPU, 1 GiB, min 0, max 1, concurrency 4, 120 s |
-| Cloud Run budget guard | 1 vCPU, 256 MiB, min 0, max 1, concurrency 1, 30 s |
+| Cloud Run budget guard | 1 vCPU, 512 MiB (Gen2 minimum), min 0, max 1, concurrency 1, 30 s |
 | Firestore | one native default database, PITR disabled |
 | Pub/Sub | work topic, DLQ, budget topic; bounded retention |
 | Artifact Registry | keep 3 recent versions; delete untagged after 7 days |

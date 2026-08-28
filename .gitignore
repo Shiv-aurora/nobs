@@ -35,6 +35,7 @@ coverage.xml
 **/crash.log
 **/crash.*.log
 deploy/gcp/.images.env
+deploy/gcp/.budget-guard-armed
 deploy/gcp/terraform/terraform.tfvars
 
 # Browser test artifacts
