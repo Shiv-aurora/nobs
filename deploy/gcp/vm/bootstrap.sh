@@ -37,7 +37,7 @@ docker compose --env-file .env exec -T mattermost mmctl --local user change-pass
 PLUGIN_FILENAME="$(find ./plugin-bundle -maxdepth 1 -type f -name 'com.noping.enterprise-*.tar.gz' -printf '%f\n' | head -1)"
 [[ -n "${PLUGIN_FILENAME}" ]] || { echo "No NoPing plugin bundle mounted" >&2; exit 1; }
 PLUGIN_BUNDLE="/plugin-bundle/${PLUGIN_FILENAME}"
-docker compose --env-file .env exec -T mattermost mmctl --local plugin add --force "${PLUGIN_BUNDLE}" >/dev/null
+docker compose --env-file .env exec -T --user root mattermost mmctl --local plugin add --force "${PLUGIN_BUNDLE}" >/dev/null
 docker compose --env-file .env exec -T mattermost mmctl --local plugin enable com.noping.enterprise >/dev/null
 
 systemctl enable noping-compose.service >/dev/null
