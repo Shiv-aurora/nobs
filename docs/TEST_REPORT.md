@@ -38,7 +38,7 @@ The original phrase “bypass security review” was correctly but over-conserva
 - **Firestore:** cold-start restoration retained normalized work state and audit records; a duplicate delivery did not create a second audit entry.
 - **Pub/Sub:** authenticated push, duplicate suppression, and dead-letter inspection were exercised.
 - **GitHub:** live signed webhook delivery GUID `14341326-a289-11f1-8f2e-cf446830ac6d` returned `202`; normalized `repository.pushed` state for `Shiv-aurora/noping` persisted exactly once.
-- **Google Calendar:** API and connector are deployed, identity mapping and privacy-preserving availability normalization are tested, but authorized-user consent is still pending. Production therefore uses the explicit deterministic OOO availability fallback and does not claim a live Calendar read.
+- **Google Calendar:** a project-owned desktop OAuth client completed consent for the dedicated demo account with `calendar.events.readonly` plus `cloud-platform`. A privacy-minimal live read succeeded, the connector synchronized one tagged out-of-office work-state event, Firestore persisted exactly one `calendar.out_of_office` event for `maya`, and the deployed bootstrap returned `availability_status=out_of_office` with an expiry. The Calendar contained four clearly labeled demo meetings plus the tagged work-state block; no attendees or notifications were created. The deployed credential is read-only and event titles/descriptions are excluded from connector requests.
 - **Trace:** Cloud Trace returned seven spans for trace `911bf362b57e01127de8d7999a4d2a9a`, including `/v1/bootstrap` receive/send spans.
 - **Budget guard:** synthetic 90% notification was verified in dry-run, then the guard was armed; current Cloud Run setting is `dry_run=false`.
 
@@ -60,7 +60,7 @@ npm --prefix e2e test -- evidence.spec.ts
 
 ## Known limitations
 
-- Google Calendar consent requires an interactive account sign-in and remains the only incomplete external connector proof.
+- Native Google Calendar `outOfOffice` events require an enterprise Calendar. The dedicated personal demo account therefore uses a private `nopingAvailability=out_of_office` marker on a normal event; NoPing queries that marker without requesting the event title, description, location, attendees, or attachments. Native enterprise OOO events remain supported by the same connector.
 - The judging URL is HTTP on a reserved IP; production TLS requires a domain.
 - Mattermost email notifications are intentionally unconfigured for the demo.
 - The repository is private; no irreversible visibility change was made without owner approval.

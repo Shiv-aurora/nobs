@@ -40,21 +40,23 @@ The repository carries `.budget-guard-armed` as an ignored local marker, so late
 - Cloud Run's edge did not forward the application's `/healthz` path in this deployment. Platform health still uses `/healthz`; signed plugin traffic uses the equivalent `/v1/health` alias.
 - Vertex `gemini-3.5-flash` uses location `global`, and thinking output is bounded so the answer fits inside the application token ceiling.
 - Traces are exported directly over authenticated OTLP HTTP to Google Telemetry with a simple processor. This works with request-based Cloud Run CPU and avoids an always-on collector.
-- Google Calendar credentials are optional at deployment time. When no authorized-user secret version exists, the connector announces and uses deterministic availability fallback rather than failing or pretending a live read occurred.
+- Google Calendar credentials remain optional at deployment time. When no authorized-user secret version exists, the connector announces and uses deterministic availability fallback rather than failing or pretending a live read occurred. The live deployment now has a real read-only authorized-user credential in Secret Manager.
+- Personal Gmail calendars cannot create Google's native `outOfOffice` event type. NoPing additionally supports a privacy-tagged normal event (`nopingAvailability=out_of_office`) while still excluding titles, descriptions, locations, attendees, and attachments. Enterprise-native OOO events continue to work unchanged.
 
 ## Calendar authorization
 
-Calendar uses the read-only `calendar.events.readonly` scope. Complete the interactive user consent, then store Application Default Credentials without committing them:
+Calendar uses the read-only `calendar.events.readonly` scope. For Workspace scopes, create a project-owned **Desktop app** OAuth client in Google Auth Platform, add the dedicated demo account as a test user, download the client JSON outside the repository, and complete interactive consent:
 
 ```bash
-gcloud auth application-default login --no-launch-browser \
-  --scopes=cloud-platform,calendar.events.readonly
+gcloud auth application-default login --launch-browser \
+  --client-id-file=/secure/path/client_secret.json \
+  --scopes=https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/calendar.events.readonly
 deploy/gcp/scripts/store-calendar-credentials.sh \
   "$HOME/.config/gcloud/application_default_credentials.json"
 deploy/gcp/scripts/deploy-mattermost.sh
 ```
 
-The connector maps only configured identities and projects and publishes normalized availability/work-state facts—not event descriptions or unrelated private calendar content.
+The connector maps only configured identities and projects and publishes normalized availability/work-state facts—not event descriptions or unrelated private calendar content. Production proof on 2026-08-28 showed a successful live read, one synchronized work-state event, one Firestore `calendar.out_of_office` record for `maya`, and `out_of_office` in the hosted bootstrap response.
 
 ## Verify and operate
 

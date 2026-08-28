@@ -140,7 +140,7 @@ deploy/gcp/scripts/arm-budget-guard.sh
 
 ## Phase status
 
-Phase 2 is deployed and verified: real Mattermost, private Cloud Run, Google ADK/Gemini, Model Armor, Firestore, authenticated Pub/Sub, live GitHub webhooks, Cloud Trace, an armed budget guard, and production Playwright evidence. Google Calendar's read-only connector is deployed and tested but still awaits interactive user consent, so the hosted demo explicitly uses its deterministic OOO fallback. See [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md) for exact proof and limitations.
+Phase 2 is deployed and verified: real Mattermost, private Cloud Run, Google ADK/Gemini, Model Armor, Firestore, authenticated Pub/Sub, live GitHub webhooks, a live read-only Google Calendar work-state connector, Cloud Trace, an armed budget guard, and production Playwright evidence. The dedicated demo Calendar contains clearly labeled meeting fixtures plus a privacy-tagged out-of-office block; the deployed credential can read but cannot create or edit events. See [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md) for exact proof and limitations.
 
 ## License and attribution
 

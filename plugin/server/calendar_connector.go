@@ -52,6 +52,9 @@ type googleCalendarEvent struct {
 	Organizer struct {
 		Email string `json:"email"`
 	} `json:"organizer"`
+	ExtendedProperties struct {
+		Private map[string]string `json:"private"`
+	} `json:"extendedProperties"`
 }
 
 type calendarTokenSource struct {
@@ -133,38 +136,54 @@ func (c *googleCalendarClient) outOfOfficeEvents(ctx context.Context, now time.T
 		return nil, err
 	}
 	endpoint := fmt.Sprintf("%s/calendars/%s/events", googleCalendarAPIBase, url.PathEscape(c.calendarID))
-	query := url.Values{}
-	query.Set("eventTypes", "outOfOffice")
-	query.Set("singleEvents", "true")
-	query.Set("showDeleted", "true")
-	query.Set("timeMin", now.Add(-24*time.Hour).UTC().Format(time.RFC3339))
-	query.Set("timeMax", now.Add(30*24*time.Hour).UTC().Format(time.RFC3339))
-	// Deliberately exclude summary, description, location, attendees, and attachments.
-	query.Set("fields", "items(id,status,eventType,updated,start,end,creator/email,organizer/email)")
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint+"?"+query.Encode(), nil)
+	fetch := func(eventType, privateFilter string) ([]googleCalendarEvent, error) {
+		query := url.Values{}
+		query.Set("eventTypes", eventType)
+		if privateFilter != "" {
+			query.Set("privateExtendedProperty", privateFilter)
+		}
+		query.Set("singleEvents", "true")
+		query.Set("showDeleted", "true")
+		query.Set("timeMin", now.Add(-24*time.Hour).UTC().Format(time.RFC3339))
+		query.Set("timeMax", now.Add(30*24*time.Hour).UTC().Format(time.RFC3339))
+		// Deliberately exclude summary, description, location, attendees, and attachments.
+		query.Set("fields", "items(id,status,eventType,updated,start,end,creator/email,organizer/email,extendedProperties/private)")
+		request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint+"?"+query.Encode(), nil)
+		if err != nil {
+			return nil, err
+		}
+		request.Header.Set("Authorization", "Bearer "+token)
+		if c.quotaProject != "" {
+			request.Header.Set("X-Goog-User-Project", c.quotaProject)
+		}
+		response, err := c.client.Do(request)
+		if err != nil {
+			return nil, fmt.Errorf("fetch Calendar availability events: %w", err)
+		}
+		defer response.Body.Close()
+		body, _ := io.ReadAll(io.LimitReader(response.Body, 1024*1024))
+		if response.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("Calendar events API returned %s", response.Status)
+		}
+		var payload struct {
+			Items []googleCalendarEvent `json:"items"`
+		}
+		if err := json.Unmarshal(body, &payload); err != nil {
+			return nil, errors.New("Calendar events response is invalid JSON")
+		}
+		return payload.Items, nil
+	}
+	native, err := fetch("outOfOffice", "")
 	if err != nil {
 		return nil, err
 	}
-	request.Header.Set("Authorization", "Bearer "+token)
-	if c.quotaProject != "" {
-		request.Header.Set("X-Goog-User-Project", c.quotaProject)
-	}
-	response, err := c.client.Do(request)
+	// Personal Google accounts cannot create native out-of-office events. A
+	// private marker provides the same work-state signal without reading content.
+	tagged, err := fetch("default", "nopingAvailability=out_of_office")
 	if err != nil {
-		return nil, fmt.Errorf("fetch Calendar OOO events: %w", err)
+		return nil, err
 	}
-	defer response.Body.Close()
-	body, _ := io.ReadAll(io.LimitReader(response.Body, 1024*1024))
-	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Calendar events API returned %s", response.Status)
-	}
-	var payload struct {
-		Items []googleCalendarEvent `json:"items"`
-	}
-	if err := json.Unmarshal(body, &payload); err != nil {
-		return nil, errors.New("Calendar events response is invalid JSON")
-	}
-	return payload.Items, nil
+	return append(native, tagged...), nil
 }
 
 func parseCalendarIdentityMap(raw string) (map[string]calendarIdentity, error) {
@@ -194,7 +213,8 @@ func calendarEventTime(value calendarDateTime) (time.Time, error) {
 }
 
 func normalizeCalendarEvent(source googleCalendarEvent, identities map[string]calendarIdentity, now time.Time) (workEvent, bool, error) {
-	if source.EventType != "outOfOffice" || source.ID == "" {
+	taggedOutOfOffice := source.EventType == "default" && source.ExtendedProperties.Private["nopingAvailability"] == "out_of_office"
+	if (source.EventType != "outOfOffice" && !taggedOutOfOffice) || source.ID == "" {
 		return workEvent{}, false, nil
 	}
 	email := strings.ToLower(strings.TrimSpace(source.Creator.Email))

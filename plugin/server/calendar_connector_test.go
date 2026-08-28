@@ -10,10 +10,24 @@ import (
 )
 
 func TestCalendarClientRequestsOnlyAvailabilityFields(t *testing.T) {
+	requestCount := 0
 	transport := publisherRoundTripFunc(func(request *http.Request) (*http.Response, error) {
+		requestCount++
 		query := request.URL.Query()
-		if query.Get("eventTypes") != "outOfOffice" || query.Get("singleEvents") != "true" {
+		if query.Get("singleEvents") != "true" {
 			t.Fatalf("unexpected Calendar query: %s", request.URL.RawQuery)
+		}
+		switch requestCount {
+		case 1:
+			if query.Get("eventTypes") != "outOfOffice" || query.Get("privateExtendedProperty") != "" {
+				t.Fatalf("unexpected native OOO query: %s", request.URL.RawQuery)
+			}
+		case 2:
+			if query.Get("eventTypes") != "default" || query.Get("privateExtendedProperty") != "nopingAvailability=out_of_office" {
+				t.Fatalf("unexpected tagged availability query: %s", request.URL.RawQuery)
+			}
+		default:
+			t.Fatalf("unexpected extra Calendar request: %s", request.URL.RawQuery)
 		}
 		fields := query.Get("fields")
 		for _, forbidden := range []string{"summary", "description", "location", "attendees", "attachments"} {
@@ -40,6 +54,9 @@ func TestCalendarClientRequestsOnlyAvailabilityFields(t *testing.T) {
 	}
 	if _, err := client.outOfOfficeEvents(context.Background(), time.Now()); err != nil {
 		t.Fatal(err)
+	}
+	if requestCount != 2 {
+		t.Fatalf("expected two privacy-minimal Calendar requests, got %d", requestCount)
 	}
 }
 
@@ -90,5 +107,28 @@ func TestNormalizeCalendarEventWaitsUntilOOOStarts(t *testing.T) {
 	}, now)
 	if err != nil || accepted {
 		t.Fatalf("future event must wait: accepted=%v err=%v", accepted, err)
+	}
+}
+
+func TestNormalizeTaggedPersonalCalendarWorkState(t *testing.T) {
+	now := time.Date(2026, 8, 28, 4, 30, 0, 0, time.UTC)
+	source := googleCalendarEvent{
+		ID:        "tagged-event",
+		Status:    "confirmed",
+		EventType: "default",
+		Updated:   now.Add(-time.Minute),
+		Start:     calendarDateTime{DateTime: now.Add(-time.Hour).Format(time.RFC3339)},
+		End:       calendarDateTime{DateTime: now.Add(3 * time.Hour).Format(time.RFC3339)},
+	}
+	source.Creator.Email = "person@example.com"
+	source.ExtendedProperties.Private = map[string]string{"nopingAvailability": "out_of_office"}
+	event, accepted, err := normalizeCalendarEvent(source, map[string]calendarIdentity{
+		"person@example.com": {UserID: "maya"},
+	}, now)
+	if err != nil || !accepted {
+		t.Fatalf("accepted=%v err=%v", accepted, err)
+	}
+	if event.EventType != "calendar.out_of_office" || event.ActorUserID != "maya" {
+		t.Fatalf("unexpected event: %#v", event)
 	}
 }
