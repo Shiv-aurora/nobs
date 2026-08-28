@@ -7,10 +7,13 @@ async function login(page: Page, username: string): Promise<void> {
     await page.context().clearCookies();
     await page.goto('/login');
     const viewInBrowser = page.getByRole('link', {name: 'View in Browser'});
-    if (await viewInBrowser.isVisible()) {
+    const chooserVisible = await viewInBrowser.waitFor({state: 'visible', timeout: 10_000}).then(() => true).catch(() => false);
+    if (chooserVisible) {
         await viewInBrowser.click();
     }
-    await page.getByRole('textbox', {name: 'Email or Username'}).fill(username);
+    const email = page.getByRole('textbox', {name: 'Email or Username'});
+    await expect(email).toBeVisible();
+    await email.fill(username);
     await page.getByRole('textbox', {name: 'Password'}).fill(demoPassword);
     await page.getByRole('button', {name: 'Log in', exact: true}).click();
     await expect(page).not.toHaveURL(/\/login/);

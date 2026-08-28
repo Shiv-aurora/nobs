@@ -28,6 +28,7 @@ def get_services(request: Request) -> Services:
 
 
 @router.get("/healthz", response_model=HealthResponse)
+@router.get("/v1/health", response_model=HealthResponse)
 def health(services: Services = Depends(get_services)) -> HealthResponse:
     return HealthResponse(
         status="ok",

@@ -5,6 +5,7 @@ def test_health_and_bootstrap(client):
     health = client.get("/healthz")
     assert health.status_code == 200
     assert health.json() == {"status": "ok", "mode": "demo", "ai_enabled": True, "version": "0.1.0"}
+    assert client.get("/v1/health").json() == health.json()
 
     bootstrap = client.get("/v1/bootstrap", params={"user_id": "maya"})
     assert bootstrap.status_code == 200

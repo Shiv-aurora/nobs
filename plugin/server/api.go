@@ -69,7 +69,7 @@ func (p *Plugin) proxy(w http.ResponseWriter, r *http.Request, method, path stri
 }
 
 func (p *Plugin) handleHealth(w http.ResponseWriter, r *http.Request) {
-	p.proxy(w, r, http.MethodGet, "/healthz", nil)
+	p.proxy(w, r, http.MethodGet, "/v1/health", nil)
 }
 
 func (p *Plugin) handleBootstrap(w http.ResponseWriter, r *http.Request) {
