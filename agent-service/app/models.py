@@ -154,7 +154,25 @@ class QueryRequest(BaseModel):
     requester_id: str
     text: str = Field(min_length=3, max_length=2000)
     team_id: str | None = None
+    delegate_for_user_id: str | None = None
+    conversation_context: dict[str, Any] = Field(default_factory=dict)
     context: dict[str, Any] = Field(default_factory=dict)
+
+
+class DelegationResolutionRequest(BaseModel):
+    requester_id: str
+    text: str = Field(min_length=1, max_length=2000)
+    conversation_context: dict[str, Any] = Field(default_factory=dict)
+
+
+class DelegationResolution(BaseModel):
+    eligible: bool
+    kind: Literal["personal", "organization"] | None = None
+    represented_user_id: str | None = None
+    represented_user_name: str | None = None
+    scope: str | None = None
+    reason: str
+    confidence: float = Field(ge=0, le=1)
 
 
 class DecisionOption(BaseModel):
@@ -181,6 +199,7 @@ class Decision(BaseModel):
     resolved_by: str | None = None
     rationale: str | None = None
     facts_hash: str
+    handoff_packet_id: str | None = None
 
 
 class DecisionResolution(BaseModel):
@@ -200,6 +219,164 @@ class DecisionMemory(BaseModel):
     facts_hash: str
     created_at: datetime
     expires_at: datetime
+
+
+class MeetingAttendee(BaseModel):
+    user_id: str
+    name: str
+    role: str
+    response_status: Literal["accepted", "tentative", "declined", "needs_action"] = "accepted"
+    agent_status: Literal["ready", "consulting", "done", "skipped"] = "ready"
+
+
+class AgendaItem(BaseModel):
+    id: str
+    title: str
+    owner_user_id: str | None = None
+    status: Literal["open", "resolved", "needs_human", "skipped"] = "open"
+    resolution: str | None = None
+    evidence_ids: list[str] = Field(default_factory=list)
+
+
+class AgentTurn(BaseModel):
+    id: str = Field(default_factory=lambda: f"turn-{uuid4().hex[:12]}")
+    ordinal: int
+    agent_name: str
+    agent_kind: Literal["personal", "project", "team", "policy", "authority", "integration"]
+    phase: Literal["routed", "retrieved", "work_action", "synthesizing", "completed"]
+    conclusion: str
+    evidence_ids: list[str] = Field(default_factory=list)
+    open_question: str | None = None
+    next_agent: str | None = None
+    created_at: datetime
+
+
+class WorkAction(BaseModel):
+    id: str = Field(default_factory=lambda: f"action-{uuid4().hex[:12]}")
+    kind: Literal["github_issue", "coding_agent", "github_pull_request", "calendar_update", "message_share"]
+    provider: str
+    title: str
+    status: Literal["queued", "investigating", "testing", "blocked", "completed"]
+    summary: str
+    source_url: str | None = None
+    workroom_channel: str | None = None
+
+
+class MeetingBrief(BaseModel):
+    summary: str
+    resolved_items: list[str]
+    remaining_items: list[str]
+    proposed_actions: list[str]
+    recommended_disposition: Literal["cancel", "shorten", "keep"]
+    recommended_duration_minutes: int = Field(ge=0, le=480)
+    original_duration_minutes: int = Field(ge=0, le=1440)
+    minutes_saved: int = Field(ge=0)
+    humans_required: int = Field(ge=0)
+
+
+class MeetingPrepRun(BaseModel):
+    id: str = Field(default_factory=lambda: f"meeting-run-{uuid4().hex[:12]}")
+    meeting_id: str
+    status: Literal["accepted", "screened", "routed", "retrieved", "agent_turn", "work_action", "synthesizing", "completed", "failed"]
+    trigger: Literal["manual", "scheduled"]
+    started_by: str
+    turns: list[AgentTurn]
+    work_actions: list[WorkAction]
+    security_findings: list[SecurityFinding] = Field(default_factory=list)
+    brief: MeetingBrief | None = None
+    created_at: datetime
+    completed_at: datetime | None = None
+
+
+class Meeting(BaseModel):
+    id: str
+    calendar_event_id: str
+    title: str
+    description: str
+    start_at: datetime
+    end_at: datetime
+    organizer_user_id: str
+    attendee_user_ids: list[str]
+    attendees: list[MeetingAttendee]
+    agenda: list[AgendaItem]
+    preparation_eligibility: Literal["eligible", "skipped", "ambiguous"]
+    preparation_reason: str
+    preparation_status: Literal["not_started", "running", "completed", "skipped", "stale"] = "not_started"
+    prep_run_id: str | None = None
+    workroom_channel: str | None = None
+    etag: str
+    updated_at: datetime
+    source: Literal["google_calendar", "demo"] = "demo"
+    confirmed_action: Literal["none", "cancelled", "shortened", "agenda_updated"] = "none"
+
+
+class MeetingPreparationRequest(BaseModel):
+    actor_id: str
+    trigger: Literal["manual", "scheduled"] = "manual"
+
+
+class MeetingActionRequest(BaseModel):
+    actor_id: str
+    action: Literal["cancel", "shorten", "update_agenda"]
+    expected_etag: str
+    applied_etag: str | None = None
+    duration_minutes: int | None = Field(default=None, ge=5, le=480)
+    agenda: list[str] = Field(default_factory=list)
+
+
+class HandoffPacket(BaseModel):
+    id: str = Field(default_factory=lambda: f"handoff-{uuid4().hex[:12]}")
+    question: str
+    scope: str
+    requested_judgment: str
+    evidence_ids: list[str]
+    conclusions: list[str]
+    uncertainty: list[str]
+    security_boundaries: list[str]
+    attempted_routes: list[str]
+    created_by: str
+    created_at: datetime
+
+
+class KnowledgeMemory(BaseModel):
+    id: str = Field(default_factory=lambda: f"knowledge-{uuid4().hex[:12]}")
+    canonical_key: str
+    scope: str
+    answer: str
+    evidence_ids: list[str]
+    confirmed_by: str
+    facts_hash: str
+    created_at: datetime
+    expires_at: datetime
+
+
+class OOOQueueItem(BaseModel):
+    id: str = Field(default_factory=lambda: f"ooo-{uuid4().hex[:12]}")
+    user_id: str
+    source_type: Literal["message", "decision", "meeting"]
+    source_id: str
+    title: str
+    summary: str
+    urgent: bool = False
+    handled_by_agent: bool = False
+    created_at: datetime
+
+
+class OOOQueueCreate(BaseModel):
+    user_id: str
+    source_type: Literal["message", "decision", "meeting"]
+    source_id: str
+    title: str
+    summary: str
+    urgent: bool = False
+    handled_by_agent: bool = False
+
+
+class OOOUpdateRequest(BaseModel):
+    actor_id: str
+    enabled: bool
+    until: datetime | None = None
+    delegate_user_id: str | None = None
 
 
 class SemanticWorkState(BaseModel):
