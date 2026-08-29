@@ -150,8 +150,8 @@ def main() -> None:
     (channels / "src" / "components" / "header_footer_route" / "header.tsx").write_text((args.overrides / "header.tsx").read_text())
 
     # Keep the normal credential form, but make the public demo repeatable in
-    # one click. The button intentionally uses the same upstream login action
-    # and redirect flow rather than introducing a parallel auth mechanism.
+    # one click. The plugin creates a short-lived session for a configured,
+    # non-admin demo user so no password is embedded in the browser bundle.
     login = channels / "src" / "components" / "login" / "login.tsx"
     replace_once(
         login,
@@ -171,15 +171,19 @@ def main() -> None:
                                                     savingMessage={formatMessage({id: 'login.logingIn', defaultMessage: 'Logging in…'})}
                                                 />
                                                 <div className='nobs-demo-login-divider'><span>or</span></div>
+                                                <form
+                                                    method='post'
+                                                    action='/plugins/com.noping.enterprise/api/v1/demo-login'
+                                                >
                                                 <button
-                                                    type='button'
+                                                    type='submit'
                                                     className='nobs-demo-login-button'
                                                     disabled={isWaiting}
-                                                    onClick={() => void submit({loginId: 'maya', password: 'NoPing-Demo-2026!'})}
                                                 >
                                                     <span>Enter demo workspace</span>
                                                     <small>No password needed</small>
                                                 </button>
+                                                </form>
 """,
     )
 

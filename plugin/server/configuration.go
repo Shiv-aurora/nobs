@@ -12,6 +12,8 @@ type configuration struct {
 	UseGoogleIdentity            bool
 	CloudRunAudience             string
 	DemoMode                     bool
+	PublicDemoLogin              bool
+	DemoLoginUsername            string
 	GitHubWebhookSecret          string
 	GitHubIdentityMap            string
 	GitHubRepositoryMap          string
@@ -52,6 +54,12 @@ func (c *configuration) applyEnvironment() {
 	}
 	if value := strings.TrimSpace(os.Getenv("NOPING_DEMO_MODE")); value != "" {
 		c.DemoMode = parseBool(value, c.DemoMode)
+	}
+	if value := strings.TrimSpace(os.Getenv("NOPING_PUBLIC_DEMO_LOGIN")); value != "" {
+		c.PublicDemoLogin = parseBool(value, c.PublicDemoLogin)
+	}
+	if value := strings.TrimSpace(os.Getenv("NOPING_DEMO_LOGIN_USERNAME")); value != "" {
+		c.DemoLoginUsername = value
 	}
 	if value := strings.TrimSpace(os.Getenv("NOPING_GITHUB_WEBHOOK_SECRET")); value != "" {
 		c.GitHubWebhookSecret = value
@@ -100,6 +108,9 @@ func (c *configuration) setDefaults() {
 	}
 	if strings.TrimSpace(c.ServiceSigningSecret) == "" && c.DemoMode {
 		c.ServiceSigningSecret = "dev-only-secret"
+	}
+	if strings.TrimSpace(c.DemoLoginUsername) == "" {
+		c.DemoLoginUsername = "maya"
 	}
 	if c.UseGoogleIdentity && strings.TrimSpace(c.CloudRunAudience) == "" {
 		c.CloudRunAudience = c.AgentServiceURL

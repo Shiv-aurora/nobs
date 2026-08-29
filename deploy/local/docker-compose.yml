@@ -29,6 +29,8 @@ services:
     restart: unless-stopped
     environment:
       NOPING_DEMO_MODE: "true"
+      NOPING_PUBLIC_DEMO_LOGIN: "true"
+      NOPING_DEMO_LOGIN_USERNAME: "maya"
       NOPING_AI_ENABLED: "true"
       NOPING_SERVICE_SIGNING_SECRET: ${NOPING_SERVICE_SIGNING_SECRET:?set NOPING_SERVICE_SIGNING_SECRET}
       NOPING_PERSISTENCE_BACKEND: memory
