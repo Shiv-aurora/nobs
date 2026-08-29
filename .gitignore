@@ -40,6 +40,7 @@ deploy/gcp/terraform/terraform.tfvars
 
 # Browser test artifacts
 .playwright-cli/
+.playwright-mcp/
 e2e/test-results/
 output/
 
