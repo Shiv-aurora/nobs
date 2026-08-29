@@ -5,7 +5,7 @@
 | Collaboration kernel | official Mattermost Team Edition image | NoPing-owned channel/message/thread experience with inline delegate replies |
 | Plugin scaffold | Mattermost plugin starter pinned at `3296cf6...` | new manifest, Go trust boundary/proxy, React product, routes, realtime hooks, packaging |
 | Identity | Mattermost users, teams, sessions | logical delegate identities, data scopes, authority and OOO delegation |
-| Communication | Mattermost channels/posts/DMs | messaging-first shell, `@noping` thread replies, Needs You, evidence results, attention metrics |
+| Communication | Mattermost channels/posts/DMs | messaging-first shell, automatic scope-routed delegate replies, Needs You, evidence results, attention metrics |
 | Organizational intelligence | none inherited | entity graph, router, generic work-state projection, evidence retrieval |
 | Policy and safety | Mattermost RBAC substrate | pre-retrieval authorization, restricted-intent denial, human-only decisions, memory facts hash |
 | AI runtime | none inherited | Google ADK adapter, Gemini budget admission, Model Armor, orchestration, traces |

@@ -139,7 +139,7 @@ Validate:
 
 - Mattermost login;
 - plugin installed/enabled;
-- `/noping` renders the React product route;
+- `/noping` redirects into the native NoPing channel workspace;
 - all primary demo flows work in deterministic demo mode;
 - browser console has no errors;
 - refresh/deep links work;
@@ -190,7 +190,7 @@ Expected sequence:
 - Model Armor template is configured;
 - both images are pushed and immutable digests recorded outside Git;
 - stage-two Terraform deploys private Cloud Run and authenticated subscriptions;
-- Mattermost/plugin bundle uploads via IAP, uses the Terraform-selected pinned Mattermost image, and seeds demo users/data;
+- the versioned NoPing collaboration image and plugin bundle upload via IAP and seed demo users/data;
 - synthetic budget event runs with guard still dry-run;
 - deployment verification runs.
 

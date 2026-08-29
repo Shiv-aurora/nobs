@@ -6,15 +6,15 @@
 |---|---|
 | project | `noping-agentic-shiv-2026` |
 | region / zone | `us-central1` / `us-central1-a` |
-| application | https://35-202-201-122.sslip.io/noping |
+| application | https://35-202-201-122.sslip.io/acme/channels/project-atlas |
 | agent service | `noping-agent-service` (private Cloud Run) |
 | budget guard | `noping-budget-guard` (private Cloud Run, armed) |
-| plugin | `com.noping.enterprise` version `0.2.1` |
+| plugin | `com.noping.enterprise` version `0.3.0` |
 | model | `gemini-3.5-flash`, Vertex location `global` |
 
 The Mattermost VM service account mints a Google OIDC token for the exact Cloud Run audience, then the plugin adds a timestamped HMAC request signature. Pub/Sub uses its own pinned push identity. Cloud Run does not allow unauthenticated invocation.
 
-Mattermost remains the collaboration substrate and system of record for users, channels, posts, threads, files, permissions, and realtime delivery. The registered `/noping` product route owns the visible shell, reads and writes those resources through the authenticated same-origin Mattermost API, and publishes `@noping` answers as a dedicated bot identity. Caddy serves the custom NoPing login and prevents the native desktop-app chooser from interrupting the browser flow.
+Mattermost remains the collaboration substrate and system of record for users, channels, posts, threads, files, permissions, and realtime delivery. The deployment compiles a NoPing-branded client from the exact 11.10.1 source revision and packages it over the unchanged official Team Edition server binary. The Go plugin adds personal delegates, coordinated organizational routing, human-only delivery, native thread replies, and the contextual NoPing side panel. Caddy serves the NoPing login, redirects `/` and legacy `/noping` URLs into the native channel workspace, and prevents the desktop-app chooser from interrupting the browser flow.
 
 ## Reproducible deployment
 
@@ -26,7 +26,7 @@ cp deploy/gcp/terraform/terraform.tfvars.example deploy/gcp/terraform/terraform.
 deploy/gcp/scripts/deploy-all.sh
 ```
 
-The deployment sequence performs cost preflight, two-stage Terraform, local secret-version creation, Model Armor configuration, immutable image builds, private Cloud Run rollout, Mattermost/plugin installation, deterministic organization seeding, a dry-run budget notification, and deployment verification. After reviewing the guard log:
+The deployment sequence performs cost preflight, two-stage Terraform, local secret-version creation, Model Armor configuration, immutable agent, guard, and pinned NoPing collaboration-client image builds, private Cloud Run rollout, plugin installation, deterministic organization seeding, a dry-run budget notification, and deployment verification. After reviewing the guard log:
 
 ```bash
 deploy/gcp/scripts/arm-budget-guard.sh
@@ -42,23 +42,23 @@ The repository carries `.budget-guard-armed` as an ignored local marker, so late
 - Cloud Run's edge did not forward the application's `/healthz` path in this deployment. Platform health still uses `/healthz`; signed plugin traffic uses the equivalent `/v1/health` alias.
 - Vertex `gemini-3.5-flash` uses location `global`, and thinking output is bounded so the answer fits inside the application token ceiling.
 - Traces are exported directly over authenticated OTLP HTTP to Google Telemetry with a simple processor. This works with request-based Cloud Run CPU and avoids an always-on collector.
-- Google Calendar credentials remain optional at deployment time. When no authorized-user secret version exists, the connector announces and uses deterministic availability fallback rather than failing or pretending a live read occurred. The live deployment now has a real read-only authorized-user credential in Secret Manager.
-- Personal Gmail calendars cannot create Google's native `outOfOffice` event type. NoPing additionally supports a privacy-tagged normal event (`nopingAvailability=out_of_office`) while still excluding titles, descriptions, locations, attendees, and attachments. Enterprise-native OOO events continue to work unchanged.
+- Google Calendar credentials remain optional at deployment time. When no authorized-user secret version exists, the connector announces and uses deterministic availability and meeting fixtures rather than failing or pretending a live read occurred.
+- Personal Gmail calendars cannot create Google's native `outOfOffice` event type. NoBS additionally supports a privacy-tagged normal event (`nopingAvailability=out_of_office`). Meeting sync reads title, agenda, time, organizer, mapped attendees, update token, and private NoBS overrides only.
 
 ## Calendar authorization
 
-Calendar uses the read-only `calendar.events.readonly` scope. For Workspace scopes, create a project-owned **Desktop app** OAuth client in Google Auth Platform, add the dedicated demo account as a test user, download the client JSON outside the repository, and complete interactive consent:
+Calendar uses `calendar.events` so confirmed organizer actions can cancel, shorten, or update the agenda. Use only the dedicated demo Google account—never a daily personal calendar. Create a project-owned **Desktop app** OAuth client in Google Auth Platform, add that demo account as a test user, download the client JSON outside the repository, and complete interactive consent:
 
 ```bash
 gcloud auth application-default login --launch-browser \
   --client-id-file=/secure/path/client_secret.json \
-  --scopes=https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/calendar.events.readonly
+  --scopes=https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/calendar.events
 deploy/gcp/scripts/store-calendar-credentials.sh \
   "$HOME/.config/gcloud/application_default_credentials.json"
 deploy/gcp/scripts/deploy-mattermost.sh
 ```
 
-The connector maps only configured identities and projects and publishes normalized availability/work-state facts—not event descriptions or unrelated private calendar content. Production proof on 2026-08-28 showed a successful live read, one synchronized work-state event, one Firestore `calendar.out_of_office` record for `maya`, and `out_of_office` in the hosted bootstrap response.
+The connector maps only configured identities and publishes compact availability and eligible-meeting projections. Calendar writes use the current event ETag and are never attempted until the mapped organizer explicitly confirms the recommendation in NoBS.
 
 ## Verify and operate
 

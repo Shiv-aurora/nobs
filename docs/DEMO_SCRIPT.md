@@ -1,4 +1,16 @@
-# Four-Minute Demo Script
+# NoBS Four-Minute Demo Script
+
+## Primary judging path
+
+1. Start in native `# Project Atlas` messaging. Ask `Why is Atlas delayed?` without tagging a bot; open the threaded NoBS delegate reply and its evidence route.
+2. Open **Calendar** beside Threads. Prepare **Atlas engineering sync** and show **30 → 0 min** plus the cancellation recommendation.
+3. Prepare **Atlas launch readiness** and show **60 → 15 min**, one remaining authority decision, Gemini Code Assist/GitHub work evidence, and the quarantined malicious instruction.
+4. Open **Agent Workroom · Atlas** to show bounded agent-to-agent coordination in ordinary native messaging.
+5. Open the top-right account menu and enable **OOO mode**; explain that handled activity becomes a grouped return digest.
+
+Close with: **“Fewer pings. Shorter meetings. More actual work.”**
+
+## Legacy detailed narration
 
 ## 0:00–0:12 — Promise and first action
 
@@ -6,7 +18,9 @@
 
 Open `# Project Atlas` and post:
 
-> **@noping Why is Atlas delayed?**
+> **Why is Atlas delayed?**
+
+Do not tag a bot or employee. The automatic scope route is the point of the demo.
 
 ## 0:12–0:42 — Wow 1: organization routing
 

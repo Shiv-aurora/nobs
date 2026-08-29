@@ -18,7 +18,7 @@ Workplace chat made everyone reachable, but it also made every question an inter
 
 ## What it does
 
-NoPing is a messaging-first workplace communication layer built on Mattermost. Employees keep normal channels, messages, threads, files, permissions, and realtime collaboration. In the same conversation, they can mention `@noping` to ask an organizational question. NoPing routes across permission-aware employee, project, team, policy, and authority delegates; retrieves only authorized evidence; and posts a sourced answer back into the thread.
+NoPing is a messaging-first workplace communication layer built on Mattermost. Employees keep normal channels, messages, threads, files, permissions, and realtime collaboration. People write naturally: NoPing performs a model-free scope check on each human message, then lets the responsible employee or organization delegate answer routine work automatically. No bot tag is required. NoPing routes across permission-aware employee, project, team, policy, and authority delegates; retrieves only authorized evidence; and posts a sourced answer back into the thread.
 
 For the Project Atlas demo, Maya asks why the launch is delayed. NoPing consults four delegates, blocks a poisoned vendor note, explains the real security blocker, and interrupts zero people. A salary request is denied before private HR data is retrieved or sent to Gemini. A genuine launch exception cannot be decided by the model: Sarah's calendar availability and delegated authority route one complete Needs You card to Alex. Alex's answer becomes scoped, expiring decision memory, so the same question can be answered later without another interruption.
 
@@ -26,7 +26,7 @@ For the Project Atlas demo, Maya asks why the launch is delayed. NoPing consults
 
 - Mattermost Team Edition and PostgreSQL provide the collaboration substrate and system of record for identity, channels, posts, threads, files, permissions, and realtime delivery.
 - A Go Mattermost plugin is the trusted boundary. It resolves the authenticated Mattermost user, proxies signed requests to the agent runtime, publishes websocket updates, provisions the NoPing bot, and writes agent answers as real threaded posts.
-- A React/TypeScript product route owns the visible NoPing shell, including messaging, inline delegate replies, Needs You, people/project context, Insights, audit, and operations views.
+- A NoPing-branded build of the pinned mature web client owns the visible shell. The React/TypeScript plugin adds inline delegate identity, route metadata, native actions, and one contextual panel for Needs You, employee context, attention, and audit.
 - A FastAPI agent service uses Google ADK and Vertex AI Gemini 3.5 Flash for bounded synthesis and a deterministic delegate graph for routing and authority enforcement.
 - Model Armor screens prompts and responses. Evidence authorization happens before retrieval, and human-only authority outcomes are structurally unavailable to the model.
 - Firestore stores compact work state, audit records, and decision memory. Pub/Sub ingests signed, idempotent GitHub, Calendar, and Mattermost events with OIDC push and a dead-letter path.
@@ -34,12 +34,12 @@ For the Project Atlas demo, Maya asks why the launch is delayed. NoPing consults
 
 ## Challenges
 
-The hardest work was preserving a real collaboration platform while making NoPing feel like the product. We kept Mattermost's mature infrastructure but replaced its visible login and product chrome, then rebuilt the main NoPing route around the same real channel and post APIs. Production also exposed practical compatibility issues: a distroless Mattermost image, plugin bundle version drift, Cloud Run health-path behavior, OAuth constraints for personal Calendar accounts, and model-safety wording that correctly failed closed but required a clearer authority-demo prompt.
+The hardest work was preserving a real collaboration platform while making NoPing feel like the product. We kept the mature infrastructure and native channel client, compiled a reviewable NoPing source overlay at an exact upstream revision, and implemented agents through supported message hooks and extension surfaces. Production also exposed practical compatibility issues: a distroless server image, plugin bundle version drift, Cloud Run health-path behavior, OAuth constraints for personal Calendar accounts, and model-safety wording that correctly failed closed but required a clearer authority-demo prompt.
 
 ## Accomplishments
 
 - A real messaging-first product rather than a standalone dashboard or chatbot mock.
-- Inline `@noping` answers persisted as Mattermost thread replies under a dedicated bot identity.
+- Automatic scope-matched answers persisted as native Mattermost thread replies under an audited delegate identity.
 - Four-delegate organizational routing with visible evidence and zero-human resolution metrics.
 - Pre-retrieval HR denial, malicious-content quarantine, and Model Armor prompt/response enforcement.
 - OOO-aware human authority escalation and reusable scoped decision memory.
@@ -61,7 +61,7 @@ The useful unit of enterprise agent design is not â€œone chatbot per employee.â€
 
 ## Links
 
-- Live application: https://35-202-201-122.sslip.io/noping
+- Live application: https://35-202-201-122.sslip.io/acme/channels/project-atlas
 - Source repository: https://github.com/Shiv-aurora/noping
 - Architecture: `docs/architecture.png`
 - Four-minute narration: `docs/DEMO_SCRIPT.md`
