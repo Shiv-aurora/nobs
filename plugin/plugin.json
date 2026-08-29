@@ -1,7 +1,7 @@
 {
   "id": "com.noping.enterprise",
-  "name": "NoPing",
-  "description": "AI-native organizational communication for Mattermost.",
+  "name": "NoBS",
+  "description": "Fewer pings, shorter meetings, and more actual work.",
   "homepage_url": "https://github.com/shiv-aurora/noping",
   "support_url": "https://github.com/shiv-aurora/noping/issues",
   "icon_path": "assets/logo.png",
@@ -19,14 +19,14 @@
     "bundle_path": "webapp/dist/main.js"
   },
   "settings_schema": {
-    "header": "NoPing connects Mattermost to the permission-aware organizational agent runtime.",
+    "header": "NoBS connects messaging and meetings to the permission-aware organizational agent runtime.",
     "footer": "Use Demo Mode until the Google Cloud agent service is deployed.",
     "settings": [
       {
         "key": "AgentServiceURL",
         "display_name": "Agent service URL",
         "type": "text",
-        "help_text": "Authenticated Cloud Run URL for the NoPing agent service."
+        "help_text": "Authenticated Cloud Run URL for the NoBS agent service."
       },
       {
         "key": "ServiceSigningSecret",
@@ -64,19 +64,19 @@
         "key": "GitHubIdentityMap",
         "display_name": "GitHub identity map",
         "type": "text",
-        "help_text": "JSON mapping of GitHub logins to NoPing user IDs, for example {\"octocat\":\"maya\"}."
+        "help_text": "JSON mapping of GitHub logins to internal user IDs, for example {\"octocat\":\"maya\"}."
       },
       {
         "key": "GitHubRepositoryMap",
         "display_name": "GitHub repository map",
         "type": "text",
-        "help_text": "JSON mapping of full repository names to NoPing entity IDs."
+        "help_text": "JSON mapping of full repository names to internal entity IDs."
       },
       {
         "key": "GoogleCloudProject",
         "display_name": "Google Cloud project",
         "type": "text",
-        "help_text": "Project containing the private NoPing Pub/Sub work-event topic."
+        "help_text": "Project containing the private NoBS Pub/Sub work-event topic."
       },
       {
         "key": "PubSubTopic",
@@ -87,5 +87,5 @@
       }
     ]
   },
-  "version": "0.2.1"
+  "version": "0.3.0"
 }
