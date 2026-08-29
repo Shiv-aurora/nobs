@@ -20,17 +20,18 @@ type Plugin struct {
 	calendarCancel    func()
 	calendarWG        sync.WaitGroup
 	botUserID         string
+	activeSources     sync.Map
 }
 
 func (p *Plugin) OnActivate() error {
 	p.client = pluginapi.NewClient(p.API, p.Driver)
 	botUserID, err := p.client.Bot.EnsureBot(&model.Bot{
-		Username:    "noping",
-		DisplayName: "NoPing Agent",
-		Description: "Answers routine company questions without interrupting coworkers.",
+		Username:    "nobs",
+		DisplayName: "NoBS Agent",
+		Description: "Handles routine questions and meeting coordination without wasting human attention.",
 	}, pluginapi.ProfileImagePath("assets/logo.png"))
 	if err != nil {
-		return errors.Wrap(err, "failed to provision NoPing bot")
+		return errors.Wrap(err, "failed to provision NoBS bot")
 	}
 	p.botUserID = botUserID
 	if err := p.OnConfigurationChange(); err != nil {
