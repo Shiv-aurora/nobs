@@ -104,7 +104,7 @@ This starts PostgreSQL, Mattermost Team Edition, the NoBS-branded agent service 
 
 ## Google Cloud deployment
 
-The existing Google Cloud project and internal resource names remain `noping-*` for compatibility. `/nobs` is canonical, while `/noping` remains a legacy redirect. Production promotion is intentionally separate from this locally verified build.
+The deployed demo is available at **[35-202-201-122.sslip.io](https://35-202-201-122.sslip.io/)**. Use **Enter demo workspace** for a short-lived, non-admin demo session. The fixed-cost VM is intentionally stopped between demo sessions; run `deploy/gcp/scripts/start-demo.sh` before opening the link. The existing Google Cloud project and internal resource names remain `noping-*` for compatibility. `/nobs` is canonical, while `/noping` remains a legacy redirect.
 
 The production design uses only Google Cloud for deployment:
 
@@ -136,12 +136,12 @@ deploy/gcp/scripts/arm-budget-guard.sh
 - [`docs/COST_MODEL.md`](docs/COST_MODEL.md) — enforced limits and shutdown controls
 - [`docs/CODEX_HANDOFF.md`](docs/CODEX_HANDOFF.md) — exact Phase 2 execution contract
 - [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) — four-minute judging narrative
-- [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md) — what was and was not executed in Phase 1
+- [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md) — local and deployed verification evidence
 - [`docs/OSS_DISCLOSURE.md`](docs/OSS_DISCLOSURE.md) — open-source provenance
 
 ## Phase status
 
-The NoBS build is locally deployed and browser-verified: native channels/messages/threads, automatic delegates, a responsive Calendar, two meeting-prep outcomes, a private agent workroom, OOO, security quarantine, and organizer-gated Calendar actions. Google Cloud bounds remain unchanged (`min=0`, `max=1`, one `e2-small`, and the existing `$25` protection). Production has not been promoted in this change.
+The NoBS build is deployed and browser-verified on Google Cloud: native channels/messages/threads, automatic delegates, a responsive Calendar, two meeting-prep outcomes, a private agent workroom, OOO, security quarantine, and organizer-gated Calendar actions. The production Playwright suite passes 13 scenarios with one explicitly gated screenshot-only test. Google Cloud bounds remain unchanged (`min=0`, `max=1`, one `e2-small`, and the existing `$25` protection).
 
 ## License and attribution
 

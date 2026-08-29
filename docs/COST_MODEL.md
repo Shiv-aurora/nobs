@@ -10,7 +10,7 @@ A Cloud Billing budget is not an instantaneous hard cap. NoPing combines alerts,
 
 | Resource | Deployed bound |
 |---|---|
-| Mattermost VM | one `e2-small` in `us-central1-a`; currently running for demo capture |
+| Mattermost VM | one `e2-small` in `us-central1-a`; stopped after final verification, with a daily stop schedule for demo sessions |
 | disk | 20 GB `pd-standard` |
 | Cloud Run agent | private IAM, 1 vCPU / 1 GiB, min 0, max 1, concurrency 4 |
 | Cloud Run budget guard | private IAM, 1 vCPU / 512 MiB, min 0, max 1, concurrency 1 |
@@ -43,7 +43,7 @@ The guard cannot read Firestore business data, invoke Gemini, alter budgets, cre
 
 ## Spend estimate at final verification
 
-Cloud Billing does not expose real-time accrued cost through the project CLI without a billing export, so no fabricated “current” figure is claimed. As of **2026-08-28 20:15 UTC**, the stack had run for less than one day. A conservative estimate for VM compute, 20 GB standard disk allocation, the small number of Gemini/Cloud Run calls, storage, logging, and Pub/Sub traffic is **under $1 accrued**.
+Cloud Billing does not expose real-time accrued cost through the project CLI without a billing export, so no fabricated “current” figure is claimed. As of **2026-08-29**, a conservative estimate for VM compute, the 20 GB standard disk allocation, the bounded Gemini/Cloud Run verification calls, storage, logging, and Pub/Sub traffic is **under $2 accrued**.
 
 Even continuous `e2-small` operation plus the disk is roughly in the low teens per month before low-volume serverless/model use; the daily stop schedule reduces that materially. The $25 budget and armed 90% guard remain the authoritative safety boundary.
 
