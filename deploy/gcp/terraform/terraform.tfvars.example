@@ -6,7 +6,6 @@ zone               = "us-central1-a"
 # Keep the default e2-small unless monitoring proves that the VM is swapping or OOM-killing.
 mattermost_machine_type = "e2-small"
 mattermost_disk_size_gb = 20
-mattermost_image        = "mattermost/mattermost-team-edition:11.10.1"
 mattermost_site_address = ":80"
 auto_shutdown_hour_utc  = 6
 

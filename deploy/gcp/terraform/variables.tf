@@ -72,12 +72,6 @@ variable "mattermost_site_address" {
   default     = ":80"
 }
 
-variable "mattermost_image" {
-  type        = string
-  description = "Pinned Mattermost Team Edition image."
-  default     = "mattermost/mattermost-team-edition:11.10.1"
-}
-
 variable "auto_shutdown_hour_utc" {
   type        = number
   description = "Daily UTC hour when the Mattermost VM shuts itself down. Use -1 to disable."

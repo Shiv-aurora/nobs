@@ -105,7 +105,3 @@ output "budget_guard_service_name" {
 output "budget_updates_topic" {
   value = google_pubsub_topic.budget_updates.name
 }
-
-output "mattermost_image" {
-  value = var.mattermost_image
-}
