@@ -379,7 +379,7 @@ def main() -> None:
         "team": team["name"],
         "users": sorted(users),
         "channels": sorted(channels),
-        "demo_login": {"username": "maya", "password": DEMO_PASSWORD},
+        "demo_login": {"username": "maya", "password": "configured via NOPING_DEMO_USER_PASSWORD"},
     }, indent=2))
 
 

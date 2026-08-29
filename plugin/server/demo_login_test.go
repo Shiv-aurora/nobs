@@ -56,6 +56,30 @@ func TestDemoLoginRejectsCrossOriginRequests(t *testing.T) {
 	require.Equal(t, http.StatusForbidden, response.Code)
 }
 
+func TestDemoLoginPreservesSafeLocalRedirect(t *testing.T) {
+	api := &plugintest.API{}
+	user := &model.User{Id: model.NewId(), Username: "maya", Roles: model.SystemUserRoleId}
+	api.On("GetUserByUsername", "maya").Return(user, (*model.AppError)(nil)).Once()
+	api.On("CreateSession", mock.AnythingOfType("*model.Session")).Return(&model.Session{Token: model.NewId()}, (*model.AppError)(nil)).Once()
+	defer api.AssertExpectations(t)
+
+	p := &Plugin{configuration: &configuration{PublicDemoLogin: true, DemoLoginUsername: "maya"}}
+	p.SetAPI(api)
+	request := httptest.NewRequest(http.MethodPost, "https://nobs.example/plugins/com.noping.enterprise/api/v1/demo-login?redirect_to=%2Facme%2Fnobs%2Fcalendar", nil)
+	request.Header.Set("Origin", "https://nobs.example")
+	response := httptest.NewRecorder()
+
+	p.handleDemoLogin(response, request)
+
+	require.Equal(t, http.StatusSeeOther, response.Code)
+	require.Equal(t, "/acme/nobs/calendar", response.Header().Get("Location"))
+}
+
+func TestDemoLoginRejectsExternalRedirect(t *testing.T) {
+	request := httptest.NewRequest(http.MethodPost, "https://nobs.example/plugins/com.noping.enterprise/api/v1/demo-login?redirect_to=https%3A%2F%2Fevil.example", nil)
+	require.Equal(t, "/acme/channels/project-atlas", demoLoginRedirect(request))
+}
+
 func TestDemoLoginRejectsAdministratorAccount(t *testing.T) {
 	api := &plugintest.API{}
 	user := &model.User{

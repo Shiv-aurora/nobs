@@ -49,6 +49,11 @@
         .submit {width: 100%; height: 52px; margin-top: 22px; border: 0; border-radius: 12px; background: linear-gradient(135deg, #247fb7, #644fc3); color: #fff; font-weight: 780; box-shadow: 0 12px 28px rgba(72, 68, 171, .22); cursor: pointer; transition: transform .16s ease, box-shadow .16s ease, opacity .16s ease;}
         .submit:hover:not(:disabled) {transform: translateY(-1px); box-shadow: 0 16px 34px rgba(72, 68, 171, .27);}
         .submit:disabled {cursor: wait; opacity: .68;}
+        .demo-divider {display: flex; align-items: center; gap: 12px; margin: 20px 0; color: #9298a7; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em;}
+        .demo-divider::before, .demo-divider::after {content: ""; height: 1px; flex: 1; background: #eceef3;}
+        .demo-submit {width: 100%; height: 48px; border: 1px solid #d8d4ed; border-radius: 12px; background: #f8f7fd; color: #493a9d; font-weight: 760; cursor: pointer; transition: border-color .16s ease, background .16s ease, transform .16s ease;}
+        .demo-submit:hover:not(:disabled) {transform: translateY(-1px); border-color: #bcb3e5; background: #f2effb;}
+        .demo-submit:disabled {cursor: wait; opacity: .68;}
         .error {display: none; margin: 15px 0 0; padding: 10px 12px; border: 1px solid #f0c9ce; border-radius: 10px; background: #fff2f3; color: #a83f4c; font-size: 11px; line-height: 1.45;}
         .error.is-visible {display: block;}
         .privacy {display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 25px; padding-top: 19px; border-top: 1px solid #eceef3; color: #8b92a2; font-size: 9.5px;}
@@ -95,6 +100,8 @@
                 <label class="field"><span>Email or username</span><input id="login-id" name="loginId" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus></label>
                 <label class="field"><span>Password</span><span class="input-wrap"><input id="password" name="password" type="password" autocomplete="current-password" required><button class="show-password" id="show-password" type="button" aria-controls="password" aria-pressed="false">Show</button></span></label>
                 <button class="submit" id="submit" type="submit">Continue to NoBS</button>
+                <div class="demo-divider"><span>Demo</span></div>
+                <button class="demo-submit" id="demo-login" type="button">Enter demo workspace</button>
                 <p class="error" id="error" role="alert"></p>
                 <div class="privacy"><strong>Secure organizational access</strong><span>Your permissions follow you into every answer.</span></div>
             </form>
@@ -102,8 +109,8 @@
     </main>
     <script>
         (() => {
-            // Keep the Mattermost collaboration substrate in the browser without
-            // exposing its desktop-app chooser as a NoBS product surface.
+            // Keep the collaboration substrate in the browser without exposing
+            // its desktop-app chooser as a NoBS product surface.
             try {
                 localStorage.setItem('__landingPageSeen__', 'true');
                 localStorage.setItem('__landing-preference__' + window.location.origin, 'browser');
@@ -115,6 +122,7 @@
             const submit = document.getElementById('submit');
             const error = document.getElementById('error');
             const showPassword = document.getElementById('show-password');
+            const demoLogin = document.getElementById('demo-login');
             const requested = new URLSearchParams(window.location.search).get('redirect_to');
             const redirectTo = requested && requested.startsWith('/') && !requested.startsWith('//') ? requested : '/acme/channels/project-atlas';
 
@@ -124,6 +132,18 @@
                 showPassword.textContent = showing ? 'Show' : 'Hide';
                 showPassword.setAttribute('aria-pressed', String(!showing));
                 password.focus();
+            });
+
+            demoLogin.addEventListener('click', () => {
+                demoLogin.disabled = true;
+                demoLogin.textContent = 'Opening demo…';
+                const action = new URL('/plugins/com.noping.enterprise/api/v1/demo-login', window.location.origin);
+                action.searchParams.set('redirect_to', redirectTo);
+                const demoForm = document.createElement('form');
+                demoForm.method = 'POST';
+                demoForm.action = action.toString();
+                document.body.appendChild(demoForm);
+                demoForm.submit();
             });
 
             form.addEventListener('submit', async (event) => {

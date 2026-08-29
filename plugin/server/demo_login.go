@@ -66,7 +66,20 @@ func (p *Plugin) handleDemoLogin(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 	})
 	w.Header().Set("Cache-Control", "no-store")
-	http.Redirect(w, r, "/acme/channels/project-atlas", http.StatusSeeOther)
+	http.Redirect(w, r, demoLoginRedirect(r), http.StatusSeeOther)
+}
+
+func demoLoginRedirect(r *http.Request) string {
+	const fallback = "/acme/channels/project-atlas"
+	candidate := strings.TrimSpace(r.URL.Query().Get("redirect_to"))
+	if candidate == "" || !strings.HasPrefix(candidate, "/") || strings.HasPrefix(candidate, "//") || strings.Contains(candidate, "\\") {
+		return fallback
+	}
+	parsed, err := url.Parse(candidate)
+	if err != nil || parsed.IsAbs() || parsed.Host != "" {
+		return fallback
+	}
+	return parsed.RequestURI()
 }
 
 func isSameOriginFormPost(r *http.Request) bool {
