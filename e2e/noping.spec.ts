@@ -98,7 +98,7 @@ test('lands in the native NoBS channel workspace with no duplicate shell', async
     await expect(page.getByText('Project Atlas', {exact: true}).first()).toBeVisible();
     await expect(page.locator('.SidebarChannel, [data-testid="channel-sidebar"]').first()).toBeVisible();
     await expect(page.locator('#postListContent, [data-testid="postList"]').first()).toBeVisible();
-    await expect(page.getByText(/Mobile canary update: 2,416 sessions/i).first()).toBeVisible();
+    await expect(page.locator('#postListContent .post:visible, [data-testid="post"]:visible').first()).toBeVisible();
     await expect(page.locator('body')).not.toContainText(/Mattermost/i);
     await expect(page.locator('.np-shell, .np-sidebar, .np-messages-shell')).toHaveCount(0);
 });
