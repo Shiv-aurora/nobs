@@ -10,7 +10,7 @@ Production Calendar: **`https://35-202-201-122.sslip.io/acme/nobs/calendar`**
 
 Production collaboration image: **`nobs-release:fe2bdb8d76c8`**, loaded from the published image with digest **`sha256:64e3b985885842e7d1cf5b8eb804c567f4d05095a9fbb56fba034481a36ea567`**.
 
-Production agent revision: **`noping-agent-service-00008-2xp`**, image digest **`sha256:2da4469b5dbb7c04d7329d09fb84568b86526bb48451032ec30f7bc74fc08da6`**.
+Production agent revision: **`noping-agent-service-00010-kjk`**, image digest **`sha256:cd7cd4a1993bd843bdd5be76154b4eda0f9848e578e0dd938b81172e21a7e7da`**.
 
 ## NoBS verification
 
@@ -22,12 +22,14 @@ Production agent revision: **`noping-agent-service-00008-2xp`**, image digest **
 | meeting exclusion | Welcome coffee | **deterministically skipped; no swarm started** |
 | security | poisoned agenda/vendor instruction | **quarantined before synthesis and shown in the audit surface** |
 | integration workroom | native private `Agent Workroom · Atlas` | **attendee agents, Atlas Agent, Gemini Enterprise, Gemini Code Assist, and GitHub seeded** |
-| OOO | native account-menu action | **toggle verified; delegate handling and return-digest API active** |
+| live work connectors | persisted Firestore `WorkEvent` metadata | **signed GitHub repository pushes plus Google Calendar OOO, OOO-ended, and meeting-upsert events accepted through the normalized event path** |
+| OOO | native account-menu action and dedicated Google Calendar account | **toggle verified; delegate handling and return-digest API active; real Calendar OOO and OOO-ended events persisted without exposing event descriptions** |
 | organizer authority | Calendar actions | **non-organizer rejected; ETag revalidation and explicit confirmation required** |
 | responsive Calendar | Playwright 1440×900, 1024×600, 768×1024, 390×844 | **no document-level horizontal overflow** |
-| production browser suite | one-click demo entry, native delegate routing/identity, restricted denial, human-only delivery, NoBS panel, Calendar outcomes/skip, OOO, responsive behavior, and native collaboration controls | **13 passed, 1 intentionally skipped evidence-only capture, 0 failed in 2.8 minutes** |
+| decision learning loop | Maya authority request → Alex rejection → materially identical request | **browser-verified in production; Firestore persisted the decision, audit event, scoped memory, and later zero-interruption cached answers; expiry now uses wall time rather than the pinned demo narrative clock** |
+| production browser suite | one-click demo entry, native delegate routing/identity, restricted denial, human-only delivery, NoBS panel, authority/memory, Calendar outcomes/skip, OOO, responsive behavior, and native collaboration controls | **14 passed, 1 intentionally skipped evidence-only capture, 0 failed in 3.4 minutes** |
 | production login | public `Enter demo workspace` button | **same-origin POST creates a 12-hour non-admin session; no password is shipped to the browser; Calendar redirects preserved** |
-| Python runtime | `.venv/bin/pytest agent-service/tests -q` | **58 passed** |
+| Python runtime | `.venv/bin/pytest agent-service/tests -q` | **60 passed** |
 | Go plugin | `GOCACHE=/tmp/nobs-go-cache go test ./...` | **all packages passed** |
 | TypeScript | `npm --prefix plugin/webapp run typecheck` | **passed** |
 | repository safety | static validation, credential scan, seed compile | **passed** |
@@ -40,7 +42,7 @@ Production agent revision: **`noping-agent-service-00008-2xp`**, image digest **
 | pinned native client | Mattermost webapp `11.10.1` at commit `f9deca984f8a8d38a5f5e50600b45e22c90ebca1` plus the reviewable NoBS source overlay | **passed** |
 | reproducible client | two independent compiler runs from the same pristine pinned checkout/dependency layer; SHA-256 manifests compared for all 4,360 emitted non-source-map files | **byte-identical** |
 | rendered shell | local `/` and `/login` HTML title, app metadata, favicons, and loading state | **NoBS; no case-insensitive `Mattermost` text** |
-| aggregate source gate | `./scripts/check.sh` | **58 agent tests, 8 budget-guard tests, all Go packages, strict TypeScript, Python compile, shell/static/security checks passed** |
+| aggregate source gate | `./scripts/check.sh` | **60 agent tests, 8 budget-guard tests, all Go packages, strict TypeScript, Python compile, shell/static/security checks passed** |
 | native message hooks | `python3 scripts/verify-native-messaging.py` against the local Docker stack | **passed** |
 | automatic exact routing | untagged `Why is Atlas delayed?` | **Project Atlas Delegate → Engineering Delegate → Sarah Chen Delegate → Security Delegate; 4 consulted, 0 interrupted** |
 | personal scope routing | untagged `What is blocking Atlas security?` | **Sarah's Agent replies automatically in one native thread** |

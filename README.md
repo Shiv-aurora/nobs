@@ -141,7 +141,7 @@ deploy/gcp/scripts/arm-budget-guard.sh
 
 ## Phase status
 
-The NoBS build is deployed and browser-verified on Google Cloud: native channels/messages/threads, automatic delegates, a responsive Calendar, two meeting-prep outcomes, a private agent workroom, OOO, security quarantine, and organizer-gated Calendar actions. The production Playwright suite passes 13 scenarios with one explicitly gated screenshot-only test. Google Cloud bounds remain unchanged (`min=0`, `max=1`, one `e2-small`, and the existing `$25` protection).
+The NoBS build is deployed and browser-verified on Google Cloud: native channels/messages/threads, automatic delegates, a responsive Calendar, two meeting-prep outcomes, a private agent workroom, OOO, security quarantine, organizer-gated Calendar actions, and the complete authority-decision learning loop. The production Playwright suite passes 14 scenarios with one explicitly gated screenshot-only test. Google Cloud bounds remain unchanged (`min=0`, `max=1`, one `e2-small`, and the existing `$25` protection).
 
 ## License and attribution
 
