@@ -12,7 +12,7 @@ Mattermost VM default:            e2-small
 approved measured fallback:       e2-medium
 persistent disk:                  20 GB pd-standard (30 GB hard maximum)
 Cloud Run agent:                  1 CPU / 1 GiB / min 0 / max 1 / concurrency 4
-Cloud Run budget guard:           1 CPU / 256 MiB / min 0 / max 1 / concurrency 1
+Cloud Run budget guard:           1 CPU / 512 MiB / min 0 / max 1 / concurrency 1
 per user:                         3 queries/min, 20/hour, 20/day
 per organization:                 10 queries/min, 60/day
 concurrent runs:                  2
@@ -30,6 +30,10 @@ budget guard trigger:             90%
 Do not add Redis, Cloud SQL, GKE, a managed external load balancer, GPUs, recurring snapshots, always-on Cloud Run instances, public Cloud Run IAM, or a second production model path. Do not move production workloads to Railway, Vercel, Supabase, or another non-Google host.
 
 ## Operational rules
+
+The budget guard uses the second-generation Cloud Run execution environment,
+whose platform minimum is 512 MiB. It still scales to zero and is invoked only
+by authenticated budget notifications, so this minimum adds no idle instance.
 
 - Keep the agent and budget-guard Cloud Run services at `min=0`, `max=1`.
 - Keep `allUsers` and `allAuthenticatedUsers` out of Cloud Run IAM.

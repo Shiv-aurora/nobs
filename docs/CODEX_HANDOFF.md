@@ -45,7 +45,7 @@ Mattermost VM default:            e2-small
 approved measured fallback:       e2-medium
 persistent disk:                  20 GB pd-standard (30 GB hard maximum)
 Cloud Run agent:                  1 CPU / 1 GiB / min 0 / max 1 / concurrency 4
-Cloud Run budget guard:           1 CPU / 256 MiB / min 0 / max 1 / concurrency 1
+Cloud Run budget guard:           1 CPU / 512 MiB / min 0 / max 1 / concurrency 1
 per user:                         3 queries/min, 20/hour, 20/day
 per organization:                 10 queries/min, 60/day
 concurrent runs:                  2
@@ -57,6 +57,10 @@ input tokens/day:                 1,000,000
 output tokens/day:                100,000
 budget guard trigger:             90%
 ```
+
+The budget guard uses Cloud Run's second-generation execution environment,
+which has a 512 MiB platform minimum. It remains `min=0`, `max=1`, and
+concurrency 1, so the corrected minimum does not create an always-on cost.
 
 Forbidden production additions unless explicitly approved:
 
