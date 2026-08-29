@@ -1,0 +1,21 @@
+.nobs-account-menu-slot {
+    padding: 4px 0;
+    border-top: 1px solid rgba(var(--center-channel-color-rgb, 61, 60, 64), 0.12);
+    border-bottom: 1px solid rgba(var(--center-channel-color-rgb, 61, 60, 64), 0.12);
+}
+
+.nobs-account-menu-slot .nobs-profile-action {
+    width: 100%;
+    min-height: 52px;
+    padding: 8px 20px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    text-align: left;
+}
+
+.nobs-account-menu-slot .nobs-profile-action:hover,
+.nobs-account-menu-slot .nobs-profile-action:focus-visible {
+    outline: none;
+    background: rgba(var(--button-bg-rgb, 28, 88, 217), 0.08);
+}
