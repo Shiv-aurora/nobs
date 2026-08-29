@@ -31,17 +31,26 @@ def wall_clock_now() -> datetime:
 
 
 class Services:
-    def __init__(self, settings: Settings | None = None, now_fn=default_now, state_store: StateStore | None = None):
+    def __init__(
+        self,
+        settings: Settings | None = None,
+        now_fn=default_now,
+        state_store: StateStore | None = None,
+        operational_now_fn=None,
+    ):
         self.settings = settings or Settings.from_env()
         self.now_fn = now_fn
-        operational_now_fn = wall_clock_now if now_fn is default_now else now_fn
+        operational_now_fn = operational_now_fn or (wall_clock_now if now_fn is default_now else now_fn)
         self.state_store = state_store or build_state_store(self.settings)
         self.workspace = Workspace(self.settings.workspace_path, state_store=self.state_store)
         self.policy = PolicyEngine(self.workspace, now_fn)
         self.scanner = ContentSecurityScanner()
         self.retriever = EvidenceRetriever(self.workspace, self.policy, self.scanner)
         self.router = OrganizationRouter(self.workspace)
-        self.memory = DecisionMemoryStore(self.workspace, now_fn)
+        # The seeded narrative clock keeps fixture evidence and delegated
+        # authority deterministic. Memory expiry is an operational safety
+        # boundary, so production must evaluate it against real wall time.
+        self.memory = DecisionMemoryStore(self.workspace, operational_now_fn)
         self.registry = DelegateRegistry(self.workspace)
         self.work_state = WorkStateProjector(self.workspace)
         self.meetings = MeetingService(self.workspace, now_fn)
