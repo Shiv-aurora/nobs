@@ -14,4 +14,4 @@ set -a
 source "$ENV_FILE"
 set +a
 python3 "$ROOT_DIR/seed/seed_mattermost.py"
-echo "NoPing is ready at ${MATTERMOST_SITE_URL:-http://localhost:8065}/noping"
+echo "NoBS is ready at ${MATTERMOST_SITE_URL:-http://localhost:8065}/acme/channels/project-atlas"

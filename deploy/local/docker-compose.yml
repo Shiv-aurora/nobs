@@ -53,7 +53,10 @@ services:
         max-file: "3"
 
   mattermost:
-    image: ${MATTERMOST_IMAGE:-mattermost/mattermost-team-edition:11.10.1}
+    image: ${MATTERMOST_IMAGE:-noping-mattermost:11.10.1-0.3.0}
+    build:
+      context: ../..
+      dockerfile: deploy/mattermost-client/Dockerfile
     platform: ${MATTERMOST_PLATFORM:-linux/amd64}
     restart: unless-stopped
     depends_on:
@@ -69,6 +72,8 @@ services:
       MM_SERVICESETTINGS_LISTENADDRESS: :8065
       MM_SERVICESETTINGS_ENABLELOCALMODE: "true"
       MM_SERVICESETTINGS_ENABLEDEVELOPER: "true"
+      MM_TEAMSETTINGS_SITENAME: NoBS
+      MM_TEAMSETTINGS_CUSTOMDESCRIPTIONTEXT: Fewer pings. Shorter meetings. More actual work.
       MM_SQLSETTINGS_DRIVERNAME: postgres
       MM_SQLSETTINGS_DATASOURCE: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-mattermost}?sslmode=disable&connect_timeout=10
       MM_PLUGINSETTINGS_ENABLE: "true"
@@ -90,7 +95,7 @@ services:
       - mattermost-client-plugins:/mattermost/client/plugins
       - mattermost-bleve:/mattermost/bleve-indexes
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8065/api/v4/system/ping"]
+      test: ["CMD", "/mattermost/bin/mmctl", "system", "status", "--local"]
       interval: 10s
       timeout: 5s
       retries: 30
