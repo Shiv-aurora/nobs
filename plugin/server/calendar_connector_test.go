@@ -132,3 +132,41 @@ func TestNormalizeTaggedPersonalCalendarWorkState(t *testing.T) {
 		t.Fatalf("unexpected event: %#v", event)
 	}
 }
+
+func TestNormalizeMeetingEventUsesMappedAttendeesAndDeterministicEligibility(t *testing.T) {
+	now := time.Date(2026, 8, 29, 13, 0, 0, 0, time.UTC)
+	source := googleCalendarEvent{ID: "atlas-review", ETag: "etag-1", Status: "confirmed", EventType: "default", Summary: "Atlas launch readiness", Description: "Engineering readiness", Updated: now, Start: calendarDateTime{DateTime: now.Add(time.Hour).Format(time.RFC3339)}, End: calendarDateTime{DateTime: now.Add(2 * time.Hour).Format(time.RFC3339)}}
+	source.Organizer.Email = "shivam@example.com"
+	source.Attendees = append(source.Attendees, struct {
+		Email          string `json:"email"`
+		ResponseStatus string `json:"responseStatus"`
+		Organizer      bool   `json:"organizer"`
+	}{Email: "maya@example.com", ResponseStatus: "accepted"})
+	event, accepted, err := normalizeMeetingEvent(source, map[string]calendarIdentity{"shivam@example.com": {UserID: "shivam"}, "maya@example.com": {UserID: "maya"}})
+	if err != nil || !accepted {
+		t.Fatalf("accepted=%v err=%v", accepted, err)
+	}
+	if event.EventType != "calendar.meeting.upserted" || event.Payload["preparation_eligibility"] != "eligible" || event.Payload["etag"] != "etag-1" {
+		t.Fatalf("unexpected meeting event: %#v", event)
+	}
+}
+
+func TestConfirmedCalendarWriteUsesIfMatch(t *testing.T) {
+	transport := publisherRoundTripFunc(func(request *http.Request) (*http.Response, error) {
+		if request.Method != http.MethodPatch || request.Header.Get("If-Match") != "etag-1" {
+			t.Fatalf("unsafe Calendar write: %s If-Match=%q", request.Method, request.Header.Get("If-Match"))
+		}
+		body, _ := io.ReadAll(request.Body)
+		if !strings.Contains(string(body), `"dateTime":"2026-08-29T13:15:00Z"`) {
+			t.Fatalf("unexpected Calendar patch: %s", body)
+		}
+		headers := make(http.Header)
+		headers.Set("ETag", "etag-2")
+		return &http.Response{StatusCode: http.StatusOK, Status: "200 OK", Header: headers, Body: io.NopCloser(strings.NewReader(`{}`)), Request: request}, nil
+	})
+	client := &googleCalendarClient{calendarID: "primary", tokens: staticAccessToken("calendar-token"), client: &http.Client{Transport: transport}}
+	etag, err := client.applyConfirmedAction(context.Background(), "event-1", meetingActionRequest{Action: "shorten", ExpectedETag: "etag-1", DurationMinutes: 15}, time.Date(2026, 8, 29, 13, 0, 0, 0, time.UTC))
+	if err != nil || etag != "etag-2" {
+		t.Fatalf("etag=%q err=%v", etag, err)
+	}
+}

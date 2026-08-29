@@ -40,21 +40,177 @@ type calendarDateTime struct {
 }
 
 type googleCalendarEvent struct {
-	ID        string           `json:"id"`
-	Status    string           `json:"status"`
-	EventType string           `json:"eventType"`
-	Updated   time.Time        `json:"updated"`
-	Start     calendarDateTime `json:"start"`
-	End       calendarDateTime `json:"end"`
-	Creator   struct {
+	ID          string           `json:"id"`
+	ETag        string           `json:"etag"`
+	Status      string           `json:"status"`
+	EventType   string           `json:"eventType"`
+	Summary     string           `json:"summary"`
+	Description string           `json:"description"`
+	Updated     time.Time        `json:"updated"`
+	Start       calendarDateTime `json:"start"`
+	End         calendarDateTime `json:"end"`
+	Creator     struct {
 		Email string `json:"email"`
 	} `json:"creator"`
 	Organizer struct {
 		Email string `json:"email"`
 	} `json:"organizer"`
+	Attendees []struct {
+		Email          string `json:"email"`
+		ResponseStatus string `json:"responseStatus"`
+		Organizer      bool   `json:"organizer"`
+	} `json:"attendees"`
 	ExtendedProperties struct {
 		Private map[string]string `json:"private"`
 	} `json:"extendedProperties"`
+}
+
+func (c *googleCalendarClient) upcomingMeetingEvents(ctx context.Context, now time.Time) ([]googleCalendarEvent, error) {
+	token, err := c.tokens.Token(ctx)
+	if err != nil {
+		return nil, err
+	}
+	endpoint := fmt.Sprintf("%s/calendars/%s/events", googleCalendarAPIBase, url.PathEscape(c.calendarID))
+	query := url.Values{}
+	query.Set("singleEvents", "true")
+	query.Set("showDeleted", "true")
+	query.Set("orderBy", "startTime")
+	query.Set("timeMin", now.Add(-time.Hour).UTC().Format(time.RFC3339))
+	query.Set("timeMax", now.Add(14*24*time.Hour).UTC().Format(time.RFC3339))
+	query.Set("fields", "items(id,etag,status,eventType,summary,description,updated,start,end,organizer/email,attendees(email,responseStatus,organizer),extendedProperties/private)")
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint+"?"+query.Encode(), nil)
+	if err != nil {
+		return nil, err
+	}
+	request.Header.Set("Authorization", "Bearer "+token)
+	if c.quotaProject != "" {
+		request.Header.Set("X-Goog-User-Project", c.quotaProject)
+	}
+	response, err := c.client.Do(request)
+	if err != nil {
+		return nil, fmt.Errorf("fetch Calendar meetings: %w", err)
+	}
+	defer response.Body.Close()
+	body, _ := io.ReadAll(io.LimitReader(response.Body, 1024*1024))
+	if response.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Calendar meetings API returned %s", response.Status)
+	}
+	var payload struct {
+		Items []googleCalendarEvent `json:"items"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return nil, errors.New("Calendar meetings response is invalid JSON")
+	}
+	return payload.Items, nil
+}
+
+func meetingPreparationEligibility(event googleCalendarEvent) (string, string) {
+	override := strings.ToLower(strings.TrimSpace(event.ExtendedProperties.Private["nobsPreparation"]))
+	if override == "always" {
+		return "eligible", "Organizer marked this meeting for agent preparation."
+	}
+	if override == "never" {
+		return "skipped", "Organizer excluded this meeting from agent preparation."
+	}
+	text := strings.ToLower(event.Summary + " " + event.Description)
+	for _, excluded := range []string{"coffee", "social", "welcome", "introduction", "intro ", "focus time", "birthday"} {
+		if strings.Contains(text, excluded) {
+			return "skipped", "Social, welcome, and focus-time events are intentionally left human."
+		}
+	}
+	for _, work := range []string{"project", "status", "planning", "review", "incident", "decision", "launch", "engineering", "readiness", "sync"} {
+		if strings.Contains(text, work) {
+			return "eligible", "Work meeting matched deterministic preparation rules."
+		}
+	}
+	return "ambiguous", "Meeting needs one lightweight eligibility classification before preparation."
+}
+
+func normalizeMeetingEvent(source googleCalendarEvent, identities map[string]calendarIdentity) (workEvent, bool, error) {
+	if source.ID == "" || source.EventType != "default" {
+		return workEvent{}, false, nil
+	}
+	organizerEmail := strings.ToLower(strings.TrimSpace(source.Organizer.Email))
+	organizer, ok := identities[organizerEmail]
+	if !ok {
+		return workEvent{}, false, nil
+	}
+	start, err := calendarEventTime(source.Start)
+	if err != nil {
+		return workEvent{}, false, err
+	}
+	end, err := calendarEventTime(source.End)
+	if err != nil {
+		return workEvent{}, false, err
+	}
+	attendees := make([]map[string]any, 0, len(source.Attendees))
+	entityIDs := []string{"calendar:" + source.ID}
+	for _, item := range source.Attendees {
+		identity, mapped := identities[strings.ToLower(strings.TrimSpace(item.Email))]
+		if !mapped {
+			continue
+		}
+		attendees = append(attendees, map[string]any{"user_id": identity.UserID, "response_status": item.ResponseStatus})
+		entityIDs = append(entityIDs, identity.UserID)
+	}
+	if len(attendees) == 0 {
+		attendees = append(attendees, map[string]any{"user_id": organizer.UserID, "response_status": "accepted"})
+	}
+	eligibility, reason := meetingPreparationEligibility(source)
+	eventType := "calendar.meeting.upserted"
+	if source.Status == "cancelled" {
+		eventType = "calendar.meeting.cancelled"
+	}
+	payload := map[string]any{
+		"calendar_event_id": source.ID, "etag": source.ETag, "title": source.Summary,
+		"description": source.Description, "start_at": start.UTC().Format(time.RFC3339),
+		"end_at": end.UTC().Format(time.RFC3339), "organizer_user_id": organizer.UserID,
+		"attendees": attendees, "preparation_eligibility": eligibility, "preparation_reason": reason,
+	}
+	return workEvent{ID: "google_calendar:meeting:" + source.ID + ":" + source.Updated.UTC().Format(time.RFC3339Nano), Source: "google_calendar", EventType: eventType, ActorUserID: organizer.UserID, EntityIDs: entityIDs, OccurredAt: source.Updated, Payload: payload}, true, nil
+}
+
+func (c *googleCalendarClient) applyConfirmedAction(ctx context.Context, eventID string, request meetingActionRequest, startAt time.Time) (string, error) {
+	token, err := c.tokens.Token(ctx)
+	if err != nil {
+		return "", err
+	}
+	endpoint := fmt.Sprintf("%s/calendars/%s/events/%s", googleCalendarAPIBase, url.PathEscape(c.calendarID), url.PathEscape(eventID))
+	method := http.MethodPatch
+	var body io.Reader
+	if request.Action == "cancel" {
+		method = http.MethodDelete
+	} else {
+		patch := map[string]any{}
+		if request.Action == "shorten" {
+			patch["end"] = map[string]string{"dateTime": startAt.Add(time.Duration(request.DurationMinutes) * time.Minute).UTC().Format(time.RFC3339)}
+		} else {
+			patch["description"] = strings.Join(request.Agenda, "\n")
+		}
+		encoded, _ := json.Marshal(patch)
+		body = strings.NewReader(string(encoded))
+	}
+	httpRequest, err := http.NewRequestWithContext(ctx, method, endpoint, body)
+	if err != nil {
+		return "", err
+	}
+	httpRequest.Header.Set("Authorization", "Bearer "+token)
+	httpRequest.Header.Set("If-Match", request.ExpectedETag)
+	if body != nil {
+		httpRequest.Header.Set("Content-Type", "application/json")
+	}
+	response, err := c.client.Do(httpRequest)
+	if err != nil {
+		return "", fmt.Errorf("apply confirmed Calendar action: %w", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode == http.StatusPreconditionFailed {
+		return "", errors.New("Calendar event changed after preparation")
+	}
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return "", fmt.Errorf("Calendar write returned %s", response.Status)
+	}
+	return response.Header.Get("ETag"), nil
 }
 
 type calendarTokenSource struct {
@@ -128,6 +284,21 @@ type googleCalendarClient struct {
 	quotaProject string
 	tokens       accessTokenProvider
 	client       *http.Client
+}
+
+func calendarClientFromConfig(config *configuration) (*googleCalendarClient, error) {
+	if strings.TrimSpace(config.GoogleCalendarCredentialsB64) == "" {
+		return nil, errors.New("Google Calendar is not connected")
+	}
+	tokens, err := newCalendarTokenSource(config.GoogleCalendarCredentialsB64)
+	if err != nil {
+		return nil, err
+	}
+	calendarID := strings.TrimSpace(config.GoogleCalendarID)
+	if calendarID == "" {
+		calendarID = "primary"
+	}
+	return &googleCalendarClient{calendarID: calendarID, quotaProject: config.GoogleCloudProject, tokens: tokens, client: &http.Client{Timeout: 15 * time.Second}}, nil
 }
 
 func (c *googleCalendarClient) outOfOfficeEvents(ctx context.Context, now time.Time) ([]googleCalendarEvent, error) {
@@ -274,30 +445,20 @@ func (p *Plugin) startCalendarPoller() {
 	if strings.TrimSpace(config.GoogleCalendarCredentialsB64) == "" {
 		return
 	}
-	tokens, err := newCalendarTokenSource(config.GoogleCalendarCredentialsB64)
+	client, err := calendarClientFromConfig(config)
 	if err != nil {
-		p.API.LogError("NoPing Calendar connector is disabled", "error", err.Error())
+		p.API.LogError("NoBS Calendar connector is disabled", "error", err.Error())
 		return
 	}
 	identities, err := parseCalendarIdentityMap(config.GoogleCalendarIdentityMap)
 	if err != nil || len(identities) == 0 {
-		p.API.LogError("NoPing Calendar connector is disabled", "error", "calendar identity map is invalid or empty")
+		p.API.LogError("NoBS Calendar connector is disabled", "error", "calendar identity map is invalid or empty")
 		return
 	}
 	publisher, err := newPubSubPublisher(config.GoogleCloudProject, config.PubSubTopic)
 	if err != nil {
-		p.API.LogError("NoPing Calendar connector is disabled", "error", err.Error())
+		p.API.LogError("NoBS Calendar connector is disabled", "error", err.Error())
 		return
-	}
-	calendarID := strings.TrimSpace(config.GoogleCalendarID)
-	if calendarID == "" {
-		calendarID = "primary"
-	}
-	client := &googleCalendarClient{
-		calendarID:   calendarID,
-		quotaProject: config.GoogleCloudProject,
-		tokens:       tokens,
-		client:       &http.Client{Timeout: 15 * time.Second},
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	p.calendarCancel = cancel
@@ -322,14 +483,14 @@ func (p *Plugin) pollCalendar(ctx context.Context, client *googleCalendarClient,
 	now := time.Now()
 	events, err := client.outOfOfficeEvents(ctx, now)
 	if err != nil {
-		p.API.LogError("NoPing Calendar poll failed", "error", err.Error())
+		p.API.LogError("NoBS Calendar poll failed", "error", err.Error())
 		return
 	}
 	published := 0
 	for _, source := range events {
 		event, accepted, err := normalizeCalendarEvent(source, identities, now)
 		if err != nil {
-			p.API.LogWarn("NoPing skipped malformed Calendar event", "event_id", source.ID, "error", err.Error())
+			p.API.LogWarn("NoBS skipped malformed Calendar event", "event_id", source.ID, "error", err.Error())
 			continue
 		}
 		if !accepted {
@@ -339,12 +500,35 @@ func (p *Plugin) pollCalendar(ctx context.Context, client *googleCalendarClient,
 		err = publisher.Publish(publishCtx, event)
 		cancel()
 		if err != nil {
-			p.API.LogError("NoPing Calendar event publish failed", "event_id", event.ID, "error", err.Error())
+			p.API.LogError("NoBS Calendar event publish failed", "event_id", event.ID, "error", err.Error())
+			continue
+		}
+		published++
+	}
+	meetings, err := client.upcomingMeetingEvents(ctx, now)
+	if err != nil {
+		p.API.LogError("NoBS Calendar meeting sync failed", "error", err.Error())
+		return
+	}
+	for _, source := range meetings {
+		event, accepted, normalizeErr := normalizeMeetingEvent(source, identities)
+		if normalizeErr != nil {
+			p.API.LogWarn("NoBS skipped malformed Calendar meeting", "event_id", source.ID, "error", normalizeErr.Error())
+			continue
+		}
+		if !accepted {
+			continue
+		}
+		publishCtx, cancel := context.WithTimeout(ctx, 12*time.Second)
+		publishErr := publisher.Publish(publishCtx, event)
+		cancel()
+		if publishErr != nil {
+			p.API.LogError("NoBS Calendar meeting publish failed", "event_id", event.ID, "error", publishErr.Error())
 			continue
 		}
 		published++
 	}
 	if published > 0 {
-		p.API.LogInfo("NoPing Calendar availability synchronized", "events", published)
+		p.API.LogInfo("NoBS Calendar availability and meetings synchronized", "events", published)
 	}
 }
