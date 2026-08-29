@@ -14,7 +14,7 @@ def create_app(services: Services | None = None) -> FastAPI:
     service_bundle = services or Services()
     configure_logging(service_bundle.settings.log_level)
     app = FastAPI(
-        title="NoPing Agent Service",
+        title="NoBS Agent Service",
         version="0.1.0",
         description="Permission-aware organizational routing, attention gating, decisions, and memory.",
     )
