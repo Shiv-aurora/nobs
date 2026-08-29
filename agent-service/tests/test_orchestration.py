@@ -10,9 +10,9 @@ def test_factual_answer_routes_across_departments_without_interrupting(services)
     assert result.people_interrupted == 0
     assert "SEC-184" in result.answer
     assert [step.delegate_id for step in result.route] == [
-        "delegate:user:maya",
         "delegate:project:atlas",
         "delegate:team:engineering",
+        "delegate:user:sarah",
         "delegate:team:security",
     ]
     assert len(result.evidence) >= 4
