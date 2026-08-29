@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -17,7 +18,7 @@ import (
 	"github.com/shiv-aurora/noping/plugin/internal/signing"
 )
 
-var errAgentUnavailable = errors.New("NoPing agent service unavailable")
+var errAgentUnavailable = errors.New("NoBS agent service unavailable")
 
 type tokenProvider interface {
 	Token(context.Context) (string, error)
@@ -101,4 +102,89 @@ func (c *agentClient) do(ctx context.Context, method, path string, body any) ([]
 		return nil, response.StatusCode, response.Header, fmt.Errorf("read agent response: %w", err)
 	}
 	return responseBody, response.StatusCode, response.Header, nil
+}
+
+func (c *agentClient) streamQuery(ctx context.Context, query queryRequest, onEvent func(queryStreamEvent)) (*channelAgentResult, int, http.Header, error) {
+	payload, err := json.Marshal(query)
+	if err != nil {
+		return nil, 0, nil, fmt.Errorf("marshal request: %w", err)
+	}
+	const path = "/v1/query/stream"
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+path, bytes.NewReader(payload))
+	if err != nil {
+		return nil, 0, nil, fmt.Errorf("create request: %w", err)
+	}
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Accept", "application/x-ndjson")
+	if c.tokenProvider != nil {
+		token, tokenErr := c.tokenProvider.Token(ctx)
+		if tokenErr != nil {
+			return nil, 0, nil, fmt.Errorf("obtain Google service identity: %w", tokenErr)
+		}
+		request.Header.Set("Authorization", "Bearer "+token)
+	}
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+	request.Header.Set("X-NoPing-Timestamp", timestamp)
+	request.Header.Set("X-NoPing-Signature-Version", signing.Version)
+	request.Header.Set("X-NoPing-Signature", c.sign(timestamp, http.MethodPost, path, payload))
+	response, err := c.client.Do(request)
+	if err != nil {
+		return nil, 0, nil, fmt.Errorf("%w: %v", errAgentUnavailable, err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode >= http.StatusMultipleChoices {
+		body, readErr := io.ReadAll(io.LimitReader(response.Body, 2*1024*1024))
+		if readErr != nil {
+			return nil, response.StatusCode, response.Header, readErr
+		}
+		return nil, response.StatusCode, response.Header, fmt.Errorf("agent stream rejected: %s", strings.TrimSpace(string(body)))
+	}
+	var result channelAgentResult
+	foundResult := false
+	scanner := bufio.NewScanner(io.LimitReader(response.Body, 4*1024*1024))
+	scanner.Buffer(make([]byte, 64*1024), 2*1024*1024)
+	for scanner.Scan() {
+		var event queryStreamEvent
+		if err := json.Unmarshal(scanner.Bytes(), &event); err != nil {
+			return nil, response.StatusCode, response.Header, fmt.Errorf("decode agent stream: %w", err)
+		}
+		if onEvent != nil {
+			onEvent(event)
+		}
+		if event.Event == "completed" {
+			var completed struct {
+				Result channelAgentResult `json:"result"`
+			}
+			if err := json.Unmarshal(event.Data, &completed); err != nil {
+				return nil, response.StatusCode, response.Header, fmt.Errorf("decode completed result: %w", err)
+			}
+			result = completed.Result
+			foundResult = true
+		}
+		if event.Event == "failed" {
+			return nil, response.StatusCode, response.Header, errors.New("agent stream failed")
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, response.StatusCode, response.Header, fmt.Errorf("read agent stream: %w", err)
+	}
+	if !foundResult {
+		return nil, response.StatusCode, response.Header, errors.New("agent stream ended without a result")
+	}
+	return &result, response.StatusCode, response.Header, nil
+}
+
+func (c *agentClient) resolveDelegation(ctx context.Context, request delegationResolutionRequest) (*delegationResolution, error) {
+	payload, statusCode, _, err := c.do(ctx, http.MethodPost, "/v1/delegation/resolve", request)
+	if err != nil {
+		return nil, err
+	}
+	if statusCode >= http.StatusMultipleChoices {
+		return nil, fmt.Errorf("delegation preflight rejected with status %d", statusCode)
+	}
+	var result delegationResolution
+	if err := json.Unmarshal(payload, &result); err != nil {
+		return nil, fmt.Errorf("decode delegation preflight: %w", err)
+	}
+	return &result, nil
 }
