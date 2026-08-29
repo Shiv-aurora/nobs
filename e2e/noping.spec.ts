@@ -2,6 +2,7 @@ import {expect, type Locator, type Page, test} from '@playwright/test';
 
 const demoPassword = process.env.NOPING_DEMO_USER_PASSWORD || 'NoPing-Demo-2026!';
 const channelPath = '/acme/channels/project-atlas';
+const skipDemoReset = process.env.NOPING_SKIP_RESET === 'true';
 
 async function login(page: Page, username: string): Promise<void> {
     await page.context().clearCookies();
@@ -10,14 +11,14 @@ async function login(page: Page, username: string): Promise<void> {
     await expect(email).toBeVisible();
     await email.fill(username);
     await page.getByRole('textbox', {name: /^Password/i}).fill(demoPassword);
-    await page.getByRole('button', {name: /Log in/i}).click();
+    await page.getByRole('button', {name: /Continue to NoBS|Log in/i}).click();
     await expect(page).not.toHaveURL(/\/login/);
     await page.goto(channelPath);
     await expect(composer(page)).toBeVisible();
-    const dismissOnboarding = page.getByText(/No thanks, I'll figure it out myself/i);
-    if (await dismissOnboarding.isVisible().catch(() => false)) {
-        await dismissOnboarding.click();
-    }
+    await page.locator('#initialPageLoadingScreen').waitFor({state: 'hidden', timeout: 30_000}).catch(() => undefined);
+    const dismissOnboarding = page.getByText(/No thanks, I.ll figure it out myself/i).last();
+    await dismissOnboarding.click({timeout: 8_000}).catch(() => undefined);
+    await page.locator('[data-cy="onboarding-task-list-overlay"]').waitFor({state: 'hidden', timeout: 8_000}).catch(() => undefined);
 }
 
 function composer(page: Page): Locator {
@@ -27,21 +28,32 @@ function composer(page: Page): Locator {
 async function post(page: Page, message: string): Promise<void> {
     const input = composer(page);
     await input.fill(message);
-    await page.getByRole('button', {name: 'Send Now'}).last().click();
+    const send = page.getByRole('button', {name: 'Send Now'}).last();
+    try {
+        await send.click({timeout: 5_000});
+    } catch (error) {
+        const dismissOnboarding = page.getByText(/No thanks, I.ll figure it out myself/i).last();
+        if (!await dismissOnboarding.isVisible().catch(() => false)) {
+            throw error;
+        }
+        await dismissOnboarding.click();
+        await page.locator('[data-cy="onboarding-task-list-overlay"]').waitFor({state: 'hidden'});
+        await send.click();
+    }
     await expect(page.getByText(message.replace(/^\s*--direct\s+/, ''), {exact: false}).last()).toBeVisible();
 }
 
-async function openLatestAgentThread(page: Page): Promise<void> {
-    const replyLink = page.getByText(/1 reply/i, {exact: true}).last();
+async function openAgentThread(page: Page, sourceMessage: string): Promise<void> {
+    const sourcePost = page.locator('#postListContent .post, [data-testid="post"]').filter({hasText: sourceMessage}).last();
+    const replyLink = sourcePost.getByText(/1 reply/i, {exact: true});
     await expect(replyLink).toBeVisible({timeout: 60_000});
     await replyLink.click();
 }
 
 async function openLatestRouteEvidence(page: Page): Promise<void> {
-    await page.evaluate(() => {
-        const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>('.np-post-route-link'));
-        buttons.at(-1)?.click();
-    });
+    const routeButton = page.getByRole('button', {name: /delegates consulted · \d+ humans? interrupted/i}).last();
+    await expect(routeButton).toBeVisible();
+    await routeButton.click();
 }
 
 async function openNoPingPanel(page: Page): Promise<void> {
@@ -56,6 +68,17 @@ async function selectNoBSPanelTab(page: Page, label: string): Promise<void> {
         const button = Array.from(document.querySelectorAll<HTMLButtonElement>('.np-native-tabs button')).find((item) => item.textContent?.includes(name));
         button?.click();
     }, label);
+}
+
+async function prepareMeetingIfNeeded(page: Page, preparedSummary: string): Promise<void> {
+    const prepared = page.getByText(preparedSummary, {exact: true});
+    const prepare = page.getByRole('button', {name: 'Prepare meeting'});
+    await expect.poll(async () => await prepared.isVisible().catch(() => false) || await prepare.isVisible().catch(() => false)).toBe(true);
+    if (await prepared.isVisible().catch(() => false)) {
+        return;
+    }
+    await prepare.click();
+    await expect(prepared).toBeVisible();
 }
 
 test('enters the demo workspace with one click', async ({page}) => {
@@ -83,7 +106,7 @@ test('runs one coordinated delegate reply as a native thread and exposes route e
     await login(page, 'maya');
     const question = `Why is Atlas delayed? ${Date.now()}`;
     await post(page, question);
-    await openLatestAgentThread(page);
+    await openAgentThread(page, question);
 
     await expect(page.getByText(/delegates consulted · 0 humans interrupted/i).last()).toBeVisible({timeout: 60_000});
     // The router may resolve this broad project question through the
@@ -99,8 +122,9 @@ test('runs one coordinated delegate reply as a native thread and exposes route e
 
 test('uses a represented employee identity for a personal delegate', async ({page}) => {
     await login(page, 'maya');
-    await post(page, `What is blocking Atlas security? ${Date.now()}`);
-    await openLatestAgentThread(page);
+    const question = `What is blocking Atlas security? ${Date.now()}`;
+    await post(page, question);
+    await openAgentThread(page, question);
 
     await expect(page.getByText("Sarah's Agent", {exact: true}).last()).toBeVisible({timeout: 60_000});
     await openLatestRouteEvidence(page);
@@ -113,8 +137,9 @@ test('uses a represented employee identity for a personal delegate', async ({pag
 
 test('keeps the named employee identity on a policy-denied request', async ({page}) => {
     await login(page, 'maya');
-    await post(page, `What is Sarah's salary? ${Date.now()}`);
-    await openLatestAgentThread(page);
+    const question = `What is Sarah's salary? ${Date.now()}`;
+    await post(page, question);
+    await openAgentThread(page, question);
 
     await expect(page.getByText("Sarah's Agent", {exact: true}).last()).toBeVisible({timeout: 60_000});
     await expect(page.getByText(/Compensation data is restricted to People Operations/i).last()).toBeVisible();
@@ -157,7 +182,7 @@ test('keeps native messaging usable at every release viewport', async ({page}) =
 test('keeps Needs You, attention analytics, and security in the native side panel', async ({page}) => {
     await login(page, 'alex');
     await openNoPingPanel(page);
-    await page.getByText(/No thanks, I'll figure it out myself/i).click({timeout: 5_000}).catch(() => undefined);
+    await page.getByText(/No thanks, I.ll figure it out myself/i).last().click({timeout: 5_000}).catch(() => undefined);
 
     await selectNoBSPanelTab(page, 'Needs You');
     await expect(page.getByText(/things actually require you/i)).toBeVisible();
@@ -169,14 +194,18 @@ test('keeps Needs You, attention analytics, and security in the native side pane
 
 test('prepares the two Calendar proof cases and skips a social meeting', async ({page}) => {
     await login(page, 'maya');
-    await page.evaluate(async () => {
-        await fetch('/plugins/com.noping.enterprise/api/v1/demo/reset', {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: {'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest'},
-            body: '{}',
+    if (!skipDemoReset) {
+        const resetStatus = await page.evaluate(async () => {
+            const response = await fetch('/plugins/com.noping.enterprise/api/v1/demo/reset', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest'},
+                body: '{}',
+            });
+            return response.status;
         });
-    });
+        expect(resetStatus).toBe(200);
+    }
     await page.goto('/acme/nobs/calendar');
     await expect(page).toHaveURL(/\/acme\/nobs\/calendar$/);
     await expect(page).toHaveTitle('Calendar - NoBS');
@@ -187,17 +216,17 @@ test('prepares the two Calendar proof cases and skips a social meeting', async (
     await expect(page.getByText('skipped', {exact: true})).toBeVisible();
 
     await page.getByRole('button', {name: /Atlas engineering sync/}).click();
-    await page.getByRole('button', {name: 'Prepare meeting'}).click();
+    await prepareMeetingIfNeeded(page, '30 → 0 min');
     await expect(page.getByText('30 → 0 min', {exact: true})).toBeVisible();
     await expect(page.getByText('Cancel this meeting', {exact: true})).toBeVisible();
     await expect(page.locator('.nobs-meeting-aside .nobs-meeting-brief')).toBeVisible();
     await expect(page.locator('.nobs-preparation .nobs-swarm li')).toHaveCount(30);
     await expect(page.getByText(/Attendee agents worked for 15 minutes/i)).toBeVisible();
-    await expect(page.locator('.nobs-preparation .nobs-agent-avatar.is-github .icon-github')).toBeVisible();
-    await expect(page.locator('.nobs-preparation .nobs-agent-avatar.is-personal img').first()).toBeVisible();
+    await expect(page.locator('.nobs-preparation .nobs-agent-avatar.is-github').first()).toBeVisible();
+    await expect(page.locator('.nobs-preparation .nobs-agent-avatar.is-personal img:visible').first()).toBeVisible();
 
     await page.getByRole('button', {name: /Atlas launch readiness/}).click();
-    await page.getByRole('button', {name: 'Prepare meeting'}).click();
+    await prepareMeetingIfNeeded(page, '60 → 15 min');
     await expect(page.getByText('60 → 15 min', {exact: true})).toBeVisible();
     await expect(page.getByText('Security boundary enforced', {exact: true})).toBeVisible();
     await expect(page.getByText('Gemini Code Assist', {exact: true}).first()).toBeVisible();

@@ -8,9 +8,12 @@ async function login(page: Page, username: string): Promise<void> {
     await page.goto('/login');
     await page.getByRole('textbox', {name: /Email or username/i}).fill(username);
     await page.getByRole('textbox', {name: /^Password/i}).fill(password);
-    await page.getByRole('button', {name: /Log in/i}).click();
+    await page.getByRole('button', {name: /Continue to NoBS|Log in/i}).click();
     await page.goto(channelPath);
     await expect(page.locator('#post_textbox, [data-testid="post_textbox"], .ProseMirror[contenteditable="true"]').last()).toBeVisible();
+    await page.locator('#initialPageLoadingScreen').waitFor({state: 'hidden', timeout: 30_000}).catch(() => undefined);
+    await page.getByText(/No thanks, I.ll figure it out myself/i).last().click({timeout: 8_000}).catch(() => undefined);
+    await page.locator('[data-cy="onboarding-task-list-overlay"]').waitFor({state: 'hidden', timeout: 8_000}).catch(() => undefined);
 }
 
 async function post(page: Page, message: string): Promise<void> {
