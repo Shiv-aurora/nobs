@@ -1,53 +1,75 @@
 import React from 'react';
 
-import {App} from './App';
-import './styles/noping.css';
-import type {PluginRegistry} from './types/mattermost';
-import {sitePath, teamScopedNoPingPath} from './utils/navigation';
+import {api} from './api/client';
 import logo from './assets/logo.png';
+import {LegacyRedirect} from './components/LegacyRedirect';
+import {CalendarPage, openCalendar} from './components/CalendarPage';
+import {NoPingPanel} from './components/NoPingPanel';
+import {installAccountMenuOOOBridge, OOOProfileAction} from './components/OOOProfileAction';
+import {PostIdentityBadge} from './components/PostIdentityBadge';
+import './styles/native-extension.css';
+import './styles/native-panel-detail.css';
+import './styles/calendar.css';
+import './styles/ooo.css';
+import './styles/account-menu.css';
+import type {PluginRegistry, PluginStore} from './types/mattermost';
 
 function NoPingGlyph(): JSX.Element {
-    return <img src={logo} alt='' style={{width: 22, height: 22, objectFit: 'contain'}}/>;
+    return <img className='np-native-glyph' src={logo} alt=''/>
 }
 
-function EmptyHeader(): null {
-    return null;
+function focusNativeComposer(prefix: string): void {
+    const composer = document.querySelector<HTMLElement>('#post_textbox, [data-testid="post_textbox"], .ProseMirror[contenteditable="true"]');
+    if (!composer) {
+        return;
+    }
+    composer.focus();
+    if (composer instanceof HTMLTextAreaElement || composer instanceof HTMLInputElement) {
+        composer.value = prefix;
+    } else {
+        composer.textContent = prefix;
+    }
+    composer.dispatchEvent(new InputEvent('input', {bubbles: true, inputType: 'insertText', data: prefix}));
+}
+
+async function askAboutPost(postID: string): Promise<void> {
+    const response = await fetch(`/api/v4/posts/${encodeURIComponent(postID)}`, {credentials: 'same-origin'});
+    if (!response.ok) {
+        return;
+    }
+    const post = await response.json() as {id: string; channel_id: string; root_id?: string; message: string};
+    await api.agentReply(`What should I know about this message?\n\n${post.message}`, post.channel_id, post.id, post.root_id || post.id);
 }
 
 export default class NoPingPlugin {
-    public initialize(registry: PluginRegistry): void {
-        let openNoPing: () => void;
-
-        if (registry.registerProduct) {
-            // NoPing is a first-class product surface, not a chatbot pane bolted onto a channel.
-            registry.registerProduct(
-                '/noping',
-                <NoPingGlyph/>,
-                'NoPing',
-                '/noping',
-                App,
-                EmptyHeader,
-                EmptyHeader,
-                true,
-            );
-            openNoPing = () => window.location.assign(sitePath('/noping'));
-        } else if (registry.registerNeedsTeamRoute) {
-            registry.registerNeedsTeamRoute('/noping', App);
-            openNoPing = () => window.location.assign(teamScopedNoPingPath());
+    public initialize(registry: PluginRegistry, store: PluginStore): void {
+        registry.registerCustomRoute('/noping', LegacyRedirect);
+        registry.registerCustomRoute('/nobs', LegacyRedirect);
+        if (registry.registerNeedsTeamRoute) {
+            registry.registerNeedsTeamRoute('/calendar', CalendarPage);
         } else {
-            registry.registerCustomRoute('/noping', App);
-            openNoPing = () => window.location.assign(sitePath('/noping'));
+            registry.registerCustomRoute('/nobs/calendar', CalendarPage);
         }
-
-        registry.registerMainMenuAction('Open NoPing', openNoPing);
-        registry.registerChannelHeaderButtonAction(
-            <NoPingGlyph/>,
-            openNoPing,
-            'Ask your company',
-            'Ask your company',
-        );
-        registry.registerWebSocketEventHandler('custom_com.noping.enterprise_run_update', () => {
-            window.dispatchEvent(new CustomEvent('noping:run-update'));
+        const appBar = registry.registerAppBarComponent?.(logo, undefined, 'NoBS context', '*', NoPingPanel, 'NoBS');
+        if (appBar && typeof appBar !== 'string') {
+            window.addEventListener('noping:open-panel', (event: Event) => {
+                const runID = (event as CustomEvent<{runID?: string}>).detail?.runID;
+                if (runID) {
+                    window.nopingSelectedRunID = runID;
+                    window.dispatchEvent(new CustomEvent('noping:select-run', {detail: {runID}}));
+                }
+                store.dispatch(appBar.rhsComponent.showRHSPlugin);
+            });
+        }
+        registry.registerPostHeaderComponent?.(PostIdentityBadge);
+        registry.registerPostDropdownMenuAction?.('Ask NoBS about this', (postID: string) => void askAboutPost(postID), () => true);
+        registry.registerChannelHeaderButtonAction(<NoPingGlyph/>, () => focusNativeComposer(''), 'Ask naturally', 'Write normally — NoBS routes work to the right delegate automatically');
+        registry.registerMainMenuAction('Ask naturally', () => focusNativeComposer(''));
+        registry.registerMainMenuAction('Open Calendar', openCalendar);
+        installAccountMenuOOOBridge();
+        registry.registerPopoverUserActionsComponent?.(OOOProfileAction);
+        registry.registerWebSocketEventHandler('custom_com.noping.enterprise_run_update', (message: unknown) => {
+            window.dispatchEvent(new CustomEvent('noping:run-update', {detail: message}));
         });
         registry.registerWebSocketEventHandler('custom_com.noping.enterprise_decision_update', () => {
             window.dispatchEvent(new CustomEvent('noping:decision-update'));
@@ -58,6 +80,7 @@ export default class NoPingPlugin {
 declare global {
     interface Window {
         registerPlugin(pluginID: string, plugin: NoPingPlugin): void;
+        nopingSelectedRunID?: string;
     }
 }
 
