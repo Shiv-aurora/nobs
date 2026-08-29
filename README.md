@@ -1,14 +1,14 @@
-# NoPing
+# NoBS
 
-**Ask the company, not a coworker.**
+**Fewer pings. Shorter meetings. More actual work.**
 
-NoPing is an AI-native workplace communication layer built on Mattermost. Every employee, project, team, and policy has a permission-aware logical delegate. A frontline employee can ask a cross-department question without knowing the org chart; NoPing finds the relevant delegates, retrieves authorized evidence, returns a sourced answer, and interrupts a human only when judgment or formal authority is required.
+NoBS is an AI-native workplace communication layer built on Mattermost. Every employee, project, team, and policy has a permission-aware logical delegate. Routine messages are answered without breaking focus, while attendee agents prepare meetings before humans join.
 
-> **10-second demo:** In `# Project Atlas`, Maya posts `@noping Why is Atlas delayed?` → four organizational delegates consult live project evidence → a sourced reply appears in the thread → **0 people interrupted**. A $200K security exception then becomes one complete decision card for the acting approver rather than a burst of messages.
+> **20-second demo:** Maya asks why Atlas is delayed and receives a sourced delegate reply with **0 people interrupted**. In Calendar, agents then resolve the entire engineering sync and recommend cancellation; a second 60-minute launch meeting becomes 15 minutes for one human security decision.
 
 ## Why this is not a chatbot
 
-NoPing changes the communication primitive from **message a person** to **express an intent**.
+NoBS changes the communication primitive from **message a person** to **express an intent**, and changes meetings from status discovery to bounded human judgment.
 
 ```text
 Employee question
@@ -27,7 +27,7 @@ Answer ────────────────or───────�
 
 The product includes:
 
-- a real Mattermost Go + React plugin with NoPing-owned channel, message, thread, and agent-reply surfaces;
+- a real Mattermost Go + React plugin with NoBS-owned channel, message, thread, agent-reply, Calendar, and OOO surfaces;
 - employee, project, team, policy, router, and authority delegates;
 - evidence-level authorization and restricted-intent denial before retrieval;
 - semantic work state projected from normalized GitHub, issue, calendar, and Mattermost events;
@@ -60,10 +60,11 @@ ui-harness/                     browser-validation harness only; not production 
 
 The seeded organization contains Maya (overnight support), Sarah (security lead), Alex (delegated approver), Daniel (mobile engineer), Priya (product manager), Project Atlas, AUTH-392, SEC-184, and policy SEC-POL-12.
 
-1. **Inline cross-department answer** — Maya posts `@noping Why is Atlas delayed?` in `# Project Atlas`. NoPing routes through project, engineering, and security delegates, quarantines a malicious uploaded note, and replies inside the conversation without pinging anyone.
+1. **Less Ping** — Maya posts `Why is Atlas delayed?` in `# Project Atlas` without tagging a bot or coworker. NoBS recognizes the scope, routes through project, engineering, and security delegates, and replies inside the native thread without pinging anyone.
 2. **Restricted-data refusal** — Maya asks for Sarah’s salary. The request is denied before the HR record is retrieved or sent to Gemini.
-3. **Authority-aware escalation** — Maya asks whether Atlas should launch for a $200K customer. NoPing refuses to let the model decide, sees Sarah is OOO, validates Alex’s active delegation, and creates one Needs You card.
-4. **Organizational memory** — Alex rejects the exception. A materially identical request later uses the scoped decision memory without another interruption; changed facts or expired authority force re-evaluation.
+3. **Less Meeting: cancel** — attendee, project, Gemini Code Assist, and GitHub agents resolve the Atlas engineering sync and return all 30 minutes.
+4. **Less Meeting: compress** — agents resolve engineering and customer context, quarantine malicious agenda content, and reduce launch readiness from 60 to 15 minutes for one authority decision.
+5. **OOO and memory** — the profile-menu OOO mode lets the delegate handle routine work and build a return digest; organizer-confirmed outcomes become scoped, expiring knowledge memory.
 
 ## Credential-free verification
 
@@ -99,11 +100,11 @@ cp deploy/local/.env.example deploy/local/.env
 ./scripts/local-up.sh
 ```
 
-This starts PostgreSQL, Mattermost Team Edition, the NoPing agent service in deterministic demo mode, installs the NoPing plugin, and seeds the demo organization. See [`docs/GOOGLE_CLOUD_DEPLOYMENT.md`](docs/GOOGLE_CLOUD_DEPLOYMENT.md) for the production path.
+This starts PostgreSQL, Mattermost Team Edition, the NoBS-branded agent service in deterministic demo mode, installs the plugin, and seeds the demo organization. Open messaging at `http://localhost:8065/acme/channels/project-atlas` or Calendar at `http://localhost:8065/acme/nobs/calendar`.
 
 ## Google Cloud deployment
 
-The Phase 2 deployment is live at **https://35-202-201-122.sslip.io/noping** in project `noping-agentic-shiv-2026`. Caddy provides HTTPS, the Cloud Run services are private, and access is mediated by the Mattermost plugin at the hosted URL.
+The existing Google Cloud project and internal resource names remain `noping-*` for compatibility. `/nobs` is canonical, while `/noping` remains a legacy redirect. Production promotion is intentionally separate from this locally verified build.
 
 The production design uses only Google Cloud for deployment:
 
@@ -140,8 +141,8 @@ deploy/gcp/scripts/arm-budget-guard.sh
 
 ## Phase status
 
-Phase 2 is deployed and verified: Mattermost-backed channels/messages/threads with inline NoPing agent replies, private Cloud Run, Google ADK/Gemini, Model Armor, Firestore, authenticated Pub/Sub, live GitHub webhooks, a live read-only Google Calendar work-state connector, Cloud Trace, an armed budget guard, and production Playwright evidence. The dedicated demo Calendar contains clearly labeled meeting fixtures plus a privacy-tagged out-of-office block; the deployed credential can read but cannot create or edit events. See [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md) for exact proof and limitations.
+The NoBS build is locally deployed and browser-verified: native channels/messages/threads, automatic delegates, a responsive Calendar, two meeting-prep outcomes, a private agent workroom, OOO, security quarantine, and organizer-gated Calendar actions. Google Cloud bounds remain unchanged (`min=0`, `max=1`, one `e2-small`, and the existing `$25` protection). Production has not been promoted in this change.
 
 ## License and attribution
 
-NoPing’s original work is provided under Apache-2.0. It imports the Mattermost plugin starter at commit `3296cf6fad808c2372c254cf7b64bcc8a2144e67` and runs the separately distributed Mattermost Team Edition image. See [`UPSTREAM.md`](UPSTREAM.md), [`docs/OSS_DISCLOSURE.md`](docs/OSS_DISCLOSURE.md), and [`docs/CONTRIBUTION_MAP.md`](docs/CONTRIBUTION_MAP.md).
+NoBS’s original work is provided under Apache-2.0. Internal plugin IDs retain `noping` for compatibility. The build preserves upstream Mattermost license and notice files outside normal product UI. See [`UPSTREAM.md`](UPSTREAM.md), [`docs/OSS_DISCLOSURE.md`](docs/OSS_DISCLOSURE.md), and [`docs/CONTRIBUTION_MAP.md`](docs/CONTRIBUTION_MAP.md).

@@ -1,15 +1,15 @@
-# NoPing Implementation
+# NoBS Implementation
 
 ## Build strategy
 
-NoPing is implemented as a mature collaboration substrate plus a distinct agent runtime:
+NoBS is implemented as a mature collaboration substrate plus a distinct agent runtime:
 
-1. **Mattermost distribution layer** — official Mattermost Team Edition image and PostgreSQL.
-2. **NoPing plugin** — Go server proxy/security boundary and full React/TypeScript product route.
-3. **NoPing agent service** — FastAPI orchestration, routing, policy, evidence, work-state, decisions, memory, and audit.
+1. **NoBS collaboration client** — a reproducible, branded build of pinned Mattermost 11.10.1 webapp source, packaged over the unchanged Team Edition server binary with PostgreSQL.
+2. **NoBS plugin** — Go server proxy/security boundary, native message hooks, Calendar connector, app-bar action, post actions, and contextual right-side panel.
+3. **NoBS agent service** — FastAPI orchestration, routing, policy, evidence, meeting preparation, OOO queues, handoffs, memory, and audit.
 4. **Google Cloud production layer** — private Cloud Run, Gemini through Google ADK, Firestore, Pub/Sub, Model Armor, Secret Manager, observability, and bounded Compute Engine.
 
-This avoids a toy rewrite while keeping NoPing’s original contribution isolated and reviewable.
+This avoids a toy rewrite while keeping NoBS’s original contribution isolated and reviewable. Internal `noping` identifiers remain stable to avoid a risky data and infrastructure migration.
 
 ## Component boundaries
 
@@ -25,21 +25,13 @@ Responsibilities:
 - publish Mattermost WebSocket notifications for run and decision changes;
 - never hold model credentials.
 
-### React/TypeScript product
+### Native messaging product
 
-Routes:
+The default product is the mature channel workspace: channels, messages, threads, reactions, files, search, unread state, permissions, notifications, keyboard behavior, and responsive layout remain native. `/nobs` and `/noping` resolve into messaging, and `/acme/nobs/calendar` is the canonical meeting-preparation route.
 
-- Home / Ask Your Company
-- Needs You
-- Projects
-- Teams
-- People
-- Registry
-- Audit
-- System
-- Rooms fallback
+The plugin adds personal and organization delegate identities, compact routing metadata, one contextual side panel, a native sidebar Calendar, a private agent workroom, and OOO in the account menu. Calendar writes are organizer-only, revalidated with event ETags, and require explicit confirmation.
 
-The UI renders structured answers, route traces, evidence, freshness, decision cards, work state, and attention metrics. It is not an embedded assistant sidebar.
+Every human message receives a deterministic, model-free delegation preflight. One-to-one DMs default to the other participant's delegate. In channels and group conversations, answerable work requests are matched to employee, project, or team scope and routed automatically without requiring a mention; routine chatter and informational updates remain normal human conversation. Explicit human mentions still select that person's delegate, and `@noping` remains an optional organization-wide override for ambiguous requests. A leading `--direct` is stripped before persistence and guarantees human-only delivery without model spend.
 
 ### Agent service
 
