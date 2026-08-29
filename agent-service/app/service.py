@@ -7,6 +7,7 @@ from .adapters.model import DeterministicDemoModel, GoogleADKModel
 from .config import Settings
 from .evidence import EvidenceRetriever
 from .memory import DecisionMemoryStore
+from .meetings import MeetingService
 from .orchestrator import Orchestrator
 from .persistence import StateStore, build_state_store
 from .policy import PolicyEngine
@@ -43,6 +44,7 @@ class Services:
         self.memory = DecisionMemoryStore(self.workspace, now_fn)
         self.registry = DelegateRegistry(self.workspace)
         self.work_state = WorkStateProjector(self.workspace)
+        self.meetings = MeetingService(self.workspace, now_fn)
         self.rate_limiter = RateLimiter(self.settings, operational_now_fn)
         self.usage_guard = ModelUsageGuard(
             self.workspace,
