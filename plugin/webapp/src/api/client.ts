@@ -1,4 +1,4 @@
-import type {AuditEvent, BootstrapResponse, Decision, HealthResponse, MetricsResponse, QueryResult, RegistryResponse} from '../types/models';
+import type {AuditEvent, BootstrapResponse, Decision, HealthResponse, Meeting, MeetingDetail, MeetingPrepRun, MetricsResponse, QueryResult, RegistryResponse} from '../types/models';
 import type {MattermostPost} from '../types/messaging';
 
 const BASE = '/plugins/com.noping.enterprise/api/v1';
@@ -36,6 +36,7 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({text}),
     }),
+    run: (runID: string): Promise<QueryResult> => request(`/runs/${encodeURIComponent(runID)}`),
     agentReply: (text: string, channelID: string, sourcePostID: string, rootID: string): Promise<{result: QueryResult; post: MattermostPost; message: string}> => request('/messages/agent-reply', {
         method: 'POST',
         body: JSON.stringify({text, channel_id: channelID, source_post_id: sourcePostID, root_id: rootID}),
@@ -48,5 +49,12 @@ export const api = {
     registry: (): Promise<RegistryResponse> => request('/registry'),
     audit: (): Promise<AuditEvent[]> => request('/audit?limit=100'),
     metrics: (): Promise<MetricsResponse> => request('/metrics'),
+    meetings: (): Promise<Meeting[]> => request('/meetings'),
+    meeting: (meetingID: string): Promise<MeetingDetail> => request(`/meetings/${encodeURIComponent(meetingID)}`),
+    prepareMeeting: (meetingID: string): Promise<MeetingPrepRun> => request(`/meetings/${encodeURIComponent(meetingID)}/prepare`, {method: 'POST', body: JSON.stringify({trigger: 'manual'})}),
+    confirmMeetingAction: (meetingID: string, action: 'cancel' | 'shorten' | 'update_agenda', expectedETag: string, durationMinutes?: number): Promise<Meeting> => request(`/meetings/${encodeURIComponent(meetingID)}/actions`, {method: 'POST', body: JSON.stringify({action, expected_etag: expectedETag, duration_minutes: durationMinutes})}),
+    shareMeeting: (meetingID: string, channelID: string): Promise<unknown> => request(`/meetings/${encodeURIComponent(meetingID)}/share`, {method: 'POST', body: JSON.stringify({channel_id: channelID})}),
+    setOOO: (enabled: boolean, until?: string, delegateUserID?: string): Promise<unknown> => request('/ooo', {method: 'POST', body: JSON.stringify({enabled, until, delegate_user_id: delegateUserID})}),
+    oooDigest: (): Promise<{total: number; urgent: number; items: unknown[]}> => request('/ooo/digest'),
     resetDemo: (): Promise<{status: string}> => request('/demo/reset', {method: 'POST', body: '{}'}),
 };

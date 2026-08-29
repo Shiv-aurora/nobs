@@ -3,6 +3,19 @@ import type React from 'react';
 type RouteComponent = React.ComponentType<Record<string, never>>;
 type HeaderComponent = React.ComponentType<Record<string, never>>;
 
+export interface PluginStore {
+    dispatch(action: unknown): unknown;
+}
+
+interface AppBarRegistration {
+    id: string;
+    rhsComponent: {
+        showRHSPlugin: unknown;
+        hideRHSPlugin: unknown;
+        toggleRHSPlugin: unknown;
+    };
+}
+
 export interface PluginRegistry {
     /** Preferred product-level registration on current Mattermost releases. */
     registerProduct?: (
@@ -24,6 +37,16 @@ export interface PluginRegistry {
     /** Root-scoped compatibility fallback. */
     registerCustomRoute(path: string, component: RouteComponent): void;
     registerMainMenuAction(text: string, action: () => void): void;
+    registerAppBarComponent?: (
+        iconURL: string,
+        action: undefined,
+        tooltipText: React.ReactNode,
+        supportedProductIDs: string,
+        rhsComponent: React.ComponentType,
+        rhsTitle: React.ReactNode,
+    ) => AppBarRegistration | string;
+    registerPostHeaderComponent?: (component: React.ComponentType<{post: {props?: Record<string, unknown>}}>) => string;
+    registerPostDropdownMenuAction?: (text: React.ReactNode, action: (postID: string) => void, filter: (postID: string) => boolean) => string;
     registerChannelHeaderButtonAction(
         icon: React.ReactNode,
         action: () => void,
@@ -31,4 +54,5 @@ export interface PluginRegistry {
         tooltipText: string,
     ): void;
     registerWebSocketEventHandler(event: string, handler: (message: unknown) => void): void;
+    registerPopoverUserActionsComponent?: (component: React.ComponentType) => string;
 }
