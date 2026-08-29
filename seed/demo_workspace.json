@@ -6,6 +6,16 @@
   },
   "users": [
     {
+      "id": "shivam",
+      "name": "Shivam Arora",
+      "title": "Engineering Lead",
+      "team_ids": ["engineering"],
+      "roles": ["employee", "engineer", "engineering_lead", "meeting_organizer"],
+      "project_ids": ["atlas"],
+      "availability": {"status": "available", "until": null, "delegate_user_id": null},
+      "avatar": "SA"
+    },
+    {
       "id": "maya",
       "name": "Maya Patel",
       "title": "Overnight Customer Support Representative",
@@ -73,7 +83,7 @@
   "teams": [
     {"id": "support", "name": "Customer Support", "member_ids": ["maya"], "purpose": "Resolve customer issues and communicate launch readiness."},
     {"id": "security", "name": "Security", "member_ids": ["sarah", "alex"], "purpose": "Protect customer data and approve production launch risk."},
-    {"id": "engineering", "name": "Engineering", "member_ids": ["daniel"], "purpose": "Build and operate Acme products."},
+    {"id": "engineering", "name": "Engineering", "member_ids": ["shivam", "daniel"], "purpose": "Build and operate Acme products."},
     {"id": "product", "name": "Product", "member_ids": ["priya"], "purpose": "Own customer outcomes and launch sequencing."},
     {"id": "people", "name": "People Operations", "member_ids": ["helen"], "purpose": "Manage private employee records."}
   ],
