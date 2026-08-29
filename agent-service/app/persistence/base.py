@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, TYPE_CHECKING
 
-from ..models import AuditEvent, Decision, DecisionMemory, QueryResult, WorkEvent
+from ..models import AuditEvent, Decision, DecisionMemory, HandoffPacket, KnowledgeMemory, Meeting, MeetingPrepRun, OOOQueueItem, QueryResult, WorkEvent
 
 if TYPE_CHECKING:
     from ..workspace import Workspace
@@ -46,6 +46,26 @@ class StateStore(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def put_meeting(self, meeting: Meeting) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def put_meeting_run(self, run: MeetingPrepRun) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def put_knowledge_memory(self, memory: KnowledgeMemory) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def put_ooo_queue_item(self, item: OOOQueueItem) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def put_handoff_packet(self, packet: HandoffPacket) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
     def clear_dynamic(self) -> None:
         raise NotImplementedError
 
@@ -77,6 +97,21 @@ class NullStateStore(StateStore):
     def put_stats(self, stats: dict[str, int]) -> None:
         return None
 
+    def put_meeting(self, meeting: Meeting) -> None:
+        return None
+
+    def put_meeting_run(self, run: MeetingPrepRun) -> None:
+        return None
+
+    def put_knowledge_memory(self, memory: KnowledgeMemory) -> None:
+        return None
+
+    def put_ooo_queue_item(self, item: OOOQueueItem) -> None:
+        return None
+
+    def put_handoff_packet(self, packet: HandoffPacket) -> None:
+        return None
+
     def clear_dynamic(self) -> None:
         return None
 
@@ -104,6 +139,21 @@ class RecordingStateStore(NullStateStore):
 
     def put_stats(self, stats: dict[str, int]) -> None:
         self.operations.append(("stats", stats.copy()))
+
+    def put_handoff_packet(self, packet: HandoffPacket) -> None:
+        self.operations.append(("handoff_packet", packet.id))
+
+    def put_meeting(self, meeting: Meeting) -> None:
+        self.operations.append(("meeting", meeting.id))
+
+    def put_meeting_run(self, run: MeetingPrepRun) -> None:
+        self.operations.append(("meeting_run", run.id))
+
+    def put_knowledge_memory(self, memory: KnowledgeMemory) -> None:
+        self.operations.append(("knowledge_memory", memory.id))
+
+    def put_ooo_queue_item(self, item: OOOQueueItem) -> None:
+        self.operations.append(("ooo_queue", item.id))
 
     def clear_dynamic(self) -> None:
         self.operations.append(("clear", None))

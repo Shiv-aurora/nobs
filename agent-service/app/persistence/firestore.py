@@ -4,7 +4,7 @@ import logging
 from collections.abc import Iterable
 from typing import Any, TYPE_CHECKING
 
-from ..models import AuditEvent, Decision, DecisionMemory, QueryResult, WorkEvent
+from ..models import AuditEvent, Decision, DecisionMemory, HandoffPacket, KnowledgeMemory, Meeting, MeetingPrepRun, OOOQueueItem, QueryResult, WorkEvent
 from .base import StateStore
 
 if TYPE_CHECKING:
@@ -21,7 +21,7 @@ class FirestoreStateStore(StateStore):
     remain in Mattermost; query results store compact references and traces.
     """
 
-    DYNAMIC_COLLECTIONS = ("queries", "decisions", "memories", "audit", "work_events")
+    DYNAMIC_COLLECTIONS = ("queries", "decisions", "memories", "audit", "work_events", "meetings", "meeting_runs", "knowledge_memories", "ooo_queue", "handoff_packets")
 
     def __init__(self, *, project_id: str, database: str, organization_id: str):
         if not project_id:
@@ -57,6 +57,21 @@ class FirestoreStateStore(StateStore):
         for snapshot in self._collection("work_events").stream():
             event = WorkEvent.model_validate(snapshot.to_dict())
             workspace.work_events[event.id] = event
+        for snapshot in self._collection("meetings").stream():
+            meeting = Meeting.model_validate(snapshot.to_dict())
+            workspace.meetings[meeting.id] = meeting
+        for snapshot in self._collection("meeting_runs").stream():
+            run = MeetingPrepRun.model_validate(snapshot.to_dict())
+            workspace.meeting_runs[run.id] = run
+        for snapshot in self._collection("knowledge_memories").stream():
+            memory = KnowledgeMemory.model_validate(snapshot.to_dict())
+            workspace.knowledge_memories[memory.id] = memory
+        for snapshot in self._collection("ooo_queue").stream():
+            item = OOOQueueItem.model_validate(snapshot.to_dict())
+            workspace.ooo_queue[item.id] = item
+        for snapshot in self._collection("handoff_packets").stream():
+            packet = HandoffPacket.model_validate(snapshot.to_dict())
+            workspace.handoff_packets[packet.id] = packet
         stats = self.root.collection("config").document("stats").get()
         if stats.exists:
             workspace.stats.update({key: int(value) for key, value in stats.to_dict().items() if key in workspace.stats})
@@ -97,6 +112,21 @@ class FirestoreStateStore(StateStore):
 
     def put_stats(self, stats: dict[str, int]) -> None:
         self.root.collection("config").document("stats").set(stats, merge=True)
+
+    def put_meeting(self, meeting: Meeting) -> None:
+        self._collection("meetings").document(meeting.id).set(self._payload(meeting))
+
+    def put_meeting_run(self, run: MeetingPrepRun) -> None:
+        self._collection("meeting_runs").document(run.id).set(self._payload(run))
+
+    def put_knowledge_memory(self, memory: KnowledgeMemory) -> None:
+        self._collection("knowledge_memories").document(memory.id).set(self._payload(memory))
+
+    def put_ooo_queue_item(self, item: OOOQueueItem) -> None:
+        self._collection("ooo_queue").document(item.id).set(self._payload(item))
+
+    def put_handoff_packet(self, packet: HandoffPacket) -> None:
+        self._collection("handoff_packets").document(packet.id).set(self._payload(packet))
 
     def clear_dynamic(self) -> None:
         for name in self.DYNAMIC_COLLECTIONS:

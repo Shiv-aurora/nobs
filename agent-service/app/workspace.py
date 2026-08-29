@@ -6,7 +6,7 @@ from pathlib import Path
 from threading import RLock
 from typing import Any
 
-from .models import AuditEvent, Decision, DecisionMemory, Evidence, Policy, Project, QueryResult, Team, User, WorkEvent, WorkItem, Delegation
+from .models import AuditEvent, Decision, DecisionMemory, Evidence, HandoffPacket, KnowledgeMemory, Meeting, MeetingPrepRun, OOOQueueItem, Policy, Project, QueryResult, Team, User, WorkEvent, WorkItem, Delegation
 from .persistence.base import NullStateStore, StateStore
 
 
@@ -35,6 +35,11 @@ class Workspace:
             self.memories: dict[str, DecisionMemory] = {}
             self.audit: list[AuditEvent] = []
             self.query_results: dict[str, QueryResult] = {}
+            self.meetings: dict[str, Meeting] = {}
+            self.meeting_runs: dict[str, MeetingPrepRun] = {}
+            self.knowledge_memories: dict[str, KnowledgeMemory] = {}
+            self.ooo_queue: dict[str, OOOQueueItem] = {}
+            self.handoff_packets: dict[str, HandoffPacket] = {}
             self.stats = {
                 "queries_total": 0,
                 "resolved_without_human": 0,
@@ -50,6 +55,8 @@ class Workspace:
                 "model_budget_blocks": 0,
                 "prompt_guard_blocks": 0,
                 "response_guard_blocks": 0,
+                "meetings_prepared": 0,
+                "meeting_minutes_saved": 0,
             }
             if load_persisted:
                 self.state_store.restore(self)
@@ -86,6 +93,31 @@ class Workspace:
         self.state_store.put_work_event(event)
         return True
 
+    def save_meeting(self, meeting: Meeting) -> None:
+        with self.lock:
+            self.meetings[meeting.id] = meeting
+        self.state_store.put_meeting(meeting)
+
+    def save_meeting_run(self, run: MeetingPrepRun) -> None:
+        with self.lock:
+            self.meeting_runs[run.id] = run
+        self.state_store.put_meeting_run(run)
+
+    def save_knowledge_memory(self, memory: KnowledgeMemory) -> None:
+        with self.lock:
+            self.knowledge_memories[memory.id] = memory
+        self.state_store.put_knowledge_memory(memory)
+
+    def save_ooo_queue_item(self, item: OOOQueueItem) -> None:
+        with self.lock:
+            self.ooo_queue[item.id] = item
+        self.state_store.put_ooo_queue_item(item)
+
+    def save_handoff_packet(self, packet: HandoffPacket) -> None:
+        with self.lock:
+            self.handoff_packets[packet.id] = packet
+        self.state_store.put_handoff_packet(packet)
+
     def increment_stat(self, key: str, amount: int = 1) -> None:
         with self.lock:
             self.stats[key] = self.stats.get(key, 0) + amount
@@ -113,5 +145,10 @@ class Workspace:
                 "memories": self.memories,
                 "audit": self.audit,
                 "query_results": self.query_results,
+                "meetings": self.meetings,
+                "meeting_runs": self.meeting_runs,
+                "knowledge_memories": self.knowledge_memories,
+                "ooo_queue": self.ooo_queue,
+                "handoff_packets": self.handoff_packets,
                 "stats": self.stats,
             })
