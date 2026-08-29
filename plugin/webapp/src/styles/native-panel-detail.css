@@ -7,8 +7,11 @@
 }
 
 .post__header:has(.np-post-agent-meta) > .badges-wrapper {
+    position: relative;
+    z-index: 3;
     display: inline-flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 5px;
 }
 
@@ -28,12 +31,16 @@
 
 .np-post-route-link {
     order: 0;
+    flex-basis: 100%;
     padding: 1px 4px;
     border: 0;
     background: transparent;
     color: rgba(var(--center-channel-color-rgb), .58);
     font: inherit;
     font-size: 10px;
+    line-height: 14px;
+    text-align: left;
+    white-space: nowrap;
     cursor: pointer;
 }
 
