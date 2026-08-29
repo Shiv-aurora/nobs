@@ -186,8 +186,11 @@ def check_required_files() -> None:
         "docs/DEMO_SCRIPT.md",
         "docs/architecture.png",
         "deploy/gcp/scripts/deploy-all.sh",
+        "deploy/mattermost-client/Dockerfile",
+        "deploy/mattermost-client/apply_branding.py",
         "deploy/gcp/terraform/versions.tf",
         "plugin/plugin.json",
+        "scripts/verify-native-messaging.py",
         "agent-service/app/main.py",
     ]
     for relative in required:
@@ -196,16 +199,31 @@ def check_required_files() -> None:
 
 
 def check_noping_shell_contract() -> None:
-    transformer = (ROOT / "deploy/gcp/vm/customize_mattermost_shell.py").read_text()
+    overlay = (ROOT / "deploy/mattermost-client/apply_branding.py").read_text()
+    image = (ROOT / "deploy/mattermost-client/Dockerfile").read_text()
+    loading_template = (ROOT / "deploy/mattermost-client/overrides/initial_loading_screen_template.html").read_text()
+    loading_css = (ROOT / "deploy/mattermost-client/overrides/initial_loading_screen.css").read_text()
     login = (ROOT / "deploy/gcp/vm/login/index.html").read_text()
     caddy = (ROOT / "deploy/gcp/vm/Caddyfile").read_text()
     required_brand_markers = (
-        "/noping-brand/logo.png",
-        "/noping-brand/text-logo.png",
+        '"logo.png"',
+        '"text-logo.png"',
+        '"header.tsx"',
+        "this.openInBrowser();",
     )
     for marker in required_brand_markers:
-        if marker not in transformer:
-            fail(f"NoPing startup shell is missing {marker}")
+        if marker not in overlay:
+            fail(f"NoPing native client overlay is missing {marker}")
+    for marker in ("f9deca984f8a8d38a5f5e50600b45e22c90ebca1", "/mattermost/client/"):
+        if marker not in image:
+            fail(f"NoPing native client image is missing {marker}")
+    for marker in ('id="initialPageLoadingScreen"', 'id="initialPageLoadingAnimation"'):
+        if marker not in loading_template:
+            fail(f"NoPing loading screen is missing native lifecycle hook {marker}")
+    if "@keyframes LoadingAnimation__shrink" not in loading_css:
+        fail("NoPing loading screen is missing its native completion animation")
+    if "@keyframes noping-splash-safety-hide" not in loading_css:
+        fail("NoPing loading screen is missing its stuck-route safety timeout")
     required_browser_markers = (
         "__landingPageSeen__",
         "__landing-preference__",
@@ -218,7 +236,7 @@ def check_noping_shell_contract() -> None:
     for marker in required_browser_markers:
         if marker not in login:
             fail(f"NoPing sign-in is missing browser preference marker {marker}")
-    required_proxy_markers = ("@authenticatedNoPing", "MMAUTHTOKEN", "rewrite * /app-shell.html", "/login?redirect_to=/noping", "@legacyLanding")
+    required_proxy_markers = ("@authenticatedNoPing", "MMAUTHTOKEN", "/acme/channels/project-atlas", "/login?redirect_to=/acme/channels/project-atlas", "@legacyLanding")
     for marker in required_proxy_markers:
         if marker not in caddy:
             fail(f"Caddy NoPing authentication boundary is missing {marker}")
