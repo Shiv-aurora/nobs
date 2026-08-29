@@ -22,7 +22,7 @@ services:
         max-file: "3"
 
   mattermost:
-    image: ${MATTERMOST_IMAGE:-mattermost/mattermost-team-edition:11.10.1}
+    image: ${MATTERMOST_IMAGE:?missing MATTERMOST_IMAGE}
     restart: unless-stopped
     depends_on:
       postgres:
@@ -37,8 +37,8 @@ services:
       MM_SERVICESETTINGS_LISTENADDRESS: :8065
       MM_SERVICESETTINGS_ENABLELOCALMODE: "true"
       MM_SERVICESETTINGS_ENABLEDEVELOPER: "false"
-      MM_TEAMSETTINGS_SITENAME: NoPing
-      MM_TEAMSETTINGS_CUSTOMDESCRIPTIONTEXT: Ask the organization, not the person.
+      MM_TEAMSETTINGS_SITENAME: NoBS
+      MM_TEAMSETTINGS_CUSTOMDESCRIPTIONTEXT: Fewer pings. Shorter meetings. More actual work.
       MM_TEAMSETTINGS_ENABLEOPENSERVER: "false"
       MM_TEAMSETTINGS_ENABLEUSERCREATION: "false"
       MM_EMAILSETTINGS_ENABLESIGNUPWITHEMAIL: "false"

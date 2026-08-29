@@ -6,10 +6,10 @@ http://{$NOPING_LEGACY_IP} {
     encode zstd gzip
 
     @workspaceRoot path /
-    redir @workspaceRoot /noping 302
+    redir @workspaceRoot /acme/channels/project-atlas 302
 
     @legacyLanding path /landing /landing/*
-    redir @legacyLanding /noping 302
+    redir @legacyLanding /acme/channels/project-atlas 302
 
     handle_path /noping-brand/* {
         root * /srv/noping-login
@@ -26,12 +26,9 @@ http://{$NOPING_LEGACY_IP} {
         route {
             @authenticatedNoPing header_regexp Cookie "(?i)(^|;[[:space:]]*)MMAUTHTOKEN="
             handle @authenticatedNoPing {
-                root * /srv/noping-login
-                rewrite * /app-shell.html
-                header Cache-Control "no-store"
-                file_server
+                redir /acme/channels/project-atlas 302
             }
-            redir * /login?redirect_to=/noping 302
+            redir * /login?redirect_to=/acme/channels/project-atlas 302
         }
     }
 

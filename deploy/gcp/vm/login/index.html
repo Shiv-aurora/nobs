@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#10152b">
-    <title>NoPing · Sign in</title>
+    <title>NoBS · Sign in</title>
     <link rel="icon" href="/noping-brand/logo.png">
     <style>
         :root {
@@ -32,7 +32,8 @@
         .signal-row span {padding: 8px 11px; border: 1px solid rgba(255,255,255,.09); border-radius: 999px; background: rgba(255,255,255,.045); color: #aeb8cf; font-size: 10px; font-weight: 650;}
         .auth {display: grid; place-items: center; padding: 42px; background: radial-gradient(circle at 90% 0, rgba(102, 78, 205, .07), transparent 30%), #f8f9fc;}
         .auth-card {width: min(100%, 490px); padding: clamp(32px, 4.5vw, 56px); border: 1px solid var(--line); border-radius: 24px; background: rgba(255,255,255,.96); box-shadow: 0 24px 75px rgba(22, 27, 55, .11);}
-        .wordmark {display: block; width: 148px; height: 50px; margin: 0 0 44px auto; object-fit: contain; object-position: right center;}
+        .wordmark {display: flex; align-items: center; justify-content: flex-end; gap: 9px; margin: 0 0 44px auto; color: #10152b; font-size: 28px; font-weight: 850; letter-spacing: -.055em;}
+        .wordmark img {width: 38px; height: 38px; object-fit: contain;}
         .workspace {margin-bottom: 30px;}
         .workspace span {color: var(--violet); font-size: 10px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase;}
         .workspace h2 {margin: 7px 0 6px; font-size: 31px; line-height: 1.12; letter-spacing: -.04em;}
@@ -62,7 +63,7 @@
             .signal-row {display: none;}
             .auth {padding: 24px 18px 44px;}
             .auth-card {margin-top: -38px; padding: 30px 24px; border-radius: 20px; position: relative; z-index: 2;}
-            .wordmark {width: 124px; height: 42px; margin-bottom: 28px;}
+            .wordmark {margin-bottom: 28px; font-size: 25px;}
         }
         @media (max-width: 480px) {
             .story {min-height: 270px;}
@@ -78,22 +79,22 @@
 </head>
 <body>
     <main class="shell">
-        <section class="story" aria-label="About NoPing">
-            <img class="story-mark" src="/noping-brand/logo.png" alt="NoPing">
+        <section class="story" aria-label="About NoBS">
+            <img class="story-mark" src="/noping-brand/logo.png" alt="">
             <div class="story-copy">
-                <span class="eyebrow">Your organization, available</span>
-                <h1>Ask the company.<br>Not the person.</h1>
-                <p>NoPing routes questions through employee, project, team, and policy delegates—saving human attention for the decisions that genuinely need it.</p>
+                <span class="eyebrow">Less ping · Less meeting</span>
+                <h1>Saving corporate<br>from corporate BS.</h1>
+                <p>NoBS gives every employee a personal agent that answers routine questions and prepares meetings—saving human attention for the judgment that genuinely needs it.</p>
             </div>
-            <div class="signal-row" aria-label="NoPing capabilities"><span>Permission-aware</span><span>Evidence-backed</span><span>Human attention protected</span></div>
+            <div class="signal-row" aria-label="NoBS capabilities"><span>Personal delegates</span><span>Pre-meeting swarms</span><span>Human attention protected</span></div>
         </section>
         <section class="auth">
             <form class="auth-card" id="login-form" novalidate>
-                <img class="wordmark" src="/noping-brand/text-logo.png" alt="NoPing">
+                <div class="wordmark" aria-label="NoBS"><img src="/noping-brand/logo.png" alt="">NoBS</div>
                 <div class="workspace"><span>Acme Systems · Private workspace</span><h2>Welcome back</h2><p>Sign in to ask your organization and see only the work that actually needs you.</p></div>
                 <label class="field"><span>Email or username</span><input id="login-id" name="loginId" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus></label>
                 <label class="field"><span>Password</span><span class="input-wrap"><input id="password" name="password" type="password" autocomplete="current-password" required><button class="show-password" id="show-password" type="button" aria-controls="password" aria-pressed="false">Show</button></span></label>
-                <button class="submit" id="submit" type="submit">Continue to NoPing</button>
+                <button class="submit" id="submit" type="submit">Continue to NoBS</button>
                 <p class="error" id="error" role="alert"></p>
                 <div class="privacy"><strong>Secure organizational access</strong><span>Your permissions follow you into every answer.</span></div>
             </form>
@@ -102,7 +103,7 @@
     <script>
         (() => {
             // Keep the Mattermost collaboration substrate in the browser without
-            // exposing its desktop-app chooser as a NoPing product surface.
+            // exposing its desktop-app chooser as a NoBS product surface.
             try {
                 localStorage.setItem('__landingPageSeen__', 'true');
                 localStorage.setItem('__landing-preference__' + window.location.origin, 'browser');
@@ -115,7 +116,7 @@
             const error = document.getElementById('error');
             const showPassword = document.getElementById('show-password');
             const requested = new URLSearchParams(window.location.search).get('redirect_to');
-            const redirectTo = requested && requested.startsWith('/') && !requested.startsWith('//') ? requested : '/noping';
+            const redirectTo = requested && requested.startsWith('/') && !requested.startsWith('//') ? requested : '/acme/channels/project-atlas';
 
             showPassword.addEventListener('click', () => {
                 const showing = password.type === 'text';
@@ -149,7 +150,7 @@
                     const user = await response.json().catch(() => null);
                     const sessionToken = response.headers.get('Token');
                     if (!sessionToken || !user || typeof user.id !== 'string') {
-                        throw new Error('NoPing could not establish a browser session. Try again.');
+                        throw new Error('NoBS could not establish a browser session. Try again.');
                     }
                     document.cookie = `MMAUTHTOKEN=${encodeURIComponent(sessionToken)}; Path=/; Secure; SameSite=Lax`;
                     document.cookie = `MMUSERID=${encodeURIComponent(user.id)}; Path=/; Secure; SameSite=Lax`;
@@ -159,10 +160,10 @@
                     } catch (_) {}
                     window.location.assign(redirectTo);
                 } catch (caught) {
-                    error.textContent = caught instanceof Error ? caught.message : 'NoPing could not sign you in. Try again.';
+                    error.textContent = caught instanceof Error ? caught.message : 'NoBS could not sign you in. Try again.';
                     error.classList.add('is-visible');
                     submit.disabled = false;
-                    submit.textContent = 'Continue to NoPing';
+                    submit.textContent = 'Continue to NoBS';
                 }
             });
         })();
