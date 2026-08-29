@@ -1,0 +1,60 @@
+.LoadingScreen {
+    position: fixed;
+    z-index: 10000;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    background: #f7f8fc;
+    color: #11182c;
+    font-family: "Open Sans", sans-serif;
+    animation: noping-splash-safety-hide .001s linear 4s forwards;
+}
+
+.LoadingScreen__noping {
+    display: grid;
+    justify-items: center;
+    gap: 14px;
+}
+
+.LoadingAnimation--loaded {
+    animation: LoadingAnimation__shrink .2s ease-in forwards;
+}
+
+.LoadingScreen__nopingMark {
+    width: 72px;
+    height: 72px;
+    object-fit: contain;
+    animation: noping-breathe 1.8s ease-in-out infinite;
+}
+
+.LoadingScreen__nopingWordmark {
+    color: #10152b;
+    font-size: 34px;
+    font-weight: 800;
+    letter-spacing: -.06em;
+    line-height: 40px;
+}
+
+.LoadingScreen__noping span {
+    color: #667085;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+@keyframes noping-breathe {
+    0%, 100% { transform: scale(.96); opacity: .76; }
+    50% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes LoadingAnimation__shrink {
+    to { transform: scale(.98); opacity: 0; }
+}
+
+@keyframes noping-splash-safety-hide {
+    to { visibility: hidden; opacity: 0; pointer-events: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .LoadingScreen__nopingMark { animation: none; }
+}

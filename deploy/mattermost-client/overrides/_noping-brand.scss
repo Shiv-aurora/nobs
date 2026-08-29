@@ -1,0 +1,108 @@
+:root {
+    --noping-cyan: #15c8e8;
+    --noping-violet: #7157ff;
+}
+
+// Brand only: layout, density, typography, focus and responsive behavior stay upstream.
+.product-menu .product-branding,
+[data-testid='productBranding'] {
+    min-width: 112px;
+}
+
+.noping-header-logo-link {
+    display: inline-flex;
+    align-items: center;
+}
+
+.noping-header-mark {
+    width: 30px;
+    height: 30px;
+    object-fit: contain;
+}
+
+.noping-header-name {
+    margin-left: 8px;
+    color: #10152b;
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -.045em;
+}
+
+.NoPing-agent-badge,
+.NoPing-human-only-badge,
+.NoBS-agent-badge,
+.NoBS-human-only-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 20px;
+    padding: 1px 7px;
+    border: 1px solid rgba(var(--center-channel-color-rgb), .16);
+    border-radius: 999px;
+    background: rgba(var(--button-bg-rgb), .08);
+    color: rgba(var(--center-channel-color-rgb), .72);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 16px;
+}
+
+.nobs-calendar-link {
+    color: rgba(var(--sidebar-text-rgb), .72);
+    text-decoration: none;
+}
+
+.nobs-calendar-link:hover {
+    color: var(--sidebar-text);
+    text-decoration: none;
+}
+
+.nobs-demo-login-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 14px 0;
+    color: rgba(var(--center-channel-color-rgb, 61, 60, 64), .56);
+    font-size: 12px;
+
+    &::before,
+    &::after {
+        height: 1px;
+        flex: 1;
+        background: rgba(var(--center-channel-color-rgb, 61, 60, 64), .16);
+        content: '';
+    }
+}
+
+.nobs-demo-login-button {
+    display: grid;
+    width: 100%;
+    min-height: 52px;
+    place-content: center;
+    gap: 1px;
+    border: 1px solid var(--button-bg, #5947c6);
+    border-radius: 4px;
+    background: rgba(var(--button-bg-rgb, 89, 71, 198), .08);
+    color: var(--button-bg, #5947c6);
+    cursor: pointer;
+    font-weight: 600;
+    text-align: center;
+
+    &:hover {
+        background: rgba(var(--button-bg-rgb, 89, 71, 198), .14);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--button-bg, #5947c6);
+        outline-offset: 2px;
+    }
+
+    &:disabled {
+        cursor: wait;
+        opacity: .6;
+    }
+
+    small {
+        color: rgba(var(--center-channel-color-rgb, 61, 60, 64), .64);
+        font-size: 11px;
+        font-weight: 400;
+    }
+}
