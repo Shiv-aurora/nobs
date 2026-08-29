@@ -13,6 +13,7 @@ REGISTRY="${REGION}-docker.pkg.dev"
 TARGET_PLATFORM="${TARGET_PLATFORM:-linux/amd64}"
 AGENT_TAG="${REGISTRY}/${PROJECT_ID}/${REPOSITORY}/agent-service:${GIT_SHA}"
 GUARD_TAG="${REGISTRY}/${PROJECT_ID}/${REPOSITORY}/budget-guard:${GIT_SHA}"
+MATTERMOST_TAG="${REGISTRY}/${PROJECT_ID}/${REPOSITORY}/noping-mattermost:${GIT_SHA}"
 
 gcloud auth configure-docker "${REGISTRY}" --quiet
 
@@ -26,10 +27,16 @@ docker push "${GUARD_TAG}"
 docker pull --platform "${TARGET_PLATFORM}" "${GUARD_TAG}" >/dev/null
 BUDGET_GUARD_IMAGE_URI="$(docker inspect --format='{{index .RepoDigests 0}}' "${GUARD_TAG}")"
 
+docker build --platform "${TARGET_PLATFORM}" -f "${REPO_ROOT}/deploy/mattermost-client/Dockerfile" -t "${MATTERMOST_TAG}" "${REPO_ROOT}"
+docker push "${MATTERMOST_TAG}"
+docker pull --platform "${TARGET_PLATFORM}" "${MATTERMOST_TAG}" >/dev/null
+MATTERMOST_IMAGE_URI="$(docker inspect --format='{{index .RepoDigests 0}}' "${MATTERMOST_TAG}")"
+
 umask 077
 cat >"${IMAGES_FILE}" <<EOF
 AGENT_IMAGE_URI=${AGENT_IMAGE_URI}
 BUDGET_GUARD_IMAGE_URI=${BUDGET_GUARD_IMAGE_URI}
+MATTERMOST_IMAGE_URI=${MATTERMOST_IMAGE_URI}
 EOF
 
 echo "Wrote immutable image digests to ${IMAGES_FILE}."

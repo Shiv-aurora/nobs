@@ -35,4 +35,5 @@ load_images() {
   source "${IMAGES_FILE}"
   : "${AGENT_IMAGE_URI:?missing AGENT_IMAGE_URI}"
   : "${BUDGET_GUARD_IMAGE_URI:?missing BUDGET_GUARD_IMAGE_URI}"
+  : "${MATTERMOST_IMAGE_URI:?missing MATTERMOST_IMAGE_URI}"
 }

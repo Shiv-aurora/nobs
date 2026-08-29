@@ -3,6 +3,7 @@ set -euo pipefail
 source "$(dirname "$0")/common.sh"
 for command in gcloud terraform tar python; do require_command "${command}"; done
 require_tfvars
+load_images
 
 INSTANCE="$(tf_output mattermost_instance_name)"
 ZONE="$(tf_output zone)"
@@ -10,7 +11,7 @@ PROJECT_ID="$(gcloud config get-value project)"
 SITE_URL="$(tf_output mattermost_url)"
 SITE_ADDRESS="$(tf_output mattermost_site_address)"
 LEGACY_IP="$(tf_output mattermost_external_ip)"
-MATTERMOST_IMAGE="$(tf_output mattermost_image)"
+MATTERMOST_IMAGE="${MATTERMOST_IMAGE_URI}"
 AGENT_URL="$(tf_output agent_service_url)"
 [[ -n "${AGENT_URL}" ]] || {
   echo "Cloud Run agent service is not deployed; run deploy-cloud-services.sh first." >&2
@@ -45,7 +46,6 @@ install -d -m 0700 "${TMP_DIR}/plugin-bundle"
 cp "${GCP_DIR}/vm/docker-compose.yml" "${TMP_DIR}/docker-compose.yml"
 cp "${GCP_DIR}/vm/Caddyfile" "${TMP_DIR}/Caddyfile"
 cp "${GCP_DIR}/vm/bootstrap.sh" "${TMP_DIR}/bootstrap.sh"
-cp "${GCP_DIR}/vm/customize_mattermost_shell.py" "${TMP_DIR}/customize_mattermost_shell.py"
 cp -R "${GCP_DIR}/vm/login" "${TMP_DIR}/login"
 cp "${BUNDLE}" "${TMP_DIR}/plugin-bundle/"
 
@@ -100,5 +100,5 @@ MATTERMOST_ADMIN_PASSWORD="${ADMIN_PASSWORD}" \
 NOPING_DEMO_USER_PASSWORD="${DEMO_PASSWORD}" \
 python "${REPO_ROOT}/seed/seed_mattermost.py"
 
-echo "Mattermost and the NoPing plugin are deployed at ${SITE_URL}/noping"
+echo "NoPing is deployed at ${SITE_URL}"
 echo "Demo user: maya (password stored in Secret Manager: $(tf_output demo_user_password_secret_id))"
