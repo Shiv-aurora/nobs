@@ -3,6 +3,7 @@ import {expect, type Locator, type Page, test} from '@playwright/test';
 const demoPassword = process.env.NOPING_DEMO_USER_PASSWORD || 'NoPing-Demo-2026!';
 const channelPath = '/acme/channels/project-atlas';
 const skipDemoReset = process.env.NOPING_SKIP_RESET === 'true';
+const validateDecisionLoop = process.env.NOPING_VALIDATE_DECISION_LOOP === 'true';
 
 async function login(page: Page, username: string): Promise<void> {
     await page.context().clearCookies();
@@ -190,6 +191,54 @@ test('keeps Needs You, attention analytics, and security in the native side pane
     await expect(page.getByText('Human attention saved', {exact: true})).toBeVisible();
     await selectNoBSPanelTab(page, 'Security');
     await expect(page.getByText('Security boundaries', {exact: true})).toBeVisible();
+});
+
+test('resolves an authority decision and reuses the scoped memory', async ({page}) => {
+    test.skip(!validateDecisionLoop, 'Run explicitly after a demo reset or decision-memory expiry.');
+
+    const assertMemoryReuse = async () => {
+        await login(page, 'priya');
+        const repeatedQuestion = `Should we approve the Atlas security exception for the $200K customer? ${Date.now()}`;
+        await post(page, repeatedQuestion);
+        await openAgentThread(page, repeatedQuestion);
+        await expect(page.getByText(/previously rejected/i).last()).toBeVisible({timeout: 60_000});
+        await expect(page.getByText(/delegates consulted · 0 humans interrupted/i).last()).toBeVisible();
+    };
+
+    await login(page, 'alex');
+    await openNoPingPanel(page);
+    await selectNoBSPanelTab(page, 'Needs You');
+    let decision = page.locator('.np-decision-card').filter({hasText: 'Atlas security exception'}).first();
+    if (!await decision.isVisible().catch(() => false)) {
+        await login(page, 'maya');
+        const firstQuestion = `Can we make the Atlas security exception for the $200K customer? ${Date.now()}`;
+        await post(page, firstQuestion);
+        await openAgentThread(page, firstQuestion);
+        const remembered = page.getByText(/previously rejected/i).last();
+        const escalated = page.getByText(/decision card was sent to Alex/i).last();
+        await expect.poll(async () => await remembered.isVisible().catch(() => false) || await escalated.isVisible().catch(() => false), {timeout: 60_000}).toBe(true);
+        if (await remembered.isVisible().catch(() => false)) {
+            await expect(page.getByText(/delegates consulted · 0 humans interrupted/i).last()).toBeVisible();
+            return;
+        }
+        await expect(escalated).toBeVisible();
+        await expect(page.getByText(/1 humans? interrupted/i).last()).toBeVisible();
+
+        await login(page, 'alex');
+        await openNoPingPanel(page);
+        await selectNoBSPanelTab(page, 'Needs You');
+        decision = page.locator('.np-decision-card').filter({hasText: 'Atlas security exception'}).first();
+    }
+    if (!await decision.isVisible().catch(() => false)) {
+        await assertMemoryReuse();
+        return;
+    }
+    await expect(decision).toBeVisible();
+    await decision.getByRole('button', {name: 'Reject exception'}).click();
+    await expect(decision).toBeHidden();
+    await expect(page.getByText('Nothing needs you', {exact: true})).toBeVisible();
+
+    await assertMemoryReuse();
 });
 
 test('prepares the two Calendar proof cases and skips a social meeting', async ({page}) => {
