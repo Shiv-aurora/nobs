@@ -35,7 +35,8 @@ export function DecisionCard({decision, onResolve}: Props): JSX.Element {
                 <div><span>Security</span><strong className='is-warn'>Pending</strong></div>
                 <div><span>Control</span><strong>SEC-POL-12</strong></div>
             </div>
-            <div className='np-memory-contract'><span>What NoPing will learn from this decision</span><div><strong>Scope</strong><small>Atlas · security exceptions</small></div><div><strong>Evidence</strong><small>SEC-184 + SEC-POL-12</small></div><div><strong>Decision maker</strong><small>You · acting authority</small></div><div><strong>Review</strong><small>30 days · expires automatically</small></div></div>
+            {decision.handoff_packet_id && <div className='np-handoff-summary'><span>Agent-to-agent handoff packet</span><strong>Context assembled before interrupting you</strong><small>Evidence checked · attempted routes · policy boundary · requested judgment</small></div>}
+            <div className='np-memory-contract'><span>What NoBS will learn from this decision</span><div><strong>Scope</strong><small>Atlas · security exceptions</small></div><div><strong>Evidence</strong><small>SEC-184 + SEC-POL-12</small></div><div><strong>Decision maker</strong><small>You · acting authority</small></div><div><strong>Review</strong><small>30 days · expires automatically</small></div></div>
             <label className='np-rationale'>
                 <span>Decision rationale</span>
                 <textarea value={rationale} onChange={(event: ChangeEvent<HTMLTextAreaElement>) => setRationale(event.target.value)} rows={2}/>
