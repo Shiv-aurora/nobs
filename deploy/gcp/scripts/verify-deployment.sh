@@ -41,4 +41,4 @@ done
 curl -fsS "${MATTERMOST_URL}/api/v4/system/ping" >/dev/null
 terraform -chdir="${TF_DIR}" validate >/dev/null
 
-echo "Deployment verification passed. Mattermost: ${MATTERMOST_URL}/noping"
+echo "Deployment verification passed. NoPing: ${MATTERMOST_URL}/acme/channels/project-atlas"

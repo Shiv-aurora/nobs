@@ -10,7 +10,7 @@ URL="$(tf_output mattermost_url)"
 gcloud compute instances start "${INSTANCE}" --zone="${ZONE}" --project="${PROJECT_ID}" --quiet >/dev/null
 for _ in $(seq 1 80); do
   if curl -fsS "${URL}/api/v4/system/ping" >/dev/null 2>&1; then
-    echo "NoPing is ready: ${URL}/noping"
+    echo "NoPing is ready: ${URL}/acme/channels/project-atlas"
     exit 0
   fi
   sleep 3
