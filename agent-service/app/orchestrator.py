@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 from datetime import datetime, timedelta
+from typing import Any, Callable
 
 from .adapters.guard import PromptGuard
 from .adapters.model import ModelAdapter
@@ -15,6 +16,7 @@ from .models import (
     AuditEvent,
     Decision,
     DecisionOption,
+    HandoffPacket,
     Intent,
     QueryRequest,
     QueryResult,
@@ -88,12 +90,17 @@ class Orchestrator:
         encoded = json.dumps(facts, sort_keys=True).encode()
         return hashlib.sha256(encoded).hexdigest()[:16]
 
-    def run(self, request: QueryRequest) -> QueryResult:
+    def run(self, request: QueryRequest, progress: Callable[[str, dict[str, Any]], None] | None = None) -> QueryResult:
+        def emit(phase: str, **data: Any) -> None:
+            if progress:
+                progress(phase, data)
+
         now: datetime = self.now_fn()
         if request.requester_id not in self.workspace.users:
             raise KeyError(f"unknown requester: {request.requester_id}")
         prompt_verdict = self.prompt_guard.screen_prompt(request.text)
         if not prompt_verdict.allowed:
+            emit("screened", allowed=False, reason=prompt_verdict.reason)
             self.workspace.increment_stat("queries_total")
             self.workspace.increment_stat("prompt_guard_blocks")
             finding = SecurityFinding(
@@ -109,7 +116,7 @@ class Orchestrator:
                 intent=Intent.RESTRICTED,
                 status=RunStatus.REFUSED,
                 headline="Unsafe instruction blocked",
-                answer="NoPing blocked this request before organizational retrieval or model execution. No employee data was accessed and no person was interrupted.",
+                answer="NoBS blocked this request before organizational retrieval or model execution. No employee data was accessed and no person was interrupted.",
                 route=[],
                 evidence=[],
                 confidence=1.0,
@@ -130,10 +137,13 @@ class Orchestrator:
                 metadata={"provider": prompt_verdict.provider, "categories": list(prompt_verdict.categories)},
             ))
             return result
+        emit("screened", allowed=True)
         intent = classify_intent(request.text)
         key = canonical_key(request.text, intent)
-        route = self.router.build_route(request.requester_id, request.text, intent)
+        route = self.router.build_route(request.requester_id, request.text, intent, request.delegate_for_user_id)
+        emit("routed", route=[step.model_dump(mode="json") for step in route])
         evidence, findings, denied = self.retriever.retrieve(request.requester_id, request.text, intent)
+        emit("retrieved", evidence_count=len(evidence), security_findings=len(findings), denied_count=denied)
         facts_hash = self._facts_hash()
         self.workspace.increment_stat("queries_total")
 
@@ -235,6 +245,19 @@ class Orchestrator:
             if existing:
                 decision = existing
             else:
+                handoff = HandoffPacket(
+                    question=request.text,
+                    scope="project:atlas",
+                    requested_judgment="Approve, reject, or discuss the scoped Atlas security exception.",
+                    evidence_ids=[item.id for item in evidence],
+                    conclusions=["Engineering readiness and customer urgency are established.", authority.reason],
+                    uncertainty=["SEC-184 remains pending; policy does not permit an agent to waive it."],
+                    security_boundaries=[finding.reason for finding in findings] or ["Restricted and untrusted evidence remains excluded."],
+                    attempted_routes=[step.delegate_name for step in route],
+                    created_by=request.requester_id,
+                    created_at=now,
+                )
+                self.workspace.save_handoff_packet(handoff)
                 decision = Decision(
                     canonical_key=key,
                     title="Atlas security exception",
@@ -252,6 +275,7 @@ class Orchestrator:
                     created_at=now,
                     due_at=now + timedelta(hours=2),
                     facts_hash=facts_hash,
+                    handoff_packet_id=handoff.id,
                 )
                 self.workspace.save_decision(decision)
                 self.workspace.increment_stat("human_interruptions")
@@ -323,7 +347,7 @@ class Orchestrator:
                     intent=intent,
                     status=RunStatus.FAILED,
                     headline="AI budget guard active",
-                    answer="NoPing stopped this model call before it could spend beyond the configured daily or per-query limit. Deterministic policy checks, existing decisions, and Rooms remain available.",
+                    answer="NoBS stopped this model call before it could spend beyond the configured daily or per-query limit. Deterministic policy checks, existing decisions, and Rooms remain available.",
                     route=route[:1],
                     evidence=[],
                     confidence=1.0,
@@ -345,6 +369,7 @@ class Orchestrator:
                 ))
                 return result
 
+        emit("synthesizing", model=self.model.model_name)
         try:
             synthesis = self.model.synthesize(text=request.text, intent=intent, evidence=evidence)
         except Exception:

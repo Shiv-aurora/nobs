@@ -135,7 +135,11 @@ class SignedServiceMiddleware:
         async def replay_receive() -> dict[str, Any]:
             nonlocal delivered
             if delivered:
-                return {"type": "http.request", "body": b"", "more_body": False}
+                # Streaming responses keep a disconnect listener alive after
+                # the request body has been replayed. Delegate subsequent
+                # receives instead of returning an endless series of empty
+                # request frames, which would starve the response stream.
+                return await receive()
             delivered = True
             return {"type": "http.request", "body": body, "more_body": False}
 
