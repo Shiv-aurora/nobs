@@ -31,8 +31,11 @@ class MeetingService:
     def __init__(self, workspace: Workspace, now_fn):
         self.workspace = workspace
         self.now_fn = now_fn
-        if not self.workspace.meetings:
-            for meeting in self._demo_meetings():
+        # Live Calendar projections and canonical demo proof cases coexist.
+        # Restore only missing fixtures so persisted preparation state and
+        # externally sourced meetings are never overwritten.
+        for meeting in self._demo_meetings():
+            if meeting.id not in self.workspace.meetings:
                 self.workspace.meetings[meeting.id] = meeting
 
     def reset_demo(self) -> None:

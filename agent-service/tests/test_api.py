@@ -50,6 +50,20 @@ def test_meeting_swarm_proves_cancel_and_shorten_outcomes(client):
     assert launch.json()["security_findings"][0]["blocked"] is True
 
 
+def test_missing_demo_meeting_is_restored_without_overwriting_persisted_state(services):
+    from app.meetings import MeetingService
+
+    engineering = services.workspace.meetings["meeting-atlas-engineering-sync"]
+    engineering.preparation_status = "completed"
+    services.workspace.meetings.pop("meeting-welcome-coffee")
+
+    MeetingService(services.workspace, services.now_fn)
+
+    assert services.workspace.meetings["meeting-atlas-engineering-sync"] is engineering
+    assert engineering.preparation_status == "completed"
+    assert services.workspace.meetings["meeting-welcome-coffee"].preparation_status == "skipped"
+
+
 def test_calendar_action_requires_organizer_and_matching_etag(client):
     client.post("/v1/meetings/meeting-atlas-engineering-sync/prepare", json={"actor_id": "shivam", "trigger": "manual"})
     meeting = client.get("/v1/meetings/meeting-atlas-engineering-sync", params={"user_id": "shivam"}).json()["meeting"]
