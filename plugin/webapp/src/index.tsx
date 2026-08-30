@@ -4,14 +4,19 @@ import {api} from './api/client';
 import logo from './assets/logo.png';
 import {LegacyRedirect} from './components/LegacyRedirect';
 import {CalendarPage, openCalendar} from './components/CalendarPage';
+import {HuddlePage} from './components/HuddlePage';
 import {NoPingPanel} from './components/NoPingPanel';
-import {installAccountMenuOOOBridge, OOOProfileAction} from './components/OOOProfileAction';
+import {installAccountMenuOOOBridge, installDemoOOOPresenceBridge, installProductChromeBridge, OOOProfileAction} from './components/OOOProfileAction';
 import {PostIdentityBadge} from './components/PostIdentityBadge';
+import {WorkroomsPage} from './components/WorkroomsPage';
 import './styles/native-extension.css';
 import './styles/native-panel-detail.css';
 import './styles/calendar.css';
 import './styles/ooo.css';
+import './styles/ooo-presence.css';
+import './styles/send-agent.css';
 import './styles/account-menu.css';
+import './styles/workrooms.css';
 import type {PluginRegistry, PluginStore} from './types/mattermost';
 
 function NoPingGlyph(): JSX.Element {
@@ -47,8 +52,12 @@ export default class NoPingPlugin {
         registry.registerCustomRoute('/nobs', LegacyRedirect);
         if (registry.registerNeedsTeamRoute) {
             registry.registerNeedsTeamRoute('/calendar', CalendarPage);
+            registry.registerNeedsTeamRoute('/huddle/:delegationId', HuddlePage);
+            registry.registerNeedsTeamRoute('/workrooms', WorkroomsPage);
         } else {
             registry.registerCustomRoute('/nobs/calendar', CalendarPage);
+            registry.registerCustomRoute('/nobs/huddle/:delegationId', HuddlePage);
+            registry.registerCustomRoute('/nobs/workrooms', WorkroomsPage);
         }
         const appBar = registry.registerAppBarComponent?.(logo, undefined, 'NoBS context', '*', NoPingPanel, 'NoBS');
         if (appBar && typeof appBar !== 'string') {
@@ -66,7 +75,9 @@ export default class NoPingPlugin {
         registry.registerChannelHeaderButtonAction(<NoPingGlyph/>, () => focusNativeComposer(''), 'Ask naturally', 'Write normally — NoBS routes work to the right delegate automatically');
         registry.registerMainMenuAction('Ask naturally', () => focusNativeComposer(''));
         registry.registerMainMenuAction('Open Calendar', openCalendar);
+        installProductChromeBridge();
         installAccountMenuOOOBridge();
+        installDemoOOOPresenceBridge();
         registry.registerPopoverUserActionsComponent?.(OOOProfileAction);
         registry.registerWebSocketEventHandler('custom_com.noping.enterprise_run_update', (message: unknown) => {
             window.dispatchEvent(new CustomEvent('noping:run-update', {detail: message}));

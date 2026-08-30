@@ -3,6 +3,11 @@
     --noping-violet: #7157ff;
 }
 
+// Team Edition is an implementation detail, not part of the NoBS product UI.
+#startTrial {
+    display: none !important;
+}
+
 // Brand only: layout, density, typography, focus and responsive behavior stay upstream.
 .product-menu .product-branding,
 [data-testid='productBranding'] {
@@ -53,6 +58,23 @@
 .nobs-calendar-link:hover {
     color: var(--sidebar-text);
     text-decoration: none;
+}
+
+.nobs-workrooms-link {
+    color: rgba(var(--sidebar-text-rgb), .72);
+    text-decoration: none;
+}
+
+.nobs-workrooms-link:hover {
+    color: var(--sidebar-text);
+    text-decoration: none;
+}
+
+// Workrooms are project-agent destinations, not ordinary conversation
+// channels. Keep the native channel itself as the durable discussion surface,
+// but expose it through the first-class Workrooms entry above CHANNELS.
+.SidebarChannel:not(.nobs-workrooms-special):has(> a[href*='/channels/agent-workroom-']) {
+    display: none !important;
 }
 
 .nobs-demo-login-divider {

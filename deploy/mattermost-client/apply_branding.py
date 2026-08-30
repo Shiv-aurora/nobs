@@ -272,6 +272,28 @@ def main() -> None:
                         </li>
                     </ul>
                 )}
+                {this.props.currentTeam?.name && (
+                    <ul className='SidebarGlobalThreads NavGroupContent nav nav-pills__container nobs-workrooms-link'>
+                        <li
+                            id='sidebar-workrooms-button'
+                            className={classNames('SidebarChannel', 'nobs-workrooms-special', {active: window.location.pathname.includes('/nobs/workrooms') || window.location.pathname.includes('/channels/agent-workroom-')})}
+                            tabIndex={-1}
+                        >
+                            <Link
+                                to={`/${this.props.currentTeam.name}/com.noping.enterprise/workrooms`}
+                                id='sidebarItem_workrooms'
+                                draggable='false'
+                                className='SidebarLink sidebar-item'
+                                tabIndex={0}
+                            >
+                                <span className='icon'><i className='icon-briefcase-outline'/></span>
+                                <div className='SidebarChannelLinkLabel_wrapper'>
+                                    <span className='SidebarChannelLinkLabel sidebar-item__name'>Workrooms</span>
+                                </div>
+                            </Link>
+                        </li>
+                    </ul>
+                )}
                 <DraftsLink/>
 """,
     )
