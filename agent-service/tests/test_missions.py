@@ -3,15 +3,8 @@ from __future__ import annotations
 from app.missions import _PlanOutput
 
 
-def test_controller_output_schema_only_allows_approved_specialist_ids() -> None:
-    schema = _PlanOutput.model_json_schema()
-    expected = [
-        "agent:work-graph-specialist",
-        "agent:policy-evidence-specialist",
-    ]
-
-    assert schema["properties"]["specialist_ids"]["items"]["enum"] == expected
-    assert schema["properties"]["agenda_routes"]["additionalProperties"]["items"]["enum"] == expected
+def test_controller_model_cannot_choose_executable_agent_ids_or_route_coverage() -> None:
+    assert set(_PlanOutput.model_fields) == {"objective", "authority_required"}
 
 
 def prepare_launch(client):

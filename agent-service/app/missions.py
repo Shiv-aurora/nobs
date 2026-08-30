@@ -6,7 +6,6 @@ import json
 import logging
 import time
 from datetime import datetime, timedelta
-from typing import Literal
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
@@ -39,16 +38,8 @@ from .workspace import Workspace
 logger = logging.getLogger(__name__)
 
 
-_SpecialistId = Literal[
-    "agent:work-graph-specialist",
-    "agent:policy-evidence-specialist",
-]
-
-
 class _PlanOutput(BaseModel):
     objective: str
-    agenda_routes: dict[str, list[_SpecialistId]]
-    specialist_ids: list[_SpecialistId]
     authority_required: bool
 
 
@@ -268,8 +259,8 @@ class MissionRuntime:
                 output_schema=_PlanOutput,
                 prompt_guard=self.prompt_guard,
                 instruction=(
-                    "Plan a meeting-preparation mission. Route every agenda ID to one or both of the two specialist IDs supplied. "
-                    "The only valid specialist IDs are agent:work-graph-specialist and agent:policy-evidence-specialist. "
+                    "Plan the objective and classify whether this meeting-preparation mission requires human authority. "
+                    "Executable routing is enforced by the runtime and is not part of your output. "
                     "Mark authority_required for cancellation, Calendar mutation, policy exception, approval, or restricted judgment. "
                     "Do not answer agenda items and do not invent agents."
                 ),
@@ -280,18 +271,16 @@ class MissionRuntime:
                 "meeting": {"id": meeting.id, "title": meeting.title, "agenda": [item.model_dump(mode="json") for item in meeting.agenda]},
                 "executable_specialists": [item.model_dump(mode="json") for item in specialist_manifests],
             })
-            plan = MissionPlan.model_validate(result.output.model_dump())
-            approved_specialists = {self.WORK_AGENT, self.POLICY_AGENT}
-            routed_specialists = {
-                agent_id
-                for routes in plan.agenda_routes.values()
-                for agent_id in routes
-            }
-            if set(plan.specialist_ids) - approved_specialists or routed_specialists - approved_specialists:
-                raise ValueError("Controller selected an unapproved specialist")
-            agenda_ids = {item.id for item in meeting.agenda}
-            if set(plan.agenda_routes) != agenda_ids or any(not routes for routes in plan.agenda_routes.values()):
-                raise ValueError("Controller did not route every agenda item")
+            judgment = _PlanOutput.model_validate(result.output.model_dump())
+            # Executable identity and full agenda coverage are policy, not model
+            # output. The controller supplies the objective and authority
+            # classification; the runtime performs the approved routing.
+            plan = MissionPlan(
+                objective=judgment.objective,
+                agenda_routes={item.id: [self.WORK_AGENT, self.POLICY_AGENT] for item in meeting.agenda},
+                specialist_ids=[self.WORK_AGENT, self.POLICY_AGENT],
+                authority_required=judgment.authority_required,
+            )
             usage = result.usage
         return plan, usage
 
