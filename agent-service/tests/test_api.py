@@ -54,7 +54,7 @@ def test_meeting_missions_run_versioned_agents_and_reach_authority_gate(client):
         f"/v1/missions/{mission['id']}/steps", params={"user_id": "shivam"}
     ).json()
     assert [step["node_kind"] for step in steps] == [
-        "controller", "specialist", "specialist", "critic", "synthesizer", "authority_gate"
+        "access_gate", "controller", "specialist", "specialist", "critic", "synthesizer", "authority_gate"
     ]
     assert all(step["status"] == "completed" and step["duration_ms"] >= 0 for step in steps)
 

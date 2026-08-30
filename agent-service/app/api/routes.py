@@ -325,6 +325,8 @@ def prepare_meeting(meeting_id: str, payload: MeetingPreparationRequest, service
         raise HTTPException(status_code=404, detail="Meeting not found")
     try:
         return services.meetings.prepare(result, payload.actor_id, payload.trigger)
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 

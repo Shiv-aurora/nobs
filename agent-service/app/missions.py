@@ -5,7 +5,7 @@ import hashlib
 import json
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
@@ -101,6 +101,8 @@ class MissionRuntime:
             self.workspace.save_agent_manifest(manifest)
 
     def start(self, meeting: Meeting, actor_id: str, trigger: str) -> MissionRun:
+        if actor_id != meeting.organizer_user_id and actor_id not in meeting.attendee_user_ids:
+            raise PermissionError("Requester is not a meeting member")
         existing = next(
             (
                 item for item in self.workspace.missions.values()
@@ -115,14 +117,21 @@ class MissionRuntime:
         now = self.now_fn()
         mission = MissionRun(
             meeting_id=meeting.id,
+            model_id=self.model_name if not self.demo_mode else "deterministic-test-program",
             trigger=trigger,
             started_by=actor_id,
             meeting_etag=meeting.etag,
             trace_id=current_trace_id() or uuid4().hex,
+            deadline_at=now + timedelta(hours=24),
             created_at=now,
             updated_at=now,
         )
         self.workspace.save_mission_transition(mission)
+        started = time.perf_counter()
+        with mission_span("access.authorize", mission_id=mission.id, meeting_id=meeting.id, actor_id=actor_id):
+            step = self._start_step(mission, "access-gate", "access_gate", 0, None, "1.0.0")
+            step.input_refs = [f"meeting:{meeting.id}@{meeting.etag}", f"actor:{actor_id}"]
+            self._complete_step(mission, step, started, ["authorized:meeting-member"])
         return self.resume(mission.id, meeting)
 
     def resume(self, mission_id: str, meeting: Meeting) -> MissionRun:
@@ -469,38 +478,19 @@ class MissionRuntime:
         recommendation = mission.recommendation
         if not recommendation or recommendation.disposition == "keep":
             return
-        commands: list[ProposedCommand] = []
-        if meeting.source == "google_calendar":
-            command_type = "calendar.cancel" if recommendation.disposition == "cancel" else "calendar.shorten"
-            digest = hashlib.sha256(
-                f"{mission.id}:{meeting.calendar_event_id}:{meeting.etag}:{command_type}".encode()
-            ).hexdigest()
-            commands.append(ProposedCommand(
-                command_type=command_type,
-                target_ref=f"calendar:{meeting.calendar_event_id}",
-                expected_etag=meeting.etag,
-                payload={"duration_minutes": recommendation.duration_minutes},
-                idempotency_key=digest,
-                mission_id=mission.id,
-                trace_id=mission.trace_id,
-                requested_by=mission.started_by,
-            ))
         checkpoint = HumanCheckpoint(
             mission_id=mission.id,
-            checkpoint_type="calendar_write" if commands else "meeting_disposition",
+            checkpoint_type="calendar_write" if meeting.source == "google_calendar" else "meeting_disposition",
             summary=(
                 f"Organizer approval is required to {recommendation.disposition} {meeting.title}."
-                if commands
+                if meeting.source == "google_calendar"
                 else f"Approve the {recommendation.disposition} recommendation for demo meeting {meeting.title}; demo data will not be mutated."
             ),
             authorized_actor_ids=[meeting.organizer_user_id],
-            command_ids=[command.id for command in commands],
+            command_ids=[],
             created_at=self.now_fn(),
         )
-        mission.proposed_commands = commands
-        for command in commands:
-            command.checkpoint_id = checkpoint.id
-            self.workspace.save_command(command)
+        mission.proposed_commands = []
         mission.checkpoint_id = checkpoint.id
         mission.status = MissionStatus.WAITING_HUMAN
         mission.current_stage = "waiting_human"
@@ -521,11 +511,8 @@ class MissionRuntime:
         checkpoint.resolved_at = self.now_fn()
         checkpoint.resolved_by = resolution.actor_id
         checkpoint.rationale = resolution.rationale
-        for command in mission.proposed_commands:
-            command.status = "approved" if resolution.decision == "approved" else "rejected"
-            command.approved_by = resolution.actor_id if resolution.decision == "approved" else None
-            command.approved_at = checkpoint.resolved_at if resolution.decision == "approved" else None
-            self.workspace.save_command(command)
+        if resolution.decision == "approved":
+            self._build_approved_commands(mission, meeting, checkpoint)
         should_dispatch = resolution.decision == "approved" and bool(mission.proposed_commands)
         mission.status = MissionStatus.QUEUED_ACTION if should_dispatch else MissionStatus.COMPLETED
         mission.current_stage = "queued_action" if should_dispatch else "completed"
@@ -544,6 +531,46 @@ class MissionRuntime:
         if should_dispatch:
             self._dispatch_approved(mission)
         return mission
+
+    def _build_approved_commands(self, mission: MissionRun, meeting: Meeting, checkpoint: HumanCheckpoint) -> None:
+        if meeting.source != "google_calendar" or mission.proposed_commands:
+            return
+        recommendation = mission.recommendation
+        if not recommendation or recommendation.disposition == "keep" or not checkpoint.resolved_by or not checkpoint.resolved_at:
+            return
+        started = time.perf_counter()
+        step = self._start_step(mission, "command-builder", "command_builder", 7, None, "1.0.0")
+        command_type = "calendar.cancel" if recommendation.disposition == "cancel" else "calendar.shorten"
+        digest = hashlib.sha256(
+            f"{mission.organization_id}:{meeting.id}:{meeting.etag}:{command_type}:{checkpoint.id}".encode()
+        ).hexdigest()
+        policy_hash = hashlib.sha256(
+            f"{mission.policy_version}:{meeting.id}:{checkpoint.resolved_by}".encode()
+        ).hexdigest()
+        with mission_span("command.create", mission_id=mission.id, command_type=command_type, policy_version=mission.policy_version):
+            command = ProposedCommand(
+                id=f"command-{digest[:12]}",
+                command_type=command_type,
+                target_ref=f"calendar:{meeting.calendar_event_id}",
+                expected_etag=meeting.etag,
+                payload={"duration_minutes": recommendation.duration_minutes},
+                status="approved",
+                idempotency_key=digest,
+                mission_id=mission.id,
+                trace_id=mission.trace_id,
+                checkpoint_id=checkpoint.id,
+                approval_decision_id=checkpoint.id,
+                policy_snapshot_hash=policy_hash,
+                expires_at=checkpoint.resolved_at + timedelta(minutes=30),
+                requested_by=mission.started_by,
+                approved_by=checkpoint.resolved_by,
+                approved_at=checkpoint.resolved_at,
+            )
+        mission.proposed_commands = [command]
+        checkpoint.command_ids = [command.id]
+        self.workspace.save_command(command)
+        self.workspace.save_checkpoint(checkpoint)
+        self._complete_step(mission, step, started, [f"command:{command.id}"])
 
     def _dispatch_approved(self, mission: MissionRun) -> None:
         for command in mission.proposed_commands:

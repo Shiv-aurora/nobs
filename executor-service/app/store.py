@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
+import hashlib
 from threading import RLock
 
 from .models import ActionCommand, ClaimedCommand, CommandAttempt
@@ -20,6 +21,10 @@ def claim_command(command: ActionCommand, now: datetime, lease_seconds: int, max
         return ClaimedCommand(command=command, execute=False, reason="already_succeeded")
     if command.status in {"rejected", "failed", "stale", "proposed"}:
         return ClaimedCommand(command=command, execute=False, reason="terminal")
+    if command.expires_at <= now:
+        command.status = "failed"
+        command.error_code = "COMMAND_EXPIRED"
+        return ClaimedCommand(command=command, execute=False, reason="expired")
     if command.status == "executing" and command.lease_expires_at and command.lease_expires_at > now:
         return ClaimedCommand(command=command, execute=False, reason="active_lease")
     if command.attempt_count >= max_attempts:
@@ -68,7 +73,29 @@ class FirestoreCommandStore(CommandStore):
             snapshot = reference.get(transaction=txn)
             if not snapshot.exists:
                 raise KeyError(command_id)
-            claimed = claim_command(ActionCommand.model_validate(snapshot.to_dict()), now, lease_seconds, max_attempts)
+            command = ActionCommand.model_validate(snapshot.to_dict())
+            mission_snapshot = self.root.collection("missions").document(command.mission_id).get(transaction=txn)
+            checkpoint_snapshot = self.root.collection("human_checkpoints").document(command.checkpoint_id).get(transaction=txn)
+            mission = mission_snapshot.to_dict() if mission_snapshot.exists else {}
+            checkpoint = checkpoint_snapshot.to_dict() if checkpoint_snapshot.exists else {}
+            expected_policy_hash = hashlib.sha256(
+                f"{mission.get('policy_version', '')}:{mission.get('meeting_id', '')}:{command.approved_by}".encode()
+            ).hexdigest()
+            approval_valid = (
+                mission.get("status") == "queued_action"
+                and checkpoint.get("status") == "approved"
+                and checkpoint.get("resolved_by") == command.approved_by
+                and command.approved_by in checkpoint.get("authorized_actor_ids", [])
+                and command.id in checkpoint.get("command_ids", [])
+                and command.approval_decision_id == command.checkpoint_id
+                and command.policy_snapshot_hash == expected_policy_hash
+            )
+            if not approval_valid:
+                command.status = "failed"
+                command.error_code = "INVALID_APPROVAL_STATE"
+                claimed = ClaimedCommand(command=command, execute=False, reason="invalid_approval")
+            else:
+                claimed = claim_command(command, now, lease_seconds, max_attempts)
             txn.set(reference, claimed.command.model_dump(mode="json", exclude_none=True))
             return claimed
 
@@ -82,14 +109,15 @@ class FirestoreCommandStore(CommandStore):
 
         @self.firestore.transactional
         def persist(txn) -> None:
-            mission_snapshot = mission_ref.get(transaction=txn) if command.status == "succeeded" else None
+            mission_snapshot = mission_ref.get(transaction=txn)
             txn.set(command_ref, command.model_dump(mode="json", exclude_none=True))
             # Deterministic attempt IDs make Pub/Sub redelivery immutable and idempotent.
             txn.create(attempt_ref, attempt.model_dump(mode="json", exclude_none=True))
-            if mission_snapshot and mission_snapshot.exists:
+            if mission_snapshot.exists:
                 mission = mission_snapshot.to_dict()
                 meeting_id = mission.get("meeting_id")
-                if meeting_id:
+                completed_at = attempt.completed_at or attempt.started_at
+                if command.status == "succeeded" and meeting_id:
                     confirmed = {
                         "calendar.cancel": "cancelled",
                         "calendar.shorten": "shortened",
@@ -101,6 +129,49 @@ class FirestoreCommandStore(CommandStore):
                             "confirmed_action": confirmed,
                             "pending_action": "none",
                             "etag": command.applied_etag or command.expected_etag,
+                        },
+                        merge=True,
+                    )
+                    proposed = [
+                        command.model_dump(mode="json", exclude_none=True) if item.get("id") == command.id else item
+                        for item in mission.get("proposed_commands", [])
+                    ]
+                    txn.set(
+                        mission_ref,
+                        {
+                            "status": "completed",
+                            "current_stage": "completed",
+                            "completed_at": completed_at.isoformat(),
+                            "updated_at": completed_at.isoformat(),
+                            "proposed_commands": proposed,
+                            "error_code": None,
+                        },
+                        merge=True,
+                    )
+                    result_step = {
+                        "id": f"step-{command.mission_id}-result-verifier",
+                        "mission_id": command.mission_id,
+                        "ordinal": 8,
+                        "node_id": "result-verifier",
+                        "node_kind": "result_verifier",
+                        "status": "completed",
+                        "agent_version": "1.0.0",
+                        "attempt": command.attempt_count,
+                        "input_refs": [f"command:{command.id}"],
+                        "output_refs": [f"provider-hash:{command.provider_response_hash}"],
+                        "started_at": attempt.started_at.isoformat(),
+                        "completed_at": completed_at.isoformat(),
+                        "duration_ms": max(0.0, (completed_at - attempt.started_at).total_seconds() * 1000),
+                    }
+                    txn.set(self.root.collection("mission_steps").document(result_step["id"]), result_step)
+                elif command.status in {"stale", "failed"}:
+                    txn.set(
+                        mission_ref,
+                        {
+                            "status": "failed",
+                            "current_stage": "stale_input" if command.status == "stale" else "failed_safe",
+                            "updated_at": completed_at.isoformat(),
+                            "error_code": command.error_code,
                         },
                         merge=True,
                     )

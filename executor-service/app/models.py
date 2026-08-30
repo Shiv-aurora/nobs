@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 class ActionCommand(BaseModel):
     id: str
     command_type: Literal["calendar.cancel", "calendar.shorten", "calendar.update_agenda"]
+    target_system: Literal["google_calendar"] = "google_calendar"
     target_ref: str
     expected_etag: str
     payload: dict[str, object]
@@ -17,6 +18,9 @@ class ActionCommand(BaseModel):
     mission_id: str
     trace_id: str = ""
     checkpoint_id: str
+    approval_decision_id: str
+    policy_snapshot_hash: str
+    expires_at: datetime
     requested_by: str
     approved_by: str
     approved_at: datetime
@@ -41,7 +45,7 @@ class CommandAttempt(BaseModel):
 class ClaimedCommand(BaseModel):
     command: ActionCommand
     execute: bool
-    reason: Literal["claimed", "already_succeeded", "active_lease", "terminal", "attempt_limit"]
+    reason: Literal["claimed", "already_succeeded", "active_lease", "terminal", "attempt_limit", "expired", "invalid_approval"]
 
 
 class ProviderResult(BaseModel):

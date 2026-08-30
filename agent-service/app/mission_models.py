@@ -96,6 +96,7 @@ class MissionRecommendation(BaseModel):
 class ProposedCommand(BaseModel):
     id: str = Field(default_factory=lambda: f"command-{uuid4().hex[:12]}")
     command_type: Literal["calendar.cancel", "calendar.shorten", "calendar.update_agenda"]
+    target_system: Literal["google_calendar"] = "google_calendar"
     target_ref: str
     expected_etag: str
     payload: dict[str, object]
@@ -104,6 +105,9 @@ class ProposedCommand(BaseModel):
     mission_id: str
     trace_id: str
     checkpoint_id: str | None = None
+    approval_decision_id: str | None = None
+    policy_snapshot_hash: str
+    expires_at: datetime
     requested_by: str
     approved_by: str | None = None
     approved_at: datetime | None = None
@@ -133,7 +137,7 @@ class MissionStep(BaseModel):
     mission_id: str
     ordinal: int
     node_id: str
-    node_kind: Literal["controller", "specialist", "critic", "synthesizer", "authority_gate"]
+    node_kind: Literal["access_gate", "controller", "specialist", "critic", "synthesizer", "authority_gate", "command_builder", "result_verifier"]
     status: MissionStepStatus
     agent_id: str | None = None
     agent_version: str | None = None
@@ -149,6 +153,11 @@ class MissionStep(BaseModel):
 class MissionRun(BaseModel):
     id: str = Field(default_factory=lambda: f"mission-{uuid4().hex[:12]}")
     meeting_id: str
+    organization_id: str = "acme"
+    mission_type: Literal["meeting_resolution"] = "meeting_resolution"
+    workflow_version: str = "1.0.0"
+    policy_version: str = "1.0.0"
+    model_id: str
     trigger: Literal["manual", "scheduled"]
     started_by: str
     status: MissionStatus = MissionStatus.ACCEPTED
@@ -162,6 +171,8 @@ class MissionRun(BaseModel):
     proposed_commands: list[ProposedCommand] = Field(default_factory=list)
     checkpoint_id: str | None = None
     trace_id: str
+    deadline_at: datetime
+    retry_count: int = Field(default=0, ge=0)
     created_at: datetime
     updated_at: datetime
     completed_at: datetime | None = None

@@ -112,8 +112,7 @@ def test_real_calendar_source_proposes_and_queues_only_an_approved_command(clien
         params={"user_id": "shivam"},
     ).json()
     assert mission["status"] == "waiting_human"
-    assert len(mission["proposed_commands"]) == 1
-    assert mission["proposed_commands"][0]["expected_etag"] == "google-etag-v7"
+    assert mission["proposed_commands"] == []
 
     approved = client.post(
         f"/v1/meetings/{meeting.id}/actions",
@@ -127,3 +126,18 @@ def test_real_calendar_source_proposes_and_queues_only_an_approved_command(clien
     ).json()
     assert queued["status"] == "queued_action"
     assert queued["proposed_commands"][0]["status"] == "queued"
+    assert queued["proposed_commands"][0]["expected_etag"] == "google-etag-v7"
+    assert queued["proposed_commands"][0]["approval_decision_id"] == queued["checkpoint_id"]
+
+
+def test_access_gate_is_the_first_persisted_deterministic_step(client) -> None:
+    run = prepare_launch(client)
+    steps = client.get(
+        f"/v1/missions/{run['mission_id']}/steps",
+        params={"user_id": "shivam"},
+    ).json()
+
+    assert steps[0]["node_id"] == "access-gate"
+    assert steps[0]["node_kind"] == "access_gate"
+    assert steps[0]["status"] == "completed"
+    assert steps[0]["output_refs"] == ["authorized:meeting-member"]

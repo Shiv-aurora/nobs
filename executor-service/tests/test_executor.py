@@ -27,7 +27,11 @@ def command(command_id: str = "command-1") -> ActionCommand:
         status="queued",
         idempotency_key="idem-1",
         mission_id="mission-1",
+        trace_id="trace-1",
         checkpoint_id="checkpoint-1",
+        approval_decision_id="checkpoint-1",
+        policy_snapshot_hash="policy-hash",
+        expires_at=NOW + timedelta(minutes=30),
         requested_by="maya",
         approved_by="shivam",
         approved_at=NOW,
@@ -120,3 +124,16 @@ def test_pubsub_endpoint_accepts_command_id_only() -> None:
 
     assert response.status_code == 200
     assert response.json()["status"] == "succeeded"
+
+
+def test_expired_command_is_a_terminal_noop() -> None:
+    item = command()
+    item.expires_at = NOW
+    calendar = FakeCalendar()
+    executor, store = runtime(item, calendar)
+
+    result = executor.execute(item.id)
+
+    assert result["reason"] == "expired"
+    assert store.commands[item.id].error_code == "COMMAND_EXPIRED"
+    assert calendar.calls == 0
