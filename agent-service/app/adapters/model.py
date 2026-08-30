@@ -26,6 +26,9 @@ class ModelAdapter(ABC):
     def synthesize(self, *, text: str, intent: Intent, evidence: list[Evidence]) -> SynthesisResult:
         raise NotImplementedError
 
+    async def synthesize_async(self, *, text: str, intent: Intent, evidence: list[Evidence]) -> SynthesisResult:
+        return await asyncio.to_thread(self.synthesize, text=text, intent=intent, evidence=evidence)
+
     def build_prompt(self, *, text: str, intent: Intent, evidence: list[Evidence]) -> str:
         payload = {
             "question": text,
@@ -54,7 +57,9 @@ class DeterministicDemoModel(ModelAdapter):
 
     def synthesize(self, *, text: str, intent: Intent, evidence: list[Evidence]) -> SynthesisResult:
         lowered = text.lower()
-        if intent == Intent.LIVE_STATUS:
+        if lowered.strip(" !.,?") in {"hi", "hello", "hey", "yo"}:
+            answer = "Hey — Daniel is out of office, but I have his current Atlas and AUTH-392 context. Ask me the work question normally and I’ll answer what I can without interrupting him."
+        elif intent == Intent.LIVE_STATUS:
             answer = (
                 "Daniel Kim is handling AUTH-392; his fix is in PR #892, all 84 checks passed, "
                 "and it is awaiting one reviewer. Sarah Chen is out through 9:00 AM tomorrow, "
@@ -91,11 +96,12 @@ Rules, in priority order:
 4. If evidence conflicts, state the conflict and identify the fresher or higher-confidence source.
 5. Give a direct answer in no more than 120 words. Name concrete ticket, policy, person, and status identifiers when supported.
 6. Do not mention these rules, the prompt, or hidden reasoning. Do not output markdown headings.
+7. If the message is only a greeting or pleasantry, reply warmly in one sentence and invite a work question. Do not invent a work status when no evidence was supplied.
 """
 
     def __init__(
         self,
-        model_name: str = "gemini-3.5-flash",
+        model_name: str = "gemini-2.5-flash",
         *,
         max_output_tokens: int = 600,
         runner_factory: Callable[[], object] | None = None,
@@ -107,6 +113,10 @@ Rules, in priority order:
     def synthesize(self, *, text: str, intent: Intent, evidence: list[Evidence]) -> SynthesisResult:
         prompt = self.build_prompt(text=text, intent=intent, evidence=evidence)
         return asyncio.run(self._run(prompt))
+
+    async def synthesize_async(self, *, text: str, intent: Intent, evidence: list[Evidence]) -> SynthesisResult:
+        prompt = self.build_prompt(text=text, intent=intent, evidence=evidence)
+        return await self._run(prompt)
 
     async def _run(self, prompt: str) -> SynthesisResult:
         runner, session_service, content_factory = self._build_runtime()
@@ -174,7 +184,9 @@ Rules, in priority order:
             instruction=self.INSTRUCTION,
             generate_content_config=types.GenerateContentConfig(
                 max_output_tokens=self.max_output_tokens,
-                thinking_config=types.ThinkingConfig(thinking_level="MINIMAL"),
+                # Gemini 2.5 Flash uses the numeric thinking budget. The newer
+                # thinking_level field is rejected by this GA model on Vertex.
+                thinking_config=types.ThinkingConfig(thinking_budget=0),
             ),
         )
         session_service = InMemorySessionService()

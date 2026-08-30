@@ -8,6 +8,7 @@ from .config import Settings
 from .evidence import EvidenceRetriever
 from .memory import DecisionMemoryStore
 from .meetings import MeetingService
+from .meeting_delegations import MeetingDelegationService
 from .orchestrator import Orchestrator
 from .persistence import StateStore, build_state_store
 from .policy import PolicyEngine
@@ -82,6 +83,18 @@ class Services:
                 model_name=self.settings.gemini_model,
                 max_output_tokens=min(600, self.settings.model_max_output_tokens_per_query),
             )
+        )
+        # Demo fixtures use a stable narrative clock, while production Live
+        # limits and resumption TTLs must advance with real wall time.
+        live_now_fn = now_fn if self.settings.demo_mode else operational_now_fn
+        self.meeting_delegations = MeetingDelegationService(
+            self.workspace,
+            self.policy,
+            live_now_fn,
+            self.settings,
+            prompt_guard,
+            handoff_model=model,
+            usage_guard=self.usage_guard,
         )
         self.orchestrator = Orchestrator(
             workspace=self.workspace,

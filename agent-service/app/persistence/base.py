@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, TYPE_CHECKING
 
-from ..models import AuditEvent, Decision, DecisionMemory, HandoffPacket, KnowledgeMemory, Meeting, MeetingPrepRun, OOOQueueItem, QueryResult, WorkEvent
+from ..models import AuditEvent, Decision, DecisionMemory, HandoffPacket, KnowledgeMemory, LiveMeetingSession, Meeting, MeetingDelegation, MeetingHandoff, MeetingPrepRun, OOOQueueItem, QueryResult, WorkEvent
 
 if TYPE_CHECKING:
     from ..workspace import Workspace
@@ -66,6 +66,18 @@ class StateStore(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def put_meeting_delegation(self, delegation: MeetingDelegation) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def put_live_meeting_session(self, session: LiveMeetingSession) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def put_meeting_handoff(self, handoff: MeetingHandoff) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
     def clear_dynamic(self) -> None:
         raise NotImplementedError
 
@@ -112,6 +124,15 @@ class NullStateStore(StateStore):
     def put_handoff_packet(self, packet: HandoffPacket) -> None:
         return None
 
+    def put_meeting_delegation(self, delegation: MeetingDelegation) -> None:
+        return None
+
+    def put_live_meeting_session(self, session: LiveMeetingSession) -> None:
+        return None
+
+    def put_meeting_handoff(self, handoff: MeetingHandoff) -> None:
+        return None
+
     def clear_dynamic(self) -> None:
         return None
 
@@ -142,6 +163,15 @@ class RecordingStateStore(NullStateStore):
 
     def put_handoff_packet(self, packet: HandoffPacket) -> None:
         self.operations.append(("handoff_packet", packet.id))
+
+    def put_meeting_delegation(self, delegation: MeetingDelegation) -> None:
+        self.operations.append(("meeting_delegation", delegation.id))
+
+    def put_live_meeting_session(self, session: LiveMeetingSession) -> None:
+        self.operations.append(("live_meeting_session", session.id))
+
+    def put_meeting_handoff(self, handoff: MeetingHandoff) -> None:
+        self.operations.append(("meeting_handoff", handoff.id))
 
     def put_meeting(self, meeting: Meeting) -> None:
         self.operations.append(("meeting", meeting.id))

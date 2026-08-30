@@ -83,10 +83,31 @@ class SignedServiceMiddleware:
         send: Callable[[dict[str, Any]], Awaitable[None]],
     ) -> None:
         if (
-            scope.get("type") != "http"
+            scope.get("type") not in {"http", "websocket"}
             or scope.get("method") == "OPTIONS"
             or scope.get("path") in self.unauthenticated_paths
         ):
+            await self.app(scope, receive, send)
+            return
+
+        # A WebSocket upgrade has no request body. Authenticate its initial
+        # headers and target before FastAPI accepts the connection.
+        if scope.get("type") == "websocket":
+            headers = {key.lower(): value for key, value in scope.get("headers", [])}
+            raw_path = scope.get("raw_path") or scope.get("path", "").encode()
+            query = scope.get("query_string", b"")
+            target = raw_path.decode("latin-1") + ("?" + query.decode("latin-1") if query else "")
+            valid = self.verifier.verify(
+                body=b"",
+                timestamp=_decode_header(headers.get(b"x-noping-timestamp")),
+                signature=_decode_header(headers.get(b"x-noping-signature")),
+                version=_decode_header(headers.get(b"x-noping-signature-version")),
+                method="GET",
+                target=target,
+            )
+            if not valid:
+                await send({"type": "websocket.close", "code": 4401, "reason": "Invalid or expired NoBS service signature"})
+                return
             await self.app(scope, receive, send)
             return
 

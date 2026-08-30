@@ -23,6 +23,7 @@ def test_calendar_lists_private_meetings_and_skips_social_preparation(client):
     meetings = response.json()
     assert [item["id"] for item in meetings] == [
         "meeting-atlas-engineering-sync",
+        "meeting-northstar-escalation-review",
         "meeting-atlas-launch-readiness",
         "meeting-welcome-coffee",
     ]
@@ -149,6 +150,16 @@ def test_query_result_can_be_read_back(client):
     fetched = client.get(f"/v1/runs/{run_id}")
     assert fetched.status_code == 200
     assert fetched.json()["run_id"] == run_id
+
+
+def test_short_dm_greeting_is_accepted_and_answered(client):
+    response = client.post(
+        "/v1/query",
+        json={"requester_id": "maya", "delegate_for_user_id": "daniel", "text": "hi"},
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "answered"
+    assert response.json()["answer"]
 
 
 def test_streaming_query_reports_real_phases_and_personal_delegate(client):

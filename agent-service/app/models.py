@@ -152,7 +152,9 @@ class RouteStep(BaseModel):
 
 class QueryRequest(BaseModel):
     requester_id: str
-    text: str = Field(min_length=3, max_length=2000)
+    # Short conversational turns such as "hi" are valid in native messaging.
+    # Authorization and rate limiting still run before any model execution.
+    text: str = Field(min_length=1, max_length=2000)
     team_id: str | None = None
     delegate_for_user_id: str | None = None
     conversation_context: dict[str, Any] = Field(default_factory=dict)
@@ -308,11 +310,18 @@ class Meeting(BaseModel):
     updated_at: datetime
     source: Literal["google_calendar", "demo"] = "demo"
     confirmed_action: Literal["none", "cancelled", "shortened", "agenda_updated"] = "none"
+    attendance_plans: dict[str, Literal["attend", "agent", "decline"]] = Field(default_factory=dict)
 
 
 class MeetingPreparationRequest(BaseModel):
     actor_id: str
     trigger: Literal["manual", "scheduled"] = "manual"
+
+
+class MeetingAttendanceRequest(BaseModel):
+    actor_id: str
+    # `agent` is a NoBS attendance plan, not a Google Calendar RSVP.
+    choice: Literal["attend", "agent", "decline"]
 
 
 class MeetingActionRequest(BaseModel):
@@ -322,6 +331,102 @@ class MeetingActionRequest(BaseModel):
     applied_etag: str | None = None
     duration_minutes: int | None = Field(default=None, ge=5, le=480)
     agenda: list[str] = Field(default_factory=list)
+
+
+class MissionPacket(BaseModel):
+    mode: Literal["listen", "represent", "mission"] = "represent"
+    tell: list[str] = Field(default_factory=list, max_length=12)
+    ask: list[str] = Field(default_factory=list, max_length=12)
+    capability_ids: list[Literal[
+        "answer_project_status",
+        "explain_confirmed_decisions",
+        "share_customer_safe_status",
+        "record_follow_up",
+    ]] = Field(default_factory=list, max_length=8)
+    escalation_rules: list[str] = Field(default_factory=list, max_length=12)
+    participant_user_ids: list[str] = Field(default_factory=list)
+
+
+class MeetingDelegationCreate(BaseModel):
+    actor_id: str
+    mode: Literal["listen", "represent", "mission"] = "represent"
+    tell: list[str] = Field(default_factory=list)
+    ask: list[str] = Field(default_factory=list)
+    capability_ids: list[str] = Field(default_factory=list)
+    escalation_rules: list[str] = Field(default_factory=list)
+    expected_etag: str
+
+
+class MeetingDelegationUpdate(BaseModel):
+    actor_id: str
+    mode: Literal["listen", "represent", "mission"]
+    tell: list[str] = Field(default_factory=list)
+    ask: list[str] = Field(default_factory=list)
+    capability_ids: list[str] = Field(default_factory=list)
+    escalation_rules: list[str] = Field(default_factory=list)
+
+
+class MeetingDelegationAction(BaseModel):
+    actor_id: str
+
+
+class MeetingDelegation(BaseModel):
+    id: str = Field(default_factory=lambda: f"delegation-{uuid4().hex[:12]}")
+    meeting_id: str
+    represented_user_id: str
+    represented_user_name: str
+    status: Literal["draft", "ready", "live", "paused", "reconnecting", "ended", "escalated", "failed", "revoked"] = "ready"
+    mission: MissionPacket
+    calendar_etag: str
+    policy_snapshot_hash: str
+    expires_at: datetime
+    created_at: datetime
+    updated_at: datetime
+
+
+class MeetingOutcomeEntry(BaseModel):
+    kind: Literal["told", "asked", "answer", "decision", "action", "escalation"]
+    summary: str = Field(min_length=2, max_length=1000)
+    evidence_ids: list[str] = Field(default_factory=list)
+    created_at: datetime
+
+
+class LiveMeetingSession(BaseModel):
+    id: str = Field(default_factory=lambda: f"live-{uuid4().hex[:12]}")
+    delegation_id: str
+    status: Literal["created", "connecting", "live", "paused", "reconnecting", "ended", "failed"] = "created"
+    session_nonce_hash: str
+    resumption_handle: str | None = None
+    resume_expires_at: datetime
+    started_at: datetime | None = None
+    connection_started_at: datetime | None = None
+    ended_at: datetime | None = None
+    updated_at: datetime
+    active_connection_seconds: float = Field(default=0, ge=0)
+    input_audio_seconds: float = Field(default=0, ge=0)
+    output_audio_seconds: float = Field(default=0, ge=0)
+    input_tokens: int = Field(default=0, ge=0)
+    output_tokens: int = Field(default=0, ge=0)
+    tool_calls: int = Field(default=0, ge=0)
+    reconnect_attempts: int = Field(default=0, ge=0)
+    outcomes: list[MeetingOutcomeEntry] = Field(default_factory=list)
+
+
+class MeetingHandoff(BaseModel):
+    id: str = Field(default_factory=lambda: f"meeting-handoff-{uuid4().hex[:12]}")
+    delegation_id: str
+    meeting_id: str
+    represented_user_id: str
+    summary: str = ""
+    told: list[str] = Field(default_factory=list)
+    asked: list[str] = Field(default_factory=list)
+    answers: list[str] = Field(default_factory=list)
+    decisions_observed: list[str] = Field(default_factory=list)
+    for_you: list[str] = Field(default_factory=list)
+    escalations: list[str] = Field(default_factory=list)
+    evidence_ids: list[str] = Field(default_factory=list)
+    meeting_minutes_avoided: int = Field(default=0, ge=0)
+    created_at: datetime
 
 
 class HandoffPacket(BaseModel):

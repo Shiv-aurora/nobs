@@ -5,7 +5,7 @@ import json
 from queue import Queue
 from threading import Thread
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, WebSocket, status
 from fastapi.responses import StreamingResponse
 
 from ..models import (
@@ -17,6 +17,10 @@ from ..models import (
     DecisionStatus,
     HealthResponse,
     MeetingActionRequest,
+    MeetingAttendanceRequest,
+    MeetingDelegationAction,
+    MeetingDelegationCreate,
+    MeetingDelegationUpdate,
     MeetingPreparationRequest,
     OOOQueueItem,
     OOOQueueCreate,
@@ -29,6 +33,7 @@ from ..models import (
 from ..pubsub import PubSubPushEnvelope
 from ..rate_limit import RateLimitExceeded
 from ..service import Services
+from ..live_adapter import MeetingLiveAdapter
 
 
 router = APIRouter()
@@ -157,7 +162,154 @@ def meeting(meeting_id: str, user_id: str = Query(...), services: Services = Dep
     if not result:
         raise HTTPException(status_code=404, detail="Meeting not found")
     run = services.workspace.meeting_runs.get(result.prep_run_id or "")
-    return {"meeting": result, "run": run}
+    delegation = services.meeting_delegations.for_meeting(meeting_id, user_id)
+    handoff = services.meeting_delegations.handoff(delegation) if delegation else None
+    return {"meeting": result, "run": run, "delegation": delegation, "handoff": handoff}
+
+
+@router.post("/v1/meetings/{meeting_id}/delegations")
+def create_meeting_delegation(meeting_id: str, payload: MeetingDelegationCreate, services: Services = Depends(get_services)):
+    meeting = services.meetings.get_for_user(meeting_id, payload.actor_id)
+    if not meeting:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+    try:
+        return services.meeting_delegations.create(meeting, payload)
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/v1/meetings/{meeting_id}/attendance")
+def update_meeting_attendance(meeting_id: str, payload: MeetingAttendanceRequest, services: Services = Depends(get_services)):
+    meeting = services.meetings.get_for_user(meeting_id, payload.actor_id)
+    if not meeting:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+    try:
+        return services.meeting_delegations.set_attendance(meeting, payload.actor_id, payload.choice)
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+
+@router.get("/v1/meeting-delegations/{delegation_id}")
+def meeting_delegation(delegation_id: str, user_id: str = Query(...), services: Services = Depends(get_services)):
+    try:
+        delegation = services.meeting_delegations.get(delegation_id, user_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    return {
+        "delegation": delegation,
+        "session": services.meeting_delegations.session_for(delegation.id),
+        "handoff": services.meeting_delegations.handoff(delegation),
+        "meeting": services.workspace.meetings[delegation.meeting_id],
+    }
+
+
+@router.patch("/v1/meeting-delegations/{delegation_id}/mission")
+def update_meeting_delegation(delegation_id: str, payload: MeetingDelegationUpdate, services: Services = Depends(get_services)):
+    try:
+        delegation = services.meeting_delegations.get(delegation_id, payload.actor_id)
+        return services.meeting_delegations.update(delegation, payload)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/v1/meeting-delegations/{delegation_id}/start")
+def start_meeting_delegation(delegation_id: str, payload: MeetingDelegationAction, services: Services = Depends(get_services)):
+    try:
+        services.rate_limiter.acquire(payload.actor_id)
+    except RateLimitExceeded as exc:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=str(exc),
+            headers={"Retry-After": str(exc.retry_after)},
+        ) from exc
+    try:
+        delegation = services.meeting_delegations.get(delegation_id, payload.actor_id)
+        delegation, session, nonce = services.meeting_delegations.start(delegation)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    finally:
+        services.rate_limiter.release()
+    return {"delegation": delegation, "session": session, "session_nonce": nonce}
+
+
+@router.post("/v1/meeting-delegations/{delegation_id}/end")
+def end_meeting_delegation(delegation_id: str, payload: MeetingDelegationAction, services: Services = Depends(get_services)):
+    try:
+        delegation = services.meeting_delegations.get(delegation_id, payload.actor_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    existing = services.meeting_delegations.handoff(delegation)
+    return existing or services.meeting_delegations.end(delegation)
+
+
+@router.post("/v1/meeting-delegations/{delegation_id}/revoke")
+def revoke_meeting_delegation(delegation_id: str, payload: MeetingDelegationAction, services: Services = Depends(get_services)):
+    try:
+        delegation = services.meeting_delegations.get(delegation_id, payload.actor_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    existing = services.meeting_delegations.handoff(delegation)
+    return existing or services.meeting_delegations.end(delegation, revoked=True)
+
+
+@router.get("/v1/meeting-delegations/{delegation_id}/handoff")
+def meeting_delegation_handoff(delegation_id: str, user_id: str = Query(...), services: Services = Depends(get_services)):
+    try:
+        delegation = services.meeting_delegations.get(delegation_id, user_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    handoff = services.meeting_delegations.handoff(delegation)
+    if not handoff:
+        raise HTTPException(status_code=404, detail="The meeting handoff is not ready")
+    return handoff
+
+
+@router.websocket("/v1/live/meetings/{delegation_id}")
+async def live_meeting(websocket: WebSocket, delegation_id: str, user_id: str = Query(...), nonce: str = Query(...)):
+    services: Services = websocket.app.state.services
+    services.meeting_delegations.expire_abandoned_sessions()
+    try:
+        delegation = services.meeting_delegations.get(delegation_id, user_id)
+    except (KeyError, PermissionError):
+        await websocket.close(code=4403, reason="Meeting delegation not found")
+        return
+    session = services.meeting_delegations.session_for(delegation.id)
+    if not session or not services.meeting_delegations.verify_nonce(session, nonce):
+        await websocket.close(code=4401, reason="Invalid live session")
+        return
+    if session.status not in {"connecting", "reconnecting"}:
+        await websocket.close(code=4409, reason="The live session already has a connection or has ended")
+        return
+    if session.status == "reconnecting":
+        if session.reconnect_attempts >= services.settings.live_max_reconnect_attempts:
+            await websocket.close(code=4429, reason="Live reconnect limit reached")
+            return
+        session.reconnect_attempts += 1
+        session.updated_at = services.meeting_delegations.now_fn()
+        services.workspace.save_live_meeting_session(session)
+    await MeetingLiveAdapter(services).serve(websocket, delegation, session)
 
 
 @router.post("/v1/meetings/{meeting_id}/prepare")

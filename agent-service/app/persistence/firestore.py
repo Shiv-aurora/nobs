@@ -4,7 +4,7 @@ import logging
 from collections.abc import Iterable
 from typing import Any, TYPE_CHECKING
 
-from ..models import AuditEvent, Decision, DecisionMemory, HandoffPacket, KnowledgeMemory, Meeting, MeetingPrepRun, OOOQueueItem, QueryResult, WorkEvent
+from ..models import AuditEvent, Decision, DecisionMemory, HandoffPacket, KnowledgeMemory, LiveMeetingSession, Meeting, MeetingDelegation, MeetingHandoff, MeetingPrepRun, OOOQueueItem, QueryResult, WorkEvent
 from .base import StateStore
 
 if TYPE_CHECKING:
@@ -21,7 +21,7 @@ class FirestoreStateStore(StateStore):
     remain in Mattermost; query results store compact references and traces.
     """
 
-    DYNAMIC_COLLECTIONS = ("queries", "decisions", "memories", "audit", "work_events", "meetings", "meeting_runs", "knowledge_memories", "ooo_queue", "handoff_packets")
+    DYNAMIC_COLLECTIONS = ("queries", "decisions", "memories", "audit", "work_events", "meetings", "meeting_runs", "knowledge_memories", "ooo_queue", "handoff_packets", "meeting_delegations", "live_meeting_sessions", "meeting_handoffs")
 
     def __init__(self, *, project_id: str, database: str, organization_id: str):
         if not project_id:
@@ -72,6 +72,15 @@ class FirestoreStateStore(StateStore):
         for snapshot in self._collection("handoff_packets").stream():
             packet = HandoffPacket.model_validate(snapshot.to_dict())
             workspace.handoff_packets[packet.id] = packet
+        for snapshot in self._collection("meeting_delegations").stream():
+            delegation = MeetingDelegation.model_validate(snapshot.to_dict())
+            workspace.meeting_delegations[delegation.id] = delegation
+        for snapshot in self._collection("live_meeting_sessions").stream():
+            session = LiveMeetingSession.model_validate(snapshot.to_dict())
+            workspace.live_meeting_sessions[session.id] = session
+        for snapshot in self._collection("meeting_handoffs").stream():
+            handoff = MeetingHandoff.model_validate(snapshot.to_dict())
+            workspace.meeting_handoffs[handoff.id] = handoff
         stats = self.root.collection("config").document("stats").get()
         if stats.exists:
             workspace.stats.update({key: int(value) for key, value in stats.to_dict().items() if key in workspace.stats})
@@ -127,6 +136,18 @@ class FirestoreStateStore(StateStore):
 
     def put_handoff_packet(self, packet: HandoffPacket) -> None:
         self._collection("handoff_packets").document(packet.id).set(self._payload(packet))
+
+    def put_meeting_delegation(self, delegation: MeetingDelegation) -> None:
+        self._collection("meeting_delegations").document(delegation.id).set(self._payload(delegation))
+
+    def put_live_meeting_session(self, session: LiveMeetingSession) -> None:
+        payload = self._payload(session)
+        # Never persist binary media. The session contains counters and compact
+        # semantic outcomes only.
+        self._collection("live_meeting_sessions").document(session.id).set(payload)
+
+    def put_meeting_handoff(self, handoff: MeetingHandoff) -> None:
+        self._collection("meeting_handoffs").document(handoff.id).set(self._payload(handoff))
 
     def clear_dynamic(self) -> None:
         for name in self.DYNAMIC_COLLECTIONS:

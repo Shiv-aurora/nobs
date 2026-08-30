@@ -11,13 +11,15 @@ dependencies = [
   "fastapi>=0.115",
   "uvicorn>=0.32",
   "pydantic>=2.10",
-  "httpx>=0.28"
+  "httpx>=0.28",
+  "websockets>=14,<16"
 ]
 
 [project.optional-dependencies]
 test = ["pytest>=8", "pytest-cov>=6"]
 google = [
-  "google-adk[gcp]>=2.6,<3",
+  "google-adk[gcp]==2.8.0",
+  "google-genai==2.20.0",
   "google-cloud-firestore>=2.20",
   "google-auth>=2.40",
   "google-cloud-pubsub>=2.28",

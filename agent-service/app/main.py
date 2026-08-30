@@ -36,7 +36,7 @@ def create_app(services: Services | None = None) -> FastAPI:
         CORSMiddleware,
         allow_origins=["http://localhost:8065", "http://localhost:4173", "http://localhost:8080"],
         allow_credentials=True,
-        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
         allow_headers=["Content-Type", "X-NoPing-Timestamp", "X-NoPing-Signature-Version", "X-NoPing-Signature", "Authorization"],
     )
     app.include_router(router)

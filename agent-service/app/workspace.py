@@ -6,7 +6,7 @@ from pathlib import Path
 from threading import RLock
 from typing import Any
 
-from .models import AuditEvent, Decision, DecisionMemory, Evidence, HandoffPacket, KnowledgeMemory, Meeting, MeetingPrepRun, OOOQueueItem, Policy, Project, QueryResult, Team, User, WorkEvent, WorkItem, Delegation
+from .models import AuditEvent, Decision, DecisionMemory, Evidence, HandoffPacket, KnowledgeMemory, LiveMeetingSession, Meeting, MeetingDelegation, MeetingHandoff, MeetingPrepRun, OOOQueueItem, Policy, Project, QueryResult, Team, User, WorkEvent, WorkItem, Delegation
 from .persistence.base import NullStateStore, StateStore
 
 
@@ -40,6 +40,9 @@ class Workspace:
             self.knowledge_memories: dict[str, KnowledgeMemory] = {}
             self.ooo_queue: dict[str, OOOQueueItem] = {}
             self.handoff_packets: dict[str, HandoffPacket] = {}
+            self.meeting_delegations: dict[str, MeetingDelegation] = {}
+            self.live_meeting_sessions: dict[str, LiveMeetingSession] = {}
+            self.meeting_handoffs: dict[str, MeetingHandoff] = {}
             self.stats = {
                 "queries_total": 0,
                 "resolved_without_human": 0,
@@ -57,6 +60,14 @@ class Workspace:
                 "response_guard_blocks": 0,
                 "meetings_prepared": 0,
                 "meeting_minutes_saved": 0,
+                "live_sessions_started": 0,
+                "live_input_audio_seconds": 0,
+                "live_output_audio_seconds": 0,
+                "live_input_tokens": 0,
+                "live_output_tokens": 0,
+                "live_tool_calls": 0,
+                "live_active_connection_seconds": 0,
+                "live_budget_blocks": 0,
             }
             if load_persisted:
                 self.state_store.restore(self)
@@ -118,6 +129,21 @@ class Workspace:
             self.handoff_packets[packet.id] = packet
         self.state_store.put_handoff_packet(packet)
 
+    def save_meeting_delegation(self, delegation: MeetingDelegation) -> None:
+        with self.lock:
+            self.meeting_delegations[delegation.id] = delegation
+        self.state_store.put_meeting_delegation(delegation)
+
+    def save_live_meeting_session(self, session: LiveMeetingSession) -> None:
+        with self.lock:
+            self.live_meeting_sessions[session.id] = session
+        self.state_store.put_live_meeting_session(session)
+
+    def save_meeting_handoff(self, handoff: MeetingHandoff) -> None:
+        with self.lock:
+            self.meeting_handoffs[handoff.id] = handoff
+        self.state_store.put_meeting_handoff(handoff)
+
     def increment_stat(self, key: str, amount: int = 1) -> None:
         with self.lock:
             self.stats[key] = self.stats.get(key, 0) + amount
@@ -150,5 +176,8 @@ class Workspace:
                 "knowledge_memories": self.knowledge_memories,
                 "ooo_queue": self.ooo_queue,
                 "handoff_packets": self.handoff_packets,
+                "meeting_delegations": self.meeting_delegations,
+                "live_meeting_sessions": self.live_meeting_sessions,
+                "meeting_handoffs": self.meeting_handoffs,
                 "stats": self.stats,
             })
