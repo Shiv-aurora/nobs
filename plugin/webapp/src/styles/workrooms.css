@@ -1,276 +1,54 @@
-.nobs-workrooms {
-    --nobs-workroom-line: rgba(var(--center-channel-color-rgb, 37, 41, 55), .12);
-    display: flex;
-    height: 100%;
-    min-height: 0;
-    flex-direction: column;
-    overflow: hidden;
-    background: var(--center-channel-bg, #fff);
-    color: var(--center-channel-color, #252937);
-}
-
-.nobs-workrooms * {
-    box-sizing: border-box;
-}
-
-.nobs-workrooms__header {
-    display: flex;
-    min-height: 64px;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    padding: 0 20px;
-    border-bottom: 1px solid var(--nobs-workroom-line);
-}
-
-.nobs-workrooms__header > div {
-    display: flex;
-    min-width: 0;
-    align-items: center;
-    gap: 10px;
-}
-
-.nobs-workrooms__header img {
-    width: 28px;
-    height: 28px;
-    object-fit: contain;
-}
-
-.nobs-workrooms__header span {
-    display: grid;
-    min-width: 0;
-}
-
-.nobs-workrooms__header strong {
-    font-size: 16px;
-}
-
-.nobs-workrooms__header small {
-    overflow: hidden;
-    color: rgba(var(--center-channel-color-rgb, 37, 41, 55), .58);
-    font-size: 11px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.nobs-workrooms__body {
-    display: grid;
-    min-height: 0;
-    flex: 1;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 16px;
-    overflow-y: auto;
-    padding: 18px;
-}
-
-.nobs-workroom-create {
-    display: grid;
-    width: min(720px, 100%);
-    gap: 14px;
-    padding: 18px;
-    border: 1px solid rgba(var(--button-bg-rgb, 91, 75, 203), .2);
-    border-radius: 10px;
-    background: linear-gradient(135deg, rgba(21, 200, 232, .045), rgba(113, 87, 255, .065));
-}
-
-.nobs-workroom-create h1 {
-    margin: 3px 0;
-    font-size: 20px;
-}
-
-.nobs-workroom-create p {
-    margin: 0;
-    color: rgba(var(--center-channel-color-rgb, 37, 41, 55), .62);
-    font-size: 11px;
-}
-
-.nobs-workroom-create > div > span {
-    color: var(--button-bg);
-    font-size: 9px;
-    font-weight: 800;
-    letter-spacing: .07em;
-}
-
-.nobs-workroom-create label {
-    display: grid;
-    gap: 5px;
-    margin: 0;
-}
-
-.nobs-workroom-create label strong {
-    font-size: 11px;
-}
-
-.nobs-workroom-create label small {
-    color: rgba(var(--center-channel-color-rgb, 37, 41, 55), .54);
-    font-size: 9px;
-}
-
-.nobs-workroom-create input,
-.nobs-workroom-create textarea {
-    width: 100%;
-    resize: vertical;
-    padding: 9px 10px;
-    border: 1px solid rgba(var(--center-channel-color-rgb, 37, 41, 55), .17);
-    border-radius: 6px;
-    background: var(--center-channel-bg, #fff);
-    color: inherit;
-    font: inherit;
-    font-size: 12px;
-}
-
-.nobs-workroom-create input:focus-visible,
-.nobs-workroom-create textarea:focus-visible {
-    border-color: var(--button-bg);
-    box-shadow: 0 0 0 2px rgba(var(--button-bg-rgb, 91, 75, 203), .1);
-    outline: none;
-}
-
-.nobs-workrooms__list {
-    display: grid;
-    align-content: start;
-    gap: 10px;
-}
-
-.nobs-workrooms__section-title {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-}
-
-.nobs-workrooms__section-title > div {
-    display: grid;
-}
-
-.nobs-workrooms__section-title strong {
-    font-size: 14px;
-}
-
-.nobs-workrooms__section-title span,
-.nobs-workrooms__section-title em {
-    color: rgba(var(--center-channel-color-rgb, 37, 41, 55), .54);
-    font-size: 10px;
-    font-style: normal;
-}
-
-.nobs-workroom-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-}
-
-.nobs-workroom-grid > button {
-    display: grid;
-    min-width: 0;
-    grid-template-columns: 38px minmax(0, 1fr) auto 16px;
-    align-items: center;
-    gap: 10px;
-    padding: 13px;
-    border: 1px solid var(--nobs-workroom-line);
-    border-radius: 9px;
-    background: var(--center-channel-bg, #fff);
-    color: inherit;
-    text-align: left;
-    cursor: pointer;
-}
-
-.nobs-workroom-grid > button:hover,
-.nobs-workroom-grid > button:focus-visible {
-    border-color: rgba(var(--button-bg-rgb, 91, 75, 203), .38);
-    background: rgba(var(--button-bg-rgb, 91, 75, 203), .035);
-    outline: none;
-}
-
-.nobs-workroom-grid__icon {
-    display: grid;
-    width: 36px;
-    height: 36px;
-    place-items: center;
-    border-radius: 9px;
-    background: rgba(var(--button-bg-rgb, 91, 75, 203), .08);
-}
-
-.nobs-workroom-grid__icon img {
-    width: 25px;
-    height: 25px;
-    object-fit: contain;
-}
-
-.nobs-workroom-grid > button > span:nth-child(2) {
-    display: grid;
-    min-width: 0;
-    gap: 2px;
-}
-
-.nobs-workroom-grid strong,
-.nobs-workroom-grid small {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.nobs-workroom-grid strong {
-    font-size: 12px;
-}
-
-.nobs-workroom-grid small,
-.nobs-workroom-grid em {
-    color: rgba(var(--center-channel-color-rgb, 37, 41, 55), .54);
-    font-size: 9px;
-    font-style: normal;
-}
-
-.nobs-workrooms__empty {
-    display: grid;
-    justify-items: center;
-    gap: 5px;
-    padding: 36px 18px;
-    border: 1px dashed var(--nobs-workroom-line);
-    border-radius: 9px;
-    text-align: center;
-}
-
-.nobs-workrooms__empty img {
-    width: 36px;
-    height: 36px;
-}
-
-.nobs-workrooms__empty span {
-    color: rgba(var(--center-channel-color-rgb, 37, 41, 55), .58);
-    font-size: 10px;
-}
-
-.nobs-workrooms__error {
-    padding: 8px 18px;
-    background: rgba(210, 75, 78, .08);
-    color: var(--error-text, #c4314b);
-    font-size: 11px;
-}
-
-@media (max-width: 900px) {
-    .nobs-workroom-grid {
-        grid-template-columns: 1fr;
-    }
-}
-
-@media (max-width: 600px) {
-    .nobs-workrooms__header {
-        min-height: 54px;
-        padding: 0 12px;
-    }
-
-    .nobs-workrooms__header small,
-    .nobs-workrooms__section-title em,
-    .nobs-workroom-grid em {
-        display: none;
-    }
-
-    .nobs-workrooms__body {
-        padding: 12px;
-    }
-
-    .nobs-workroom-grid > button {
-        grid-template-columns: 38px minmax(0, 1fr) 16px;
-    }
-}
+.nobs-workrooms { --nobs-workroom-line: rgba(var(--center-channel-color-rgb, 37, 41, 55), .12); display: flex; height: 100%; min-height: 0; flex-direction: column; overflow: hidden; background: var(--center-channel-bg, #fff); color: var(--center-channel-color, #252937); }
+.nobs-workrooms * { box-sizing: border-box; }
+.nobs-workrooms__header { display: flex; min-height: 64px; align-items: center; justify-content: space-between; gap: 16px; padding: 0 20px; border-bottom: 1px solid var(--nobs-workroom-line); }
+.nobs-workrooms__header > div { display: flex; min-width: 0; align-items: center; gap: 10px; }
+.nobs-workrooms__header img { width: 28px; height: 28px; object-fit: contain; }
+.nobs-workrooms__header span { display: grid; min-width: 0; }
+.nobs-workrooms__header strong { font-size: 16px; }
+.nobs-workrooms__header small { overflow: hidden; color: rgba(var(--center-channel-color-rgb, 37, 41, 55), .58); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.nobs-workrooms__body { display: grid; min-height: 0; flex: 1; align-content: start; gap: 22px; overflow-y: auto; padding: 20px; }
+.nobs-workroom-create { display: grid; width: min(760px, 100%); gap: 14px; padding: 18px; border: 1px solid rgba(var(--button-bg-rgb, 91, 75, 203), .2); border-radius: 8px; background: rgba(var(--button-bg-rgb, 91, 75, 203), .035); }
+.nobs-workroom-create h1 { margin: 3px 0; font-size: 20px; }
+.nobs-workroom-create p { margin: 0; color: rgba(var(--center-channel-color-rgb, 37, 41, 55), .62); font-size: 11px; }
+.nobs-workroom-create > div > span { color: var(--button-bg); font-size: 9px; font-weight: 800; letter-spacing: .07em; }
+.nobs-workroom-create label { display: grid; gap: 5px; margin: 0; }
+.nobs-workroom-create label strong { font-size: 11px; }
+.nobs-workroom-create label small { color: rgba(var(--center-channel-color-rgb, 37, 41, 55), .54); font-size: 9px; }
+.nobs-workroom-create input, .nobs-workroom-create textarea { width: 100%; resize: vertical; padding: 9px 10px; border: 1px solid rgba(var(--center-channel-color-rgb, 37, 41, 55), .17); border-radius: 4px; background: var(--center-channel-bg, #fff); color: inherit; font: inherit; font-size: 12px; }
+.nobs-workroom-create input:focus-visible, .nobs-workroom-create textarea:focus-visible { border-color: var(--button-bg); box-shadow: 0 0 0 2px rgba(var(--button-bg-rgb, 91, 75, 203), .1); outline: none; }
+.nobs-workrooms__list { display: grid; align-content: start; gap: 10px; }
+.nobs-workrooms__section-title { display: flex; align-items: end; justify-content: space-between; gap: 12px; }
+.nobs-workrooms__section-title > div { display: grid; }
+.nobs-workrooms__section-title strong { font-size: 14px; }
+.nobs-workrooms__section-title span, .nobs-workrooms__section-title em { color: rgba(var(--center-channel-color-rgb, 37, 41, 55), .54); font-size: 10px; font-style: normal; }
+.nobs-workroom-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.nobs-workroom-grid--prework { grid-template-columns: minmax(0, 1fr); }
+.nobs-workroom-card { display: grid; min-width: 0; align-content: start; gap: 11px; padding: 14px; border: 1px solid var(--nobs-workroom-line); border-radius: 8px; background: var(--center-channel-bg, #fff); }
+.nobs-workroom-card--planning { border-left: 3px solid var(--button-bg, #5d4dcc); }
+.nobs-workroom-card__top, .nobs-workroom-card footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.nobs-workroom-card__icon { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 7px; background: rgba(var(--button-bg-rgb, 91, 75, 203), .08); }
+.nobs-workroom-card__icon img { width: 21px; height: 21px; object-fit: contain; }
+.nobs-workroom-status { padding: 2px 7px; border-radius: 999px; font-size: 9px; font-weight: 700; }
+.nobs-workroom-status--planning { background: rgba(var(--button-bg-rgb, 91, 75, 203), .1); color: var(--button-bg, #5d4dcc); }
+.nobs-workroom-status--active { background: rgba(28, 88, 217, .1); color: #1c58d9; }
+.nobs-workroom-status--review { background: rgba(176, 113, 0, .11); color: #946000; }
+.nobs-workroom-status--complete { background: rgba(35, 137, 80, .1); color: #238950; }
+.nobs-workroom-card__copy { display: grid; gap: 3px; }
+.nobs-workroom-card__copy strong { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.nobs-workroom-card p { margin: 0; color: rgba(var(--center-channel-color-rgb, 37, 41, 55), .62); font-size: 10px; line-height: 1.45; }
+.nobs-workroom-card__activity { min-height: 42px; }
+.nobs-workroom-checks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 14px; padding: 10px; background: rgba(var(--center-channel-color-rgb, 37, 41, 55), .035); }
+.nobs-workroom-checks span { display: flex; align-items: center; gap: 5px; font-size: 10px; }
+.nobs-workroom-checks i { color: #238950; }
+.nobs-workroom-progress { height: 3px; overflow: hidden; border-radius: 3px; background: rgba(var(--center-channel-color-rgb, 37, 41, 55), .09); }
+.nobs-workroom-progress span { display: block; height: 100%; border-radius: inherit; background: var(--button-bg, #5d4dcc); }
+.nobs-workroom-card--complete .nobs-workroom-progress span { background: #238950; }
+.nobs-workroom-card footer > span { color: rgba(var(--center-channel-color-rgb, 37, 41, 55), .52); font-size: 9px; }
+.nobs-workroom-card footer button { display: inline-flex; align-items: center; gap: 3px; padding: 0; border: 0; background: transparent; color: var(--link-color, var(--button-bg)); font-size: 10px; font-weight: 600; cursor: pointer; }
+.nobs-workroom-card footer button:focus-visible { border-radius: 3px; box-shadow: 0 0 0 2px rgba(var(--button-bg-rgb, 91, 75, 203), .2); outline: none; }
+.nobs-workrooms__empty { display: grid; justify-items: center; gap: 5px; padding: 36px 18px; border: 1px dashed var(--nobs-workroom-line); border-radius: 8px; text-align: center; }
+.nobs-workrooms__empty img { width: 36px; height: 36px; }
+.nobs-workrooms__empty span { color: rgba(var(--center-channel-color-rgb, 37, 41, 55), .58); font-size: 10px; }
+.nobs-workrooms__error { padding: 8px 18px; background: rgba(210, 75, 78, .08); color: var(--error-text, #c4314b); font-size: 11px; }
+@media (max-width: 1100px) { .nobs-workroom-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .nobs-workroom-grid--prework { grid-template-columns: 1fr; } }
+@media (max-width: 760px) { .nobs-workroom-grid { grid-template-columns: 1fr; } .nobs-workrooms__header { min-height: 54px; padding: 0 12px; } .nobs-workrooms__header small, .nobs-workrooms__section-title em { display: none; } .nobs-workrooms__body { padding: 12px; } }

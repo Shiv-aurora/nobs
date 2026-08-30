@@ -288,6 +288,7 @@ def main() -> None:
     team = ensure_team(client)
     integration_records = [
         {"id": "atlas-agent", "name": "Atlas Agent", "title": "Project delegate"},
+        {"id": "master-agent", "name": "NoBS Master Agent", "title": "Project feasibility and orchestration"},
         {"id": "gemini-enterprise", "name": "Gemini Enterprise", "title": "Google conversational integration"},
         {"id": "gemini-code-assist", "name": "Gemini Code Assist", "title": "Coding agent adapter"},
         {"id": "github", "name": "GitHub", "title": "Source control evidence"},
@@ -322,6 +323,14 @@ def main() -> None:
         "Private evidence-backed coordination for the Atlas pre-meeting swarm.",
         "P",
     )
+    workroom_specs = [
+        ("agent-workroom-pricing-launch-faq", "Agent Workroom · Pricing launch FAQ", "Turn approved pricing and launch evidence into a customer-safe FAQ."),
+        ("agent-workroom-support-taxonomy", "Agent Workroom · Support taxonomy", "Consolidate support tags without breaking reporting history."),
+        ("agent-workroom-northstar-onboarding", "Agent Workroom · Northstar onboarding", "Prepare the Northstar onboarding pack and rollout checklist."),
+        ("agent-workroom-mobile-release-notes", "Agent Workroom · Mobile release notes", "Publish accurate mobile release notes from shipped changes."),
+    ]
+    for name, display, purpose in workroom_specs:
+        channels[name] = ensure_channel(client, team["id"], name, display, purpose, "P")
     for channel in channels.values():
         for user in users.values():
             ensure_channel_member(client, channel["id"], user["id"])
@@ -581,6 +590,48 @@ def main() -> None:
     ]
     for username, message, marker in workroom_posts:
         ensure_post(client, author_clients[username], channels["agent-workroom-atlas"]["id"], message, marker)
+
+    # Workrooms tell a complete product story: every project begins in Pre-work,
+    # where one master delegate validates requirements and dependencies, and
+    # only approved briefs move into Real work. These are native private-channel
+    # conversations, so the demo remains inspectable rather than dashboard-only.
+    project_workrooms = {
+        "agent-workroom-pricing-launch-faq": [
+            ("master-agent", "**Pre-work started.** Desired outcome: a customer-safe pricing launch FAQ that Support can use without asking Product for every answer.", "nobs-pricing-prework-start"),
+            ("master-agent", "I need three inputs before agents can execute: the approved packaging table, the public launch date boundary, and an owner for exceptions. I found the draft FAQ and current enablement deck.", "nobs-pricing-prework-inputs"),
+            ("maya", "Support needs answers for upgrades, annual-plan credits, and regional availability. Anything involving negotiated enterprise terms must route to the account owner.", "nobs-pricing-prework-support"),
+            ("priya", "The packaging table is approved. The date can be described as ‘rolling availability from September 8’; do not promise every region on day one.", "nobs-pricing-prework-product"),
+            ("gemini-enterprise", "Dependency check complete: 18 draft questions map to approved internal evidence. Two enterprise-discount answers are permission-restricted and will be excluded.", "nobs-pricing-prework-evidence"),
+            ("master-agent", "**Pre-work brief ready for approval.** Scope: 16 customer-safe answers, one support decision tree, and citations back to the approved launch sources. Maya owns customer language; Priya owns product accuracy. No code or external publishing is authorized.", "nobs-pricing-prework-ready"),
+        ],
+        "agent-workroom-support-taxonomy": [
+            ("master-agent", "Scope approved. Moving **Support taxonomy** into Real work with Maya's Agent, Analytics Agent, and Gemini Enterprise.", "nobs-taxonomy-real-start"),
+            ("maya", "The current 74 tags have 19 duplicates. Keep billing, authentication, and launch-readiness history comparable across the migration.", "nobs-taxonomy-requirements"),
+            ("gemini-enterprise", "I clustered 4,260 permission-approved ticket summaries into 31 stable intents and mapped every existing tag to a proposed destination.", "nobs-taxonomy-cluster"),
+            ("master-agent", "Validation found two ambiguous labels: ‘login failure’ versus ‘account access’, and ‘launch timing’ versus ‘availability’. Both change customer reporting and need Maya's judgment.", "nobs-taxonomy-boundary"),
+            ("maya", "Keep login failure separate because it has an engineering SLA. Merge launch timing into availability, but preserve the original tag in historical exports.", "nobs-taxonomy-review"),
+            ("master-agent", "Migration map is 82% complete. One human review remains: approve the final display names before the agents generate the reporting crosswalk.", "nobs-taxonomy-human-review"),
+        ],
+        "agent-workroom-northstar-onboarding": [
+            ("master-agent", "Northstar onboarding entered **Real work** after Priya approved the execution brief. Six agents are coordinating customer, product, security, and implementation context.", "nobs-northstar-real-start"),
+            ("maya", "Customer goals are clear: SSO validation on day one, finance export by day three, and an executive progress view before the first steering call.", "nobs-northstar-goals"),
+            ("alex", "Security can reuse the Atlas access-control evidence, but Northstar's data-retention addendum needs its own acknowledgment in the checklist.", "nobs-northstar-security"),
+            ("gemini-enterprise", "I assembled the onboarding packet from the signed order form, implementation notes, and approved security FAQ. Restricted commercial terms were omitted from the shared version.", "nobs-northstar-pack"),
+            ("priya", "The rollout order is right. Please change ‘production launch’ to ‘controlled enablement’ and make the rollback owner explicit before final review.", "nobs-northstar-product-review"),
+            ("master-agent", "Changes applied. The pack is in review with 11 of 12 checks complete; Maya's Agent is verifying the customer-facing timeline against the latest commitment.", "nobs-northstar-in-review"),
+        ],
+        "agent-workroom-mobile-release-notes": [
+            ("master-agent", "Mobile release notes began from an approved brief: summarize shipped user impact, verify every claim against GitHub, and produce internal and public versions.", "nobs-release-real-start"),
+            ("github", "I found 14 merged changes in the release window. Nine affect users, three are internal reliability work, and two are dependency-only updates.", "nobs-release-github"),
+            ("daniel", "AUTH-392 should be described as ‘more reliable sign-in recovery’. Do not expose refresh-token implementation details in the public notes.", "nobs-release-daniel"),
+            ("gemini-code-assist", "I compared issue labels, pull-request summaries, and the test report. Every public claim has a merged change and passing release evidence; no code was modified.", "nobs-release-code-review"),
+            ("maya", "Support reviewed the wording and added one known limitation for customers upgrading from versions older than 4.8.", "nobs-release-support"),
+            ("master-agent", "**Completed.** Internal and public release notes were verified, the support handoff was delivered, and all nine user-facing changes have evidence links.", "nobs-release-complete"),
+        ],
+    }
+    for channel_name, seeded_posts in project_workrooms.items():
+        for username, message, marker in seeded_posts:
+            ensure_post(client, author_clients[username], channels[channel_name]["id"], message, marker)
 
     # Maya's inbox demonstrates the four attention outcomes without synthetic
     # dashboards: direct human judgment, a time-saving delegate answer, a clean
