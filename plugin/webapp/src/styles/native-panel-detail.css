@@ -58,6 +58,9 @@
     text-decoration: underline;
 }
 
+.np-post-route-link.is-static { cursor: default; }
+.np-post-route-link.is-static:hover { color: rgba(var(--center-channel-color-rgb), .58); text-decoration: none; }
+
 .np-delegate-card__person {
     display: flex;
     align-items: center;

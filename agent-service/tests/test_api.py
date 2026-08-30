@@ -24,10 +24,16 @@ def test_calendar_lists_private_meetings_and_skips_social_preparation(client):
     assert [item["id"] for item in meetings] == [
         "meeting-atlas-engineering-sync",
         "meeting-northstar-escalation-review",
+        "meeting-support-taxonomy-signoff",
+        "meeting-relay-offline-recovery",
         "meeting-atlas-launch-readiness",
+        "meeting-pricing-faq-approval",
         "meeting-welcome-coffee",
+        "meeting-northstar-onboarding-readiness",
+        "meeting-mobile-release-notes-review",
+        "meeting-agent-operations-review",
     ]
-    assert meetings[-1]["preparation_status"] == "skipped"
+    assert next(item for item in meetings if item["id"] == "meeting-welcome-coffee")["preparation_status"] == "skipped"
     skipped = client.post("/v1/meetings/meeting-welcome-coffee/prepare", json={"actor_id": "maya", "trigger": "manual"})
     assert skipped.status_code == 409
 

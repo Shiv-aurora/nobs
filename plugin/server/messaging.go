@@ -20,6 +20,112 @@ type delegateTrigger struct {
 	RepresentedName   string
 }
 
+type seededDelegateReply struct {
+	representedUsername string
+	message             string
+	route               string
+	agentsConsulted     int
+	securityState       string
+}
+
+func seededDelegateReplyFor(scenario string) (seededDelegateReply, bool) {
+	replies := map[string]seededDelegateReply{
+		"daniel-ooo": {
+			representedUsername: "daniel",
+			message:             "AUTH-392 changes how iOS refresh tokens persist during the OAuth migration. The full mobile integration run is green, so the implementation is technically ready. The merge still waits on the scoped SEC-184 security decision and Daniel's final human merge verification when he returns.\n\nYou can keep Daniel offline; I will add any follow-up to his return digest.",
+			route:               "Daniel Agent → Atlas Agent → Engineering Agent",
+			agentsConsulted:     3,
+			securityState:       "allowed",
+		},
+		"sarah-policy-boundary": {
+			representedUsername: "sarah",
+			message:             "SEC-POL-12 requires an active Security Approver for a P0 launch. Sarah remains the primary authority; while she is OOO, Alex has explicit Atlas-only acting authority through the recorded delegation. Shivam can organize the meeting but cannot resolve the security decision.\n\nSarah was not interrupted.",
+			route:               "Sarah Agent → Security Policy Agent → Atlas Agent",
+			agentsConsulted:     3,
+			securityState:       "allowed",
+		},
+		"sarah-sensitive-refusal": {
+			representedUsername: "sarah",
+			message:             "I cannot retrieve or reveal Sarah's compensation. Salary is HR-restricted and is not made accessible by project membership, seniority questions, or delegate access. I recorded a policy-safe denial without retrieving the value.\n\nFor approval eligibility, use the explicit role and delegation record instead.",
+			route:               "Sarah Agent → Access Policy",
+			agentsConsulted:     2,
+			securityState:       "blocked",
+		},
+		"daniel-release-evidence": {
+			representedUsername: "daniel",
+			message:             "AUTH-392 is technically ready because 84 required checks passed, the upgrade cohort covered the last two production versions, and 2,416 canary sessions completed without a refresh-loop regression. The change remains unmerged by design.\n\nI used Daniel's approved project context and GitHub evidence; people interrupted: 0.",
+			route:               "Daniel Agent → GitHub → Engineering Agent",
+			agentsConsulted:     3,
+			securityState:       "allowed",
+		},
+		"daniel-human-merge": {
+			representedUsername: "daniel",
+			message:             "No. I can explain the evidence and preserve the handoff, but I cannot merge code or impersonate Daniel's human verification. After the security checkpoint resolves, Daniel must perform the final merge check. I added that item to his return digest.",
+			route:               "Daniel Agent → Human Authority Gate",
+			agentsConsulted:     2,
+			securityState:       "allowed",
+		},
+		"priya-multi-status": {
+			representedUsername: "priya",
+			message:             "Atlas is delayed only by SEC-184; engineering and customer-preparation work are complete. Alex owns the security decision under Sarah's active delegation. The next step is Alex's review of the six accepted evidence sources, followed—if approved—by Shivam's separate Calendar decision.\n\nThree delegates consulted; people interrupted: 0.",
+			route:               "Priya Agent → Atlas Agent → Security Policy Agent",
+			agentsConsulted:     3,
+			securityState:       "allowed",
+		},
+		"priya-calendar-owner": {
+			representedUsername: "priya",
+			message:             "Only Shivam, the meeting organizer, may approve shortening, canceling, or updating this Calendar event. That gate starts only after the business decision is resolved; Alex's security authority does not grant Calendar ownership, and Shivam's Calendar ownership does not grant security authority.",
+			route:               "Priya Agent → Meeting Policy",
+			agentsConsulted:     2,
+			securityState:       "allowed",
+		},
+		"alex-criteria": {
+			representedUsername: "alex",
+			message:             "Alex is reviewing five explicit criteria: scoped pilot cohort, named rollback owner, 1.5% rollback threshold, Friday 5 PM exception expiry, and no unresolved high-severity finding. The packet is complete: six current sources accepted and one untrusted vendor note quarantined.",
+			route:               "Alex Agent → Security Policy Agent → Evidence Validator",
+			agentsConsulted:     3,
+			securityState:       "allowed",
+		},
+		"alex-decision-boundary": {
+			representedUsername: "alex",
+			message:             "I will not approve the exception for Alex. A complete evidence packet does not transfer human risk authority to a personal agent. The persisted business checkpoint is waiting for Alex's explicit decision and rationale; no Calendar command has been created.",
+			route:               "Alex Agent → Business Authority Gate",
+			agentsConsulted:     2,
+			securityState:       "allowed",
+		},
+		"shivam-meeting-status": {
+			representedUsername: "shivam",
+			message:             "The Meeting Controller, Work Graph specialist, Policy Evidence specialist, Evidence Validator, and Resolution Agent have completed. Routine engineering and customer items are resolved. The mission is persisted at the Business Decision Gate, waiting for Alex; Calendar consent and execution have not started.",
+			route:               "Shivam Agent → Meeting Mission Controller",
+			agentsConsulted:     5,
+			securityState:       "allowed",
+		},
+		"shivam-calendar-boundary": {
+			representedUsername: "shivam",
+			message:             "Not yet. Shivam's organizer consent is required, but the Calendar Action Gate cannot start until Alex resolves the business checkpoint. After both approvals, only the isolated action executor can apply the bounded Calendar mutation with the current event version.",
+			route:               "Shivam Agent → Calendar Action Gate",
+			agentsConsulted:     2,
+			securityState:       "allowed",
+		},
+		"helen-privacy-boundary": {
+			representedUsername: "helen",
+			message:             "Project delegates may use work identity, role, availability, and explicitly permitted project evidence. Compensation, performance notes, and private HR cases are outside project scope. A denied request records the actor, policy class, and denial outcome—not the protected value.",
+			route:               "Helen Agent → People Access Policy",
+			agentsConsulted:     2,
+			securityState:       "allowed",
+		},
+		"helen-sensitive-refusal": {
+			representedUsername: "helen",
+			message:             "I cannot show Sarah's salary. The request is blocked before HR retrieval, so neither Helen's Agent nor a model receives the protected record. This conversation proves authorization enforcement, not unrestricted retrieval.",
+			route:               "Helen Agent → Access Policy",
+			agentsConsulted:     2,
+			securityState:       "blocked",
+		},
+	}
+	reply, ok := replies[scenario]
+	return reply, ok
+}
+
 func displayName(user *model.User) string {
 	name := strings.TrimSpace(strings.Join([]string{user.FirstName, user.LastName}, " "))
 	if name == "" {
@@ -197,7 +303,7 @@ func (p *Plugin) recentConversation(rootID, sourcePostID string) []map[string]an
 	return messages
 }
 
-func (p *Plugin) createDanielOOODemoReply(source *model.Post) {
+func (p *Plugin) createSeededDelegateDemoReply(source *model.Post, scenario string) {
 	if p.hasAgentReply(source.Id) || p.botUserID == "" {
 		return
 	}
@@ -205,37 +311,36 @@ func (p *Plugin) createDanielOOODemoReply(source *model.Post) {
 	if appErr != nil || channel == nil || p.ensureBotInChannel(channel) != nil {
 		return
 	}
-	daniel, userErr := p.API.GetUserByUsername("daniel")
-	if userErr != nil || daniel == nil {
-		p.API.LogWarn("NoBS could not resolve Daniel for the seeded OOO exchange")
+	reply, ok := seededDelegateReplyFor(scenario)
+	if !ok {
 		return
 	}
-	rootID := source.RootId
-	if rootID == "" {
-		rootID = source.Id
+	represented, userErr := p.API.GetUserByUsername(reply.representedUsername)
+	if userErr != nil || represented == nil {
+		p.API.LogWarn("NoBS could not resolve the represented user for a seeded delegate exchange", "scenario", scenario)
+		return
 	}
 	_, createErr := p.API.CreatePost(&model.Post{
 		UserId:    p.botUserID,
 		ChannelId: source.ChannelId,
-		RootId:    rootID,
-		Message:   "AUTH-392 changes how iOS refresh tokens persist during the OAuth migration. The full mobile integration run is green, so the implementation is technically ready. The merge still waits on the scoped SEC-184 security decision and Daniel's final human merge verification when he returns.\n\nYou can keep Daniel offline; I will add any follow-up to his return digest.",
+		Message:   reply.message,
 		Props: model.StringInterface{
 			"noping_agent":                 true,
 			"noping_state":                 "answered",
 			"noping_source_post_id":        source.Id,
-			"noping_represented_user_id":   daniel.Id,
-			"noping_represented_user_name": displayName(daniel),
+			"noping_represented_user_id":   represented.Id,
+			"noping_represented_user_name": displayName(represented),
 			"noping_agent_kind":            "personal",
-			"noping_route":                 "Daniel Agent → Atlas Agent → Engineering Agent",
-			"noping_agents_consulted":      3,
+			"noping_route":                 reply.route,
+			"noping_agents_consulted":      reply.agentsConsulted,
 			"noping_people_interrupted":    0,
 			"noping_delivery_mode":         "delegate",
-			"noping_security_state":        "allowed",
-			"noping_seed":                  "nobs-daniel-ooo-agent-reply",
+			"noping_security_state":        reply.securityState,
+			"noping_seed":                  "nobs-" + scenario + "-agent-reply",
 		},
 	})
 	if createErr != nil {
-		p.API.LogError("NoBS could not create seeded Daniel OOO reply", "source_post_id", source.Id, "error", createErr.Error())
+		p.API.LogError("NoBS could not create seeded delegate reply", "scenario", scenario, "source_post_id", source.Id, "error", createErr.Error())
 	}
 }
 

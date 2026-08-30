@@ -52,17 +52,18 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 	if post == nil || post.UserId == "" || post.Type != "" || post.UserId == p.botUserID {
 		return
 	}
-	// This one fixture-backed exchange makes the seeded OOO story repeatable
+	// Fixture-backed exchanges make the judge-visible DM stories repeatable
 	// without spending model budget whenever the demo workspace is rebuilt. The
-	// reply still uses the real audited bot identity, native thread, and stable
-	// delegate metadata used by live agent replies.
-	if seededDelegateDemo(post) == "daniel-ooo" {
+	// replies still use the real audited bot identity and delegate metadata used
+	// by live agent replies.
+	scenario := seededDelegateDemo(post)
+	if _, ok := seededDelegateReplyFor(scenario); ok {
 		if _, loaded := p.activeSources.LoadOrStore(post.Id, struct{}{}); loaded {
 			return
 		}
 		go func() {
 			defer p.activeSources.Delete(post.Id)
-			p.createDanielOOODemoReply(post)
+			p.createSeededDelegateDemoReply(post, scenario)
 		}()
 		return
 	}

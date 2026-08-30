@@ -58,7 +58,7 @@ A second proof ran through the deployed Mattermost UI and private Cloud Run gate
 
 ## Validation
 
-`./scripts/check.sh` passes: 92 agent-runtime tests, 8 budget-guard tests, 7 action-executor tests, all Go packages, strict TypeScript, Python compilation, shell/static checks, credential scan, and Git whitespace. Terraform 1.x with Google provider 8.0.0 validates successfully.
+`./scripts/check.sh` passes: 95 agent-runtime tests, 8 budget-guard tests, 7 action-executor tests, all Go packages, strict TypeScript, Python compilation, shell/static checks, credential scan, and Git whitespace. Terraform 1.x with Google provider 8.0.0 validates successfully.
 
 ## Deployment progress
 

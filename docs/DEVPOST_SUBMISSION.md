@@ -54,7 +54,7 @@ The useful enterprise-agent boundary is neither “one chatbot” nor “one ser
 
 ## Measured proof
 
-The source gate passes 92 agent-runtime, 8 budget-guard, and 7 executor tests plus Go, strict TypeScript, compilation, static validation, credential scanning, and Terraform validation. A real Vertex mission used four `gemini-3.5-flash` ADK calls with native Agent Registry discovery and Agent Engine Sessions. The two specialist calls overlapped (7,416.848 ms and 6,007.249 ms); no timings or conclusions came from a fixture execution transcript.
+The source gate passes 95 agent-runtime, 8 budget-guard, and 7 executor tests plus Go, strict TypeScript, compilation, static validation, credential scanning, and Terraform validation. A real Vertex mission used four `gemini-3.5-flash` ADK calls with native Agent Registry discovery and Agent Engine Sessions. The two specialist calls overlapped (7,416.848 ms and 6,007.249 ms); no timings or conclusions came from a fixture execution transcript.
 
 ## Open source
 

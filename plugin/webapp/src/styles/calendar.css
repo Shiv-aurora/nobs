@@ -70,6 +70,7 @@
 .nobs-meeting-row small { color: var(--nobs-muted); font-size: 10px; line-height: 15px; }
 .nobs-status { grid-column: 2; width: max-content; margin-top: 4px; color: var(--nobs-muted); font-size: 9px; font-style: normal; font-weight: 600; text-transform: capitalize; }
 .nobs-status--completed { color: #176c3d; }
+.nobs-status--review { color: #765500; }
 .nobs-status--skipped { color: var(--nobs-muted); }
 .nobs-status--running { color: #08758a; }
 

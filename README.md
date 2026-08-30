@@ -64,7 +64,7 @@ docs/                           architecture, security, data, evaluation, deploy
 ./scripts/check.sh
 ```
 
-Verified result: **92** agent-runtime tests, **8** budget-guard tests, **7** executor tests, all Go packages, strict TypeScript, Python compilation, shell/static validation, credential scan, and Git whitespace passed. Terraform with Google provider 8.0.0 also validates. Details: [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md).
+Verified result: **95** agent-runtime tests, **8** budget-guard tests, **7** executor tests, all Go packages, strict TypeScript, Python compilation, shell/static validation, credential scan, and Git whitespace passed. Terraform with Google provider 8.0.0 also validates. Details: [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md).
 
 ## Local stack
 

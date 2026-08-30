@@ -20,6 +20,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKSPACE = json.loads((ROOT / "seed" / "demo_workspace.json").read_text())
+STORYLINES = json.loads((ROOT / "seed" / "judge_storylines.json").read_text())
 BASE_URL = os.getenv("MATTERMOST_URL", os.getenv("MATTERMOST_SITE_URL", "http://localhost:8065")).rstrip("/")
 ADMIN_USERNAME = os.getenv("MATTERMOST_ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.getenv("MATTERMOST_ADMIN_PASSWORD", "")
@@ -35,14 +36,22 @@ class Mattermost:
     base_url: str
     token: str = ""
 
-    def request(self, method: str, path: str, payload: Any | None = None, *, expected: tuple[int, ...] = (200, 201)) -> Any:
+    def request(
+        self,
+        method: str,
+        path: str,
+        payload: Any | None = None,
+        *,
+        expected: tuple[int, ...] = (200, 201),
+        timeout_seconds: int = 20,
+    ) -> Any:
         body = None if payload is None else json.dumps(payload).encode()
         headers = {"Content-Type": "application/json"}
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
         request = urllib.request.Request(self.base_url + path, data=body, method=method, headers=headers)
         try:
-            with urllib.request.urlopen(request, timeout=20) as response:
+            with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
                 if response.status not in expected:
                     raise RuntimeError(f"{method} {path} returned {response.status}")
                 data = response.read()
@@ -260,6 +269,73 @@ def ensure_delegate_demo_post(admin_client: Mattermost, author_client: Mattermos
     })
 
 
+def wait_for_seeded_agent_reply(client: Mattermost, channel_id: str, source_post_id: str) -> dict[str, Any]:
+    """Keep DM seed ordering stable while the plugin authors its audited reply."""
+    for _ in range(50):
+        reply = next((
+            item for item in channel_posts(client, channel_id)
+            if item.get("props", {}).get("noping_source_post_id") == source_post_id
+        ), None)
+        if reply:
+            return reply
+        time.sleep(0.2)
+    raise RuntimeError(f"NoBS did not create the seeded delegate reply for source {source_post_id}")
+
+
+def seed_judge_storylines(
+    admin_client: Mattermost,
+    author_clients: dict[str, Mattermost],
+    users: dict[str, dict[str, Any]],
+    channels: dict[str, dict[str, Any]],
+) -> None:
+    """Seed the visible judge journey across every channel, workroom, and DM."""
+    for section in ("channel_updates", "workroom_updates"):
+        for channel_name, updates in STORYLINES[section].items():
+            channel = channels[channel_name]
+            for update in updates:
+                ensure_post(
+                    admin_client,
+                    author_clients[update["author"]],
+                    channel["id"],
+                    update["message"],
+                    update["marker"],
+                )
+
+    maya_id = users["maya"]["id"]
+    for teammate, exchange in STORYLINES["dm_exchanges"].items():
+        direct = ensure_direct_channel(author_clients["maya"], maya_id, users[teammate]["id"])
+        for update in exchange:
+            scenario = update.get("delegate_scenario")
+            if scenario:
+                source = ensure_delegate_demo_post(
+                    admin_client,
+                    author_clients[update["author"]],
+                    direct["id"],
+                    update["message"],
+                    scenario,
+                )
+                wait_for_seeded_agent_reply(admin_client, direct["id"], source["id"])
+                continue
+            ensure_post(
+                admin_client,
+                author_clients[update["author"]],
+                direct["id"],
+                update["message"],
+                update["marker"],
+            )
+
+
+def prepare_judge_meetings(client: Mattermost) -> None:
+    """Run authentic, persisted meeting missions so Calendar opens with proof."""
+    for meeting_id in STORYLINES["prepared_meeting_ids"]:
+        client.request(
+            "POST",
+            f"/plugins/com.noping.enterprise/api/v1/meetings/{urllib.parse.quote(meeting_id)}/prepare",
+            {"trigger": "scheduled"},
+            timeout_seconds=150,
+        )
+
+
 def ensure_thread(
     admin_client: Mattermost,
     author_clients: dict[str, Mattermost],
@@ -309,6 +385,7 @@ def main() -> None:
         ("town-square", "Town Square", "Company priorities, decisions, and cross-team updates."),
         ("off-topic", "Off-Topic", "The human side of the Acme Systems team."),
         ("project-atlas", "Project Atlas", "Launch status, delivery work, and decisions for Atlas."),
+        ("project-relay", "Project Relay", "Offline-safe mobile handoff, recovery validation, and rollout work."),
         ("security-review", "Security Review", "Security policy, review evidence, and exception handling."),
         ("engineering", "Engineering", "Implementation and reliability work."),
         ("customer-escalations", "Customer Escalations", "High-value customer commitments and support context."),
@@ -681,6 +758,8 @@ def main() -> None:
         "What changed in AUTH-392, and is anything still blocking the merge?",
         "daniel-ooo",
     )
+    seed_judge_storylines(client, author_clients, users, channels)
+    prepare_judge_meetings(author_clients["maya"])
     # Seeder login sessions briefly mark every fixture account online. Restore
     # Daniel's truthful native state after authoring the OOO exchange so no
     # green available check contradicts the OOO badge.

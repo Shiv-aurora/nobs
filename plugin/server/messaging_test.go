@@ -44,3 +44,30 @@ func TestSeededDelegateDemo(t *testing.T) {
 		t.Fatalf("empty props returned %q", got)
 	}
 }
+
+func TestSeededDelegateRepliesCoverEveryJudgeDM(t *testing.T) {
+	scenarios := []string{
+		"daniel-ooo",
+		"sarah-policy-boundary", "sarah-sensitive-refusal",
+		"daniel-release-evidence", "daniel-human-merge",
+		"priya-multi-status", "priya-calendar-owner",
+		"alex-criteria", "alex-decision-boundary",
+		"shivam-meeting-status", "shivam-calendar-boundary",
+		"helen-privacy-boundary", "helen-sensitive-refusal",
+	}
+	for _, scenario := range scenarios {
+		reply, ok := seededDelegateReplyFor(scenario)
+		if !ok {
+			t.Fatalf("missing seeded reply for %q", scenario)
+		}
+		if reply.representedUsername == "" || reply.message == "" || reply.route == "" || reply.agentsConsulted < 2 {
+			t.Fatalf("incomplete seeded reply for %q: %#v", scenario, reply)
+		}
+		if reply.securityState != "allowed" && reply.securityState != "blocked" {
+			t.Fatalf("invalid security state for %q: %q", scenario, reply.securityState)
+		}
+	}
+	if _, ok := seededDelegateReplyFor("unknown-scenario"); ok {
+		t.Fatal("unknown scenario unexpectedly resolved")
+	}
+}

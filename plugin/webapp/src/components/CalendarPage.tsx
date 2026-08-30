@@ -28,6 +28,24 @@ function durationLabel(meeting: Meeting): string {
     return `${minutes} min`;
 }
 
+function preparationPresentation(meeting: Meeting): {label: string; tone: string} {
+    if (
+        meeting.id === 'meeting-atlas-launch-readiness' &&
+        meeting.prep_run_id &&
+        meeting.pending_action === 'none' &&
+        meeting.approved_recommendation === 'none'
+    ) {
+        return {label: 'In review · Alex', tone: 'review'};
+    }
+    if (meeting.preparation_status === 'not_started') {
+        return {label: 'Ready to prepare', tone: 'not_started'};
+    }
+    if (meeting.preparation_status === 'completed') {
+        return {label: 'Agent prepared', tone: 'completed'};
+    }
+    return {label: readable(meeting.preparation_status), tone: meeting.preparation_status};
+}
+
 function meetingPath(): string {
     const teamName = window.location.pathname.split('/').filter(Boolean)[0] || 'acme';
     return `/${teamName}/nobs/calendar`;
@@ -177,7 +195,9 @@ export function CalendarPage(): JSX.Element {
     const refreshList = async (keepSelection = true) => {
         const next = await api.meetings();
         setMeetings(next);
-        const candidate = keepSelection && selectedID ? selectedID : next.find((item) => item.preparation_eligibility === 'eligible')?.id || next[0]?.id || '';
+        const featured = next.find((item) => item.id === 'meeting-atlas-launch-readiness' && item.prep_run_id)?.id;
+        const prepared = next.find((item) => item.preparation_eligibility === 'eligible' && item.prep_run_id)?.id;
+        const candidate = keepSelection && selectedID ? selectedID : featured || prepared || next.find((item) => item.preparation_eligibility === 'eligible')?.id || next[0]?.id || '';
         setSelectedID(candidate);
         return candidate;
     };
@@ -356,7 +376,7 @@ export function CalendarPage(): JSX.Element {
                     {items.map((meeting) => <button type='button' key={meeting.id} className={`nobs-meeting-row ${selectedID === meeting.id ? 'is-active' : ''}`} onClick={() => void selectMeeting(meeting.id)}>
                         <time>{timeLabel(meeting.start_at)}</time>
                         <span><strong>{meeting.title}</strong><small>{durationLabel(meeting)} · {meeting.attendees.length} attendees</small></span>
-                        <em className={`nobs-status nobs-status--${meeting.preparation_status}`}>{meeting.preparation_status === 'not_started' ? 'Ready to prepare' : meeting.preparation_status}</em>
+                        <em className={`nobs-status nobs-status--${preparationPresentation(meeting).tone}`}>{preparationPresentation(meeting).label}</em>
                     </button>)}
                 </section>)}
             </aside>

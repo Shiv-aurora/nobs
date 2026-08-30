@@ -6,7 +6,7 @@ Verified 2026-08-30 from the tracked source.
 
 | Suite | Command | Result |
 |---|---|---|
-| governed agent runtime | `python -m pytest agent-service/tests` | **92 passed** |
+| governed agent runtime | `python -m pytest agent-service/tests` | **95 passed** |
 | budget guard | `(cd deploy/gcp/budget-guard && python -m pytest tests)` | **8 passed** |
 | action executor | `(cd executor-service && python -m pytest tests)` | **7 passed** |
 | Go plugin/runtime | `(cd plugin && go test ./...)` | **all packages passed** |
@@ -36,6 +36,7 @@ Verified 2026-08-30 from the tracked source.
 | controller routing authority | model output cannot select executable identities or omit agenda coverage; runtime routes every agenda item to the two approved specialists |
 | bounded specialist output | structured schema caps claims/findings/unknowns and fits the existing 2,400-token mission reservation |
 | API error boundary | raw model validation output is not returned to the browser |
+| judge seed quality | every public channel, workroom, and teammate DM has a substantial, versioned storyline; ten meetings exist and three authentic mission runs are prepared during idempotent seeding |
 
 ## Live Google proof
 
