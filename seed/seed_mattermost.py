@@ -13,6 +13,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -72,6 +73,32 @@ class Mattermost:
             if exc.code == 404:
                 return None
             raise
+
+    def upload_user_image(self, user_id: str, image_path: Path) -> None:
+        """Upload a real profile photo through Mattermost's native image API."""
+        boundary = f"----NoBSAvatar{uuid.uuid4().hex}"
+        image = image_path.read_bytes()
+        body = (
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="image"; filename="{image_path.name}"\r\n'
+            "Content-Type: image/jpeg\r\n\r\n"
+        ).encode() + image + f"\r\n--{boundary}--\r\n".encode()
+        request = urllib.request.Request(
+            self.base_url + f"/api/v4/users/{user_id}/image",
+            data=body,
+            method="POST",
+            headers={
+                "Authorization": f"Bearer {self.token}",
+                "Content-Type": f"multipart/form-data; boundary={boundary}",
+            },
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                if response.status not in (200, 201):
+                    raise RuntimeError(f"avatar upload returned {response.status}")
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode(errors="replace")
+            raise RuntimeError(f"avatar upload for {image_path.name} returned {exc.code}: {detail}") from exc
 
 
 def wait_for_api() -> None:
@@ -156,6 +183,10 @@ def ensure_direct_channel(client: Mattermost, first_user_id: str, second_user_id
     return client.request("POST", "/api/v4/channels/direct", [first_user_id, second_user_id])
 
 
+def set_native_presence(client: Mattermost, user_id: str, status: str) -> None:
+    client.request("PUT", f"/api/v4/users/{user_id}/status", {"user_id": user_id, "status": status})
+
+
 def ensure_noping_theme(client: Mattermost, user_id: str, team_id: str) -> None:
     """Apply NoBS color tokens through Mattermost's native theme preference."""
     theme = {
@@ -212,6 +243,44 @@ def ensure_post(admin_client: Mattermost, author_client: Mattermost, channel_id:
     })
 
 
+def ensure_delegate_demo_post(admin_client: Mattermost, author_client: Mattermost, channel_id: str, message: str, scenario: str) -> dict[str, Any]:
+    existing = next((
+        item for item in channel_posts(admin_client, channel_id)
+        if item.get("props", {}).get("nobs_seed_delegate_demo") == scenario
+    ), None)
+    if existing:
+        return existing
+    return author_client.request("POST", "/api/v4/posts", {
+        "channel_id": channel_id,
+        "message": message,
+        "props": {
+            "noping_seed": f"nobs-{scenario}-question",
+            "nobs_seed_delegate_demo": scenario,
+        },
+    })
+
+
+def ensure_thread(
+    admin_client: Mattermost,
+    author_clients: dict[str, Mattermost],
+    channel_id: str,
+    root_author: str,
+    root_message: str,
+    marker: str,
+    replies: list[tuple[str, str]],
+) -> None:
+    root = ensure_post(admin_client, author_clients[root_author], channel_id, root_message, marker)
+    for index, (reply_author, reply_message) in enumerate(replies, 1):
+        ensure_post(
+            admin_client,
+            author_clients[reply_author],
+            channel_id,
+            reply_message,
+            f"{marker}-reply-{index}",
+            root["id"],
+        )
+
+
 def main() -> None:
     wait_for_api()
     client = Mattermost(BASE_URL)
@@ -225,6 +294,10 @@ def main() -> None:
     ]
     user_records = [*WORKSPACE["users"], *integration_records]
     users = {record["id"]: ensure_user(client, record) for record in user_records}
+    for record in WORKSPACE["users"]:
+        avatar_file = record.get("avatar_file")
+        if avatar_file:
+            client.upload_user_image(users[record["id"]]["id"], ROOT / "seed" / "assets" / avatar_file)
     admin = client.maybe_get(f"/api/v4/users/username/{ADMIN_USERNAME}")
     if admin:
         ensure_team_member(client, team["id"], admin["id"])
@@ -232,6 +305,8 @@ def main() -> None:
         ensure_team_member(client, team["id"], user["id"])
 
     channel_specs = [
+        ("town-square", "Town Square", "Company priorities, decisions, and cross-team updates."),
+        ("off-topic", "Off-Topic", "The human side of the Acme Systems team."),
         ("project-atlas", "Project Atlas", "Launch status, delivery work, and decisions for Atlas."),
         ("security-review", "Security Review", "Security policy, review evidence, and exception handling."),
         ("engineering", "Engineering", "Implementation and reliability work."),
@@ -269,6 +344,178 @@ def main() -> None:
     ]
     for channel_name, username, message, marker in posts:
         ensure_post(client, author_clients[username], channels[channel_name]["id"], message, marker)
+
+    workspace_threads = {
+        "engineering": [
+            (
+                "shivam",
+                "For the auth rollout, I want the migration path boring and reversible. Please keep the new token store behind the existing flag until we have a full business day of clean refresh metrics.",
+                "nobs-engineering-rollout",
+                [
+                    ("daniel", "That matches the implementation. The flag is evaluated before any token mutation, so rollback returns clients to the old store without another app release."),
+                    ("alex", "Can we separate rollback telemetry from authentication-failure telemetry? Security needs to tell an intentional fallback from a broken refresh."),
+                    ("daniel", "Yes. I added `migration_fallback` as a distinct reason code and removed the account identifier from the event payload."),
+                    ("shivam", "Good. Please add the dashboard link to AUTH-392 and name Daniel as the first-hour owner."),
+                    ("daniel", "Done. Alert thresholds are 0.8% refresh failure for warning and 1.5% for automatic rollback review."),
+                ],
+            ),
+            (
+                "daniel",
+                "The mobile integration suite is green again: 84 required checks, 0 failures, and the two flaky push tests stayed stable across three reruns. I have not merged the change.",
+                "nobs-engineering-ci",
+                [
+                    ("shivam", "Thanks for keeping merge separate from test success. Did the suite include upgrade-from-previous-version, or only clean installs?"),
+                    ("daniel", "Both. The upgrade cohort covered 1,200 synthetic accounts from the last two production versions."),
+                    ("priya", "That closes the engineering portion of launch readiness for me. I’ll keep the item visible until the review is approved, but it no longer needs meeting time."),
+                    ("shivam", "Agreed. Record it as technically ready, pending human merge verification after the security decision."),
+                ],
+            ),
+            (
+                "shivam",
+                "Small process change for this week: if a release check is red, post the failing assertion and owner—not a screenshot of the whole pipeline. We lost too much time reconstructing context yesterday.",
+                "nobs-engineering-release-hygiene",
+                [
+                    ("daniel", "I updated the release template with failure, suspected surface, last known good run, and owner fields."),
+                    ("alex", "Please add whether the artifact contains customer data. That determines who can open the linked logs."),
+                    ("shivam", "Added. NoBS can summarize the safe fields, but restricted logs should remain behind their original permissions."),
+                ],
+            ),
+        ],
+        "security-review": [
+            (
+                "alex",
+                "SEC-184 review scope is now frozen: legacy iOS refresh migration, rollback behavior, and session revocation. Any new launch surface becomes a separate exception rather than expanding this one silently.",
+                "nobs-security-scope",
+                [
+                    ("sarah", "Correct. The temporary authority I delegated covers that exact scope only; it does not cover Android, admin sessions, or a broader policy waiver."),
+                    ("daniel", "Engineering confirms no Android code changed. The PR diff is limited to the iOS token persistence layer and telemetry."),
+                    ("alex", "I linked the scoped diff and the clean canary report. The open item is the penetration-test finding on forced logout."),
+                    ("shivam", "If that finding remains medium severity with compensating controls, what exact judgment do you need from the acting approver?"),
+                    ("alex", "Whether the customer value justifies a 24-hour monitored exception. The agent can prepare evidence, but it cannot make that risk acceptance."),
+                ],
+            ),
+            (
+                "sarah",
+                "Before I go offline: do not treat my OOO status as approval-by-absence. Alex has explicit, time-bounded authority and should get one complete packet rather than five fragmented pings.",
+                "nobs-security-ooo-boundary",
+                [
+                    ("alex", "Acknowledged. I have the policy clause, rollback owner, affected surface, customer impact, and expiry time in one handoff."),
+                    ("priya", "I also removed two routine status items from the meeting, so your decision is the only live agenda item."),
+                    ("sarah", "Perfect. My delegate can answer why the control exists and what evidence is current, but it should route the final exception to Alex."),
+                    ("maya", "That is clear enough for the customer team: no promise until Alex records the decision."),
+                ],
+            ),
+            (
+                "helen",
+                "Reminder for delegate testing: employee compensation, performance notes, and private HR cases are not discoverable project context. A project membership must never widen access to those records.",
+                "nobs-security-people-boundary",
+                [
+                    ("alex", "The salary test now stops at policy classification before retrieval. The audit event records the denied intent without storing the requested value."),
+                    ("sarah", "Good. Please keep that regression test separate from prompt-injection tests; they enforce different boundaries."),
+                    ("helen", "Exactly. One is authorization, the other is untrusted-content handling. Both should fail closed."),
+                ],
+            ),
+        ],
+        "customer-escalations": [
+            (
+                "maya",
+                "Northstar escalation summary: procurement can hold the signature through Friday noon, their admins need 24 hours of notice, and the $200K expansion is contingent on controlled availability—not a blanket security waiver.",
+                "nobs-customer-northstar",
+                [
+                    ("priya", "That gives us room to preserve the gate. I’ll move the proposed rollout to Friday afternoon if the decision lands by noon."),
+                    ("alex", "Please avoid saying ‘security cleared’ in the draft. If approved, this is a scoped, monitored exception with an expiry."),
+                    ("maya", "Updated. The customer copy now says ‘approved for the defined pilot cohort’ and links the operational conditions."),
+                    ("daniel", "I can support that cohort. The flag lets us cap it at 5% and exclude accounts still on the legacy admin flow."),
+                    ("maya", "Great. I’ll confirm the named pilot accounts and keep broad availability out of the conversation."),
+                ],
+            ),
+            (
+                "maya",
+                "Three overnight tickets looked like Atlas regressions but were actually stale SAML metadata. I grouped them under CS-771 so engineering does not chase three separate false alarms.",
+                "nobs-customer-ticket-triage",
+                [
+                    ("daniel", "Thank you. I checked the client traces and none entered the new refresh-token path."),
+                    ("shivam", "Can support add a metadata-age check to the intake template? That would make this classification deterministic."),
+                    ("maya", "Yes. I added last metadata refresh, IdP vendor, and whether the failure reproduces after a refresh."),
+                    ("priya", "Please share the pattern in Town Square after the launch. It is useful beyond Atlas, but it does not need more launch-channel noise today."),
+                ],
+            ),
+        ],
+        "launch-decisions": [
+            (
+                "priya",
+                "Decision frame for Atlas: we are not choosing between revenue and security. We are deciding whether a narrowly scoped, monitored pilot has enough evidence to justify a 24-hour exception.",
+                "nobs-launch-decision-frame",
+                [
+                    ("maya", "Customer consequence of waiting one week is a delayed procurement review, not a lost contract. I corrected the urgency in the brief."),
+                    ("daniel", "Engineering consequence of proceeding is one first-hour owner and an immediate rollback if refresh failures cross 1.5%."),
+                    ("alex", "Security consequence is accepting the forced-logout finding for the pilot cohort until the penetration-test retest completes."),
+                    ("shivam", "This is the right packet. Evidence is complete; the remaining step is Alex’s explicit judgment and rationale."),
+                    ("priya", "I’ll keep the meeting at 15 minutes and cancel it entirely if Alex records the decision asynchronously."),
+                ],
+            ),
+            (
+                "alex",
+                "My approval criteria are now explicit: scoped cohort, named rollback owner, alert threshold, exception expiry, and no unresolved high-severity finding. Missing any one of those means no launch.",
+                "nobs-launch-criteria",
+                [
+                    ("daniel", "Cohort and rollback evidence are linked. Expiry is Friday at 5 PM Eastern."),
+                    ("maya", "Customer notice describes the monitored pilot and does not imply general availability."),
+                    ("priya", "NoBS should surface this as one authority card, not a chat poll. The decision and rationale need to become reusable memory."),
+                    ("alex", "Agreed. If I approve, the memory scope must remain Atlas pilot launch—not future P0 exceptions."),
+                ],
+            ),
+        ],
+        "town-square": [
+            (
+                "shivam",
+                "This week’s company priority is reducing coordination drag around Atlas. Keep decisions in their owning channels, link evidence once, and use `--direct` only when you genuinely need the person rather than their context.",
+                "nobs-town-square-priority",
+                [
+                    ("priya", "Product will publish one owner map each morning instead of running a broad status meeting."),
+                    ("maya", "Support will group duplicate customer reports before involving engineering. That already removed three unnecessary pings overnight."),
+                    ("sarah", "Security will state the authority boundary on every exception so delegates know what they may explain and what a human must decide."),
+                    ("shivam", "Exactly. The goal is not fewer conversations; it is fewer context-reconstruction loops."),
+                ],
+            ),
+            (
+                "helen",
+                "A practical reminder as we test personal delegates: write updates as if another teammate may need to understand the decision next week. Clear scope and evidence help humans and agents equally.",
+                "nobs-town-square-writing",
+                [
+                    ("alex", "The security team is adopting decision, evidence, owner, and expiry as the minimum exception format."),
+                    ("daniel", "Engineering added last known good run and rollback owner to release updates."),
+                    ("maya", "Support added customer impact and next promised touchpoint to escalation notes."),
+                    ("helen", "That is the behavior we want: useful shared context without turning every message into a formal document."),
+                ],
+            ),
+        ],
+        "off-topic": [
+            (
+                "maya",
+                "Tiny win from the overnight shift: I finally found a coffee shop that opens before 6 AM and does not play conference-call-volume music. Happy to share the location with the early crew.",
+                "nobs-off-topic-coffee",
+                [
+                    ("daniel", "Please do. The mobile release has converted me into the early crew against my will."),
+                    ("priya", "Add it to Friday’s optional coffee walk after launch readiness. Optional is doing important work in that sentence."),
+                    ("maya", "Deal. No agenda, no swarm, and absolutely no launch decisions over pastries."),
+                ],
+            ),
+            (
+                "alex",
+                "I’m doing a 20-minute walk at 3:30 if anyone wants a screen break. The route has no hills and, more importantly, no security exceptions.",
+                "nobs-off-topic-walk",
+                [
+                    ("sarah", "Joining remotely in spirit from my OOO hammock."),
+                    ("shivam", "I’m in. If I mention AUTH-392, someone has permission to turn me around."),
+                    ("priya", "Accepted. I’ll bring the launch plan and leave it unopened."),
+                ],
+            ),
+        ],
+    }
+    for channel_name, threads in workspace_threads.items():
+        for root_author, root_message, marker, replies in threads:
+            ensure_thread(client, author_clients, channels[channel_name]["id"], root_author, root_message, marker, replies)
 
     # The main launch channel should read like an active senior team, not a
     # prompt gallery. These native threads mix delivery updates, disagreement,
@@ -310,16 +557,7 @@ def main() -> None:
     ]
     atlas_channel_id = channels["project-atlas"]["id"]
     for root_author, root_message, root_marker, replies in atlas_threads:
-        root = ensure_post(client, author_clients[root_author], atlas_channel_id, root_message, root_marker)
-        for index, (reply_author, reply_message) in enumerate(replies, 1):
-            ensure_post(
-                client,
-                author_clients[reply_author],
-                atlas_channel_id,
-                reply_message,
-                f"{root_marker}-reply-{index}",
-                root["id"],
-            )
+        ensure_thread(client, author_clients, atlas_channel_id, root_author, root_message, root_marker, replies)
 
     atlas_updates = [
         ("sarah", "OOO handoff is active through 6 PM Eastern. Alex has scoped authority for Atlas exceptions; my delegate can still answer policy and evidence questions while I’m away.", "nobs-atlas-ooo-handoff"),
@@ -373,6 +611,29 @@ def main() -> None:
     for username, message, marker in direct_examples:
         direct = ensure_direct_channel(author_clients[username], users[username]["id"], maya_id)
         ensure_post(client, author_clients[username], direct["id"], message, marker)
+
+    # Daniel's DM is the concrete OOO demo: Daniel leaves one clear handoff,
+    # Maya writes normally, and the audited NoBS bot answers as Daniel's Agent
+    # without interrupting Daniel or consuming model budget during reseeding.
+    daniel_direct = ensure_direct_channel(author_clients["maya"], maya_id, users["daniel"]["id"])
+    ensure_post(
+        client,
+        author_clients["daniel"],
+        daniel_direct["id"],
+        "**OOO through Wednesday morning**\n\nI'm fully offline, but my agent has my current Atlas and AUTH-392 context. Ask here normally and it can cover routine questions without pulling me back in. Use `--direct` only if you genuinely need my judgment.",
+        "nobs-daniel-ooo-handoff",
+    )
+    ensure_delegate_demo_post(
+        client,
+        author_clients["maya"],
+        daniel_direct["id"],
+        "What changed in AUTH-392, and is anything still blocking the merge?",
+        "daniel-ooo",
+    )
+    # Seeder login sessions briefly mark every fixture account online. Restore
+    # Daniel's truthful native state after authoring the OOO exchange so no
+    # green available check contradicts the OOO badge.
+    set_native_presence(author_clients["daniel"], users["daniel"]["id"], "offline")
 
     print(json.dumps({
         "mattermost_url": BASE_URL,

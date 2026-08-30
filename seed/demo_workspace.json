@@ -13,7 +13,8 @@
       "roles": ["employee", "engineer", "engineering_lead", "meeting_organizer"],
       "project_ids": ["atlas"],
       "availability": {"status": "available", "until": null, "delegate_user_id": null},
-      "avatar": "SA"
+      "avatar": "SA",
+      "avatar_file": "avatars/shivam.jpg"
     },
     {
       "id": "maya",
@@ -23,7 +24,8 @@
       "roles": ["employee", "support"],
       "project_ids": ["atlas"],
       "availability": {"status": "available", "until": null, "delegate_user_id": null},
-      "avatar": "MP"
+      "avatar": "MP",
+      "avatar_file": "avatars/maya.jpg"
     },
     {
       "id": "sarah",
@@ -37,7 +39,8 @@
         "until": "2026-08-28T09:00:00-04:00",
         "delegate_user_id": "alex"
       },
-      "avatar": "SC"
+      "avatar": "SC",
+      "avatar_file": "avatars/sarah.jpg"
     },
     {
       "id": "alex",
@@ -47,7 +50,8 @@
       "roles": ["employee", "security_engineer", "acting_security_approver"],
       "project_ids": ["atlas"],
       "availability": {"status": "available", "until": null, "delegate_user_id": null},
-      "avatar": "AM"
+      "avatar": "AM",
+      "avatar_file": "avatars/alex.jpg"
     },
     {
       "id": "daniel",
@@ -56,8 +60,9 @@
       "team_ids": ["engineering"],
       "roles": ["employee", "engineer"],
       "project_ids": ["atlas"],
-      "availability": {"status": "focus", "until": "2026-08-27T17:00:00-04:00", "delegate_user_id": null},
-      "avatar": "DK"
+      "availability": {"status": "out_of_office", "until": "2026-09-02T09:00:00-04:00", "delegate_user_id": "shivam"},
+      "avatar": "DK",
+      "avatar_file": "avatars/daniel.jpg"
     },
     {
       "id": "priya",
@@ -67,7 +72,8 @@
       "roles": ["employee", "product_manager"],
       "project_ids": ["atlas"],
       "availability": {"status": "available", "until": null, "delegate_user_id": null},
-      "avatar": "PS"
+      "avatar": "PS",
+      "avatar_file": "avatars/priya.jpg"
     },
     {
       "id": "helen",
@@ -77,7 +83,8 @@
       "roles": ["employee", "hr"],
       "project_ids": [],
       "availability": {"status": "available", "until": null, "delegate_user_id": null},
-      "avatar": "HB"
+      "avatar": "HB",
+      "avatar_file": "avatars/helen.jpg"
     }
   ],
   "teams": [
