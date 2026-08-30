@@ -232,6 +232,10 @@ def check_noping_shell_contract() -> None:
         "MMAUTHTOKEN=",
         "MMUSERID=",
         "Secure; SameSite=Lax",
+        "is-auto-demo",
+        "manualMode",
+        "void enterDemo();",
+        "Opening the demo",
     )
     for marker in required_browser_markers:
         if marker not in login:

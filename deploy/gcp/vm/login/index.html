@@ -4,8 +4,13 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#10152b">
-    <title>NoBS · Sign in</title>
+    <title>NoBS · Demo workspace</title>
     <link rel="icon" href="/noping-brand/logo.png">
+    <script>
+        if (new URLSearchParams(window.location.search).get('manual') !== '1') {
+            document.documentElement.classList.add('is-auto-demo');
+        }
+    </script>
     <style>
         :root {
             color-scheme: light;
@@ -58,6 +63,15 @@
         .error.is-visible {display: block;}
         .privacy {display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 25px; padding-top: 19px; border-top: 1px solid #eceef3; color: #8b92a2; font-size: 9.5px;}
         .privacy strong {color: #4d566a; font-weight: 700;}
+        .auto-demo-state {display: none; padding: 8px 0 18px; text-align: center;}
+        .auto-demo-spinner {width: 50px; height: 50px; margin: 8px auto 24px; border: 3px solid #e7e3f5; border-top-color: #6550c3; border-radius: 50%; animation: auto-demo-spin .8s linear infinite;}
+        .auto-demo-state span {color: var(--violet); font-size: 10px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase;}
+        .auto-demo-state h2 {margin: 9px 0 8px; font-size: 30px; line-height: 1.14; letter-spacing: -.04em;}
+        .auto-demo-state p {max-width: 340px; margin: 0 auto; color: var(--muted); font-size: 13px; line-height: 1.6;}
+        html.is-auto-demo .manual-login {display: none;}
+        html.is-auto-demo .auto-demo-state {display: block;}
+        html.is-auto-demo .auth-card {padding-block: clamp(38px, 5vw, 62px);}
+        @keyframes auto-demo-spin {to {transform: rotate(360deg);}}
         @media (max-width: 880px) {
             .shell {grid-template-columns: 1fr;}
             .story {min-height: 310px; padding: 30px;}
@@ -79,6 +93,7 @@
         }
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after {scroll-behavior: auto !important; transition: none !important;}
+            .auto-demo-spinner {animation-duration: 1.8s;}
         }
     </style>
 </head>
@@ -96,14 +111,22 @@
         <section class="auth">
             <form class="auth-card" id="login-form" novalidate>
                 <div class="wordmark" aria-label="NoBS"><img src="/noping-brand/logo.png" alt="">NoBS</div>
-                <div class="workspace"><span>Acme Systems · Private workspace</span><h2>Welcome back</h2><p>Sign in to ask your organization and see only the work that actually needs you.</p></div>
-                <label class="field"><span>Email or username</span><input id="login-id" name="loginId" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus></label>
-                <label class="field"><span>Password</span><span class="input-wrap"><input id="password" name="password" type="password" autocomplete="current-password" required><button class="show-password" id="show-password" type="button" aria-controls="password" aria-pressed="false">Show</button></span></label>
-                <button class="submit" id="submit" type="submit">Continue to NoBS</button>
-                <div class="demo-divider"><span>Demo</span></div>
-                <button class="demo-submit" id="demo-login" type="button">Enter demo workspace</button>
-                <p class="error" id="error" role="alert"></p>
-                <div class="privacy"><strong>Secure organizational access</strong><span>Your permissions follow you into every answer.</span></div>
+                <div class="auto-demo-state" aria-live="polite">
+                    <div class="auto-demo-spinner" aria-hidden="true"></div>
+                    <span>Acme Systems · Demo workspace</span>
+                    <h2>Opening the demo…</h2>
+                    <p>We’re signing you in as Maya with a restricted, short-lived demo session. No password needed.</p>
+                </div>
+                <div class="manual-login">
+                    <div class="workspace"><span>Acme Systems · Private workspace</span><h2>Welcome back</h2><p>Sign in to ask your organization and see only the work that actually needs you.</p></div>
+                    <label class="field"><span>Email or username</span><input id="login-id" name="loginId" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>
+                    <label class="field"><span>Password</span><span class="input-wrap"><input id="password" name="password" type="password" autocomplete="current-password" required><button class="show-password" id="show-password" type="button" aria-controls="password" aria-pressed="false">Show</button></span></label>
+                    <button class="submit" id="submit" type="submit">Continue to NoBS</button>
+                    <div class="demo-divider"><span>Demo</span></div>
+                    <button class="demo-submit" id="demo-login" type="button">Enter demo workspace</button>
+                    <p class="error" id="error" role="alert"></p>
+                    <div class="privacy"><strong>Secure organizational access</strong><span>Your permissions follow you into every answer.</span></div>
+                </div>
             </form>
         </section>
     </main>
@@ -123,7 +146,9 @@
             const error = document.getElementById('error');
             const showPassword = document.getElementById('show-password');
             const demoLogin = document.getElementById('demo-login');
-            const requested = new URLSearchParams(window.location.search).get('redirect_to');
+            const query = new URLSearchParams(window.location.search);
+            const manualMode = query.get('manual') === '1';
+            const requested = query.get('redirect_to');
             const redirectTo = requested && requested.startsWith('/') && !requested.startsWith('//') ? requested : '/acme/channels/project-atlas';
 
             showPassword.addEventListener('click', () => {
@@ -134,17 +159,34 @@
                 password.focus();
             });
 
-            demoLogin.addEventListener('click', () => {
+            const enterDemo = async () => {
                 demoLogin.disabled = true;
                 demoLogin.textContent = 'Opening demo…';
                 const action = new URL('/plugins/com.noping.enterprise/api/v1/demo-login', window.location.origin);
                 action.searchParams.set('redirect_to', redirectTo);
-                const demoForm = document.createElement('form');
-                demoForm.method = 'POST';
-                demoForm.action = action.toString();
-                document.body.appendChild(demoForm);
-                demoForm.submit();
-            });
+                try {
+                    const response = await fetch(action.toString(), {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {'Accept': 'text/html'},
+                    });
+                    const destination = new URL(response.url || redirectTo, window.location.origin);
+                    if (!response.ok || destination.origin !== window.location.origin || destination.pathname === '/login') {
+                        const payload = await response.json().catch(() => ({}));
+                        throw new Error(payload.message || 'The demo workspace is temporarily unavailable.');
+                    }
+                    window.location.assign(destination.pathname + destination.search + destination.hash);
+                } catch (caught) {
+                    document.documentElement.classList.remove('is-auto-demo');
+                    error.textContent = caught instanceof Error ? caught.message : 'The demo workspace is temporarily unavailable.';
+                    error.classList.add('is-visible');
+                    demoLogin.disabled = false;
+                    demoLogin.textContent = 'Try demo again';
+                    loginID.focus();
+                }
+            };
+
+            demoLogin.addEventListener('click', () => void enterDemo());
 
             form.addEventListener('submit', async (event) => {
                 event.preventDefault();
@@ -186,6 +228,12 @@
                     submit.textContent = 'Continue to NoBS';
                 }
             });
+
+            if (manualMode) {
+                loginID.focus();
+            } else {
+                void enterDemo();
+            }
         })();
     </script>
 </body>

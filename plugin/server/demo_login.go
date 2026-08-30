@@ -9,7 +9,10 @@ import (
 	"github.com/mattermost/mattermost/server/public/model"
 )
 
-const demoSessionDuration = 12 * time.Hour
+const (
+	demoSessionDuration  = 12 * time.Hour
+	demoNoticeCookieName = "NOBSDEMONOTICE"
+)
 
 func (p *Plugin) handleDemoLogin(w http.ResponseWriter, r *http.Request) {
 	config := p.getConfiguration()
@@ -58,6 +61,19 @@ func (p *Plugin) handleDemoLogin(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     model.SessionCookieUser,
 		Value:    user.Id,
+		Path:     "/",
+		Expires:  expires,
+		MaxAge:   int(demoSessionDuration.Seconds()),
+		HttpOnly: false,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+	})
+	// This cookie is presentation-only. The webapp consumes it after showing
+	// the demo notice; authorization continues to rely exclusively on the
+	// server-side Mattermost session above.
+	http.SetCookie(w, &http.Cookie{
+		Name:     demoNoticeCookieName,
+		Value:    "1",
 		Path:     "/",
 		Expires:  expires,
 		MaxAge:   int(demoSessionDuration.Seconds()),

@@ -38,11 +38,17 @@ func TestDemoLoginCreatesShortLivedNonAdminSession(t *testing.T) {
 	require.Equal(t, http.StatusSeeOther, response.Code)
 	require.Equal(t, "/acme/channels/project-atlas", response.Header().Get("Location"))
 	cookies := response.Result().Cookies()
-	require.Len(t, cookies, 2)
+	require.Len(t, cookies, 3)
 	require.Equal(t, model.SessionCookieToken, cookies[0].Name)
 	require.True(t, cookies[0].HttpOnly)
 	require.Equal(t, model.SessionCookieUser, cookies[1].Name)
 	require.False(t, cookies[1].HttpOnly)
+	require.Equal(t, demoNoticeCookieName, cookies[2].Name)
+	require.Equal(t, "1", cookies[2].Value)
+	require.Equal(t, "/", cookies[2].Path)
+	require.False(t, cookies[2].HttpOnly)
+	require.Equal(t, http.SameSiteLaxMode, cookies[2].SameSite)
+	require.Greater(t, cookies[2].MaxAge, 0)
 }
 
 func TestDemoLoginRejectsCrossOriginRequests(t *testing.T) {

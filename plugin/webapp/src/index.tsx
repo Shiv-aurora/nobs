@@ -4,6 +4,7 @@ import {api} from './api/client';
 import logo from './assets/logo.png';
 import {LegacyRedirect} from './components/LegacyRedirect';
 import {CalendarPage, openCalendar} from './components/CalendarPage';
+import {installDemoModeNotice} from './components/DemoModeNotice';
 import {HuddlePage} from './components/HuddlePage';
 import {NoPingPanel} from './components/NoPingPanel';
 import {installAccountMenuOOOBridge, installDemoOOOPresenceBridge, installProductChromeBridge, OOOProfileAction} from './components/OOOProfileAction';
@@ -16,6 +17,7 @@ import './styles/ooo.css';
 import './styles/ooo-presence.css';
 import './styles/send-agent.css';
 import './styles/account-menu.css';
+import './styles/demo-mode.css';
 import './styles/workrooms.css';
 import type {PluginRegistry, PluginStore} from './types/mattermost';
 
@@ -78,6 +80,7 @@ export default class NoPingPlugin {
         installProductChromeBridge();
         installAccountMenuOOOBridge();
         installDemoOOOPresenceBridge();
+        installDemoModeNotice();
         registry.registerPopoverUserActionsComponent?.(OOOProfileAction);
         registry.registerWebSocketEventHandler('custom_com.noping.enterprise_run_update', (message: unknown) => {
             window.dispatchEvent(new CustomEvent('noping:run-update', {detail: message}));
