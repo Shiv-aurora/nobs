@@ -2,147 +2,92 @@
 
 **Fewer pings. Shorter meetings. More actual work.**
 
-NoBS is an AI-native workplace communication layer built on Mattermost. Every employee, project, team, and policy has a permission-aware logical delegate. Routine messages are answered without breaking focus, while attendee agents prepare meetings before humans join.
+NoBS is an agent-native workplace communication layer built on Mattermost. It turns ordinary workplace events into durable, governed missions: real specialist agents resolve coordination work in parallel, deterministic policy protects identity/evidence/authority, human judgment pauses and resumes the same mission, and a separate least-privilege executor applies approved actions safely.
 
-> **20-second demo:** Maya asks why Atlas is delayed and receives a sourced delegate reply with **0 people interrupted**. In Calendar, agents then resolve the entire engineering sync and recommend cancellation; a second 60-minute launch meeting becomes 15 minutes for one human security decision.
+The judged meeting mission uses Google ADK and Vertex AI **`gemini-3.5-flash`**. Employee, project, team, policy, and authority delegates are logical organizational identities—not fake deployed agents.
 
-## Why this is not a chatbot
-
-NoBS changes the communication primitive from **message a person** to **express an intent**, and changes meetings from status discovery to bounded human judgment.
+## Architecture thesis
 
 ```text
-Employee question
-    ↓
-Personal delegate
-    ↓
-Organization router
-    ↓
-Project / team / policy delegates
-    ↓
-Permission-aware evidence + live work state
-    ↓
-Answer ────────────────or──────────────── Human decision
-0 people interrupted                    one complete Needs You card
+Mattermost session + signed request
+                 ↓
+ Private NoBS Gateway — access, admission, Model Armor
+                 ↓
+ Meeting Mission Controller (Gemini 3.5)
+             ↙ parallel ↘
+ Work Graph Agent       Policy Evidence Agent
+             ↘           ↙
+      deterministic Evidence Critic
+                 ↓
+ Meeting Resolution Agent (Gemini 3.5)
+                 ↓
+ deterministic Authority Gate
+          ↙ no action      human required ↘
+     complete          durable checkpoint
+                                ↓ approved live source
+                  private idempotent Action Executor
 ```
 
-The product includes:
+Firestore owns mission/step/checkpoint/command state; Pub/Sub provides at-least-once work and command delivery; Google Agent Registry catalogs four versioned executable services; Agent Engine Sessions stores ADK context; Memory Bank stores explicit preferences only; Model Armor fails closed around every ADK call. Mattermost/PostgreSQL remains the collaboration source of truth.
 
-- a real Mattermost Go + React plugin with NoBS-owned channel, message, thread, agent-reply, Calendar, and OOO surfaces;
-- employee, project, team, policy, router, and authority delegates;
-- evidence-level authorization and restricted-intent denial before retrieval;
-- semantic work state projected from normalized GitHub, issue, calendar, and Mattermost events;
-- an interruption firewall that separates facts, policy, and human-only decisions;
-- OOO-aware authority delegation;
-- scoped, expiring decision memory;
-- prompt-injection and poisoned-source quarantine;
-- Google ADK/Gemini integration with hard call and token budgets;
-- Model Armor prompt and response screening;
-- Firestore persistence, Pub/Sub ingestion, private Cloud Run, audit telemetry, and a separately permissioned budget guard;
-- a Google Cloud-only production path with a maximum `$25/month` project budget target.
+See the [judge-focused architecture](docs/ARCHITECTURE.md), [agent catalog](docs/AGENT_CATALOG.md), and [architecture decisions](docs/ARCHITECTURE_DECISIONS.md).
+
+## Product proof
+
+- **Less Ping:** a normal channel question receives a permission-aware sourced reply without interrupting a coworker. Logical delegate resolution is deterministic; one Gemini synthesizer answers.
+- **Restricted-data refusal:** compensation requests are denied before private evidence or Gemini.
+- **Less Meeting:** a real bounded mission runs two specialist agents concurrently, validates evidence, and recommends cancel/shorten/keep.
+- **Human authority:** a launch security decision persists one organizer checkpoint and resumes the same mission.
+- **Action safety:** demo fixtures never generate external commands. A live Calendar source requires organizer approval, current ETag, a transactional lease, idempotency, and post-write verification in the separate executor.
+- **Injection defense:** poisoned sources are quarantined before specialist context; Model Armor screens model input and output.
+- **Memory isolation:** confirmed decisions stay fact/policy/authority-bound in Firestore; preference Memory Bank cannot widen access or approve work.
 
 ## Repository map
 
 ```text
-plugin/                         Mattermost Go server + React/TypeScript product UI
-agent-service/                  FastAPI organizational agent runtime
-seed/                           deterministic demo company, evidence, and work events
-deploy/local/                   Mattermost + PostgreSQL + agent local Docker stack
+plugin/                         Mattermost Go boundary + React/TypeScript NoBS UI
+agent-service/                  private gateway + governed ADK mission runtime
+executor-service/               private least-privilege action executor
+seed/                           source fixtures only; no runtime transcripts/results
+deploy/local/                   local Mattermost/PostgreSQL/agent stack
 deploy/gcp/terraform/           bounded Google Cloud infrastructure
-deploy/gcp/scripts/             two-stage deployment and teardown automation
-deploy/gcp/budget-guard/        independently permissioned 90% budget shutdown service
-deploy/gcp/vm/                  production Mattermost/PostgreSQL/Caddy VM stack
-contracts/                      cross-language HMAC contract vectors
-docs/                           architecture, security, demo, costs, handoff, evidence
-ui-harness/                     browser-validation harness only; not production UI
+deploy/gcp/budget-guard/        independent 90% VM-stop control
+deploy/gcp/vm/                  production collaboration VM stack
+docs/                           architecture, security, data, evaluation, deployment
 ```
-
-## Core demo path
-
-The seeded organization contains Maya (overnight support), Sarah (security lead), Alex (delegated approver), Daniel (mobile engineer), Priya (product manager), Project Atlas, AUTH-392, SEC-184, and policy SEC-POL-12.
-
-1. **Less Ping** — Maya posts `Why is Atlas delayed?` in `# Project Atlas` without tagging a bot or coworker. NoBS recognizes the scope, routes through project, engineering, and security delegates, and replies inside the native thread without pinging anyone.
-2. **Restricted-data refusal** — Maya asks for Sarah’s salary. The request is denied before the HR record is retrieved or sent to Gemini.
-3. **Less Meeting: cancel** — attendee, project, Gemini Code Assist, and GitHub agents resolve the Atlas engineering sync and return all 30 minutes.
-4. **Less Meeting: compress** — agents resolve engineering and customer context, quarantine malicious agenda content, and reduce launch readiness from 60 to 15 minutes for one authority decision.
-5. **OOO and memory** — the profile-menu OOO mode lets the delegate handle routine work and build a return digest; organizer-confirmed outcomes become scoped, expiring knowledge memory.
 
 ## Credential-free verification
 
-The sandbox-verifiable suite does not need Docker, Google Cloud, or external credentials:
-
 ```bash
-make check
+./scripts/check.sh
 ```
 
-Individual checks:
+Verified result: **87** agent-runtime tests, **8** budget-guard tests, **6** executor tests, all Go packages, strict TypeScript, Python compilation, shell/static validation, credential scan, and Git whitespace passed. Terraform with Google provider 8.0.0 also validates. Details: [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md).
 
-```bash
-python -m pytest agent-service/tests
-(cd deploy/gcp/budget-guard && python -m pytest tests)
-(cd plugin && go test ./internal/...)
-tsc -p plugin/webapp/tsconfig.sandbox.json --noEmit
-python scripts/static_validate.py
-python scripts/secret_scan.py
-```
+## Local stack
 
-The full Mattermost plugin build requires network access once to install Go and npm dependencies:
-
-```bash
-./scripts/build-plugin.sh
-```
-
-## Local product stack
-
-Requires Docker, Docker Compose, Go, Node 22+, npm, and Python 3.11+.
+Requires Docker, Docker Compose, Go, Node/npm, and Python 3.11+.
 
 ```bash
 cp deploy/local/.env.example deploy/local/.env
 ./scripts/local-up.sh
 ```
 
-This starts PostgreSQL, Mattermost Team Edition, the NoBS-branded agent service in deterministic demo mode, installs the plugin, and seeds the demo organization. Open messaging at `http://localhost:8065/acme/channels/project-atlas` or Calendar at `http://localhost:8065/acme/nobs/calendar`.
+Open messaging at `http://localhost:8065/acme/channels/project-atlas` or Calendar at `http://localhost:8065/acme/nobs/calendar`. Local demo mode uses deterministic executable programs and a fixed test clock; production uses real wall time, Model Armor, ADK, Gemini 3.5, Agent Registry discovery, Agent Engine Sessions, and Firestore.
 
-## Google Cloud deployment
+## Google Cloud
 
-The deployed demo is available at **[35-202-201-122.sslip.io](https://35-202-201-122.sslip.io/)**. Use **Enter demo workspace** for a short-lived, non-admin demo session. The fixed-cost VM is intentionally stopped between demo sessions; run `deploy/gcp/scripts/start-demo.sh` before opening the link. The existing Google Cloud project and internal resource names remain `noping-*` for compatibility. `/nobs` is canonical, while `/noping` remains a legacy redirect.
+The existing demo URL is [35-202-201-122.sslip.io](https://35-202-201-122.sslip.io/). The VM may be intentionally stopped between demo sessions. The bounded project is `noping-agentic-shiv-2026`; internal `noping-*` names remain for compatibility.
 
-The production design uses only Google Cloud for deployment:
+- one `e2-small` Compute Engine VM for Caddy/Mattermost/PostgreSQL;
+- private agent and executor Cloud Run services, scale to zero, max one;
+- Firestore Native, Pub/Sub + DLQs, Secret Manager, Artifact Registry;
+- Vertex AI `gemini-3.5-flash`, Google ADK, Agent Registry, Agent Engine Sessions/Memory Bank;
+- Model Armor, structured logging, OpenTelemetry to Cloud Trace;
+- existing project-filtered **$25** budget and independent budget guard.
 
-- Compute Engine: one `e2-small` Mattermost/PostgreSQL/Caddy VM;
-- Cloud Run: private ADK/Gemini agent service, `min=0`, `max=1`, concurrency `4`;
-- Firestore: compact mutable state, PITR disabled for the hackathon profile;
-- Pub/Sub: authenticated work-event delivery and dead-letter handling;
-- Model Armor: fail-closed prompt and response screening;
-- Secret Manager, Artifact Registry, Cloud Logging, Trace, and Monitoring;
-- Cloud Billing budget: `$25`, alerts at 25/50/75/90/100%;
-- independent budget guard: stops only the Mattermost VM at 90% after a dry-run test.
-
-Deployment is intentionally two-stage so Terraform never needs a temporary image tag or plaintext secret:
-
-```bash
-cp deploy/gcp/terraform/terraform.tfvars.example deploy/gcp/terraform/terraform.tfvars
-# Fill project_id and billing_account_id.
-deploy/gcp/scripts/deploy-all.sh
-# Review dry-run logs, then explicitly arm:
-deploy/gcp/scripts/arm-budget-guard.sh
-```
-
-## Important documents
-
-- [`VISION.md`](VISION.md) — product thesis and scope
-- [`IMPLEMENTATION.md`](IMPLEMENTATION.md) — component and phase plan
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — runtime architecture and failure handling
-- [`docs/SECURITY_MODEL.md`](docs/SECURITY_MODEL.md) — identities, permissions, injection defense, audit
-- [`docs/COST_MODEL.md`](docs/COST_MODEL.md) — enforced limits and shutdown controls
-- [`docs/CODEX_HANDOFF.md`](docs/CODEX_HANDOFF.md) — exact Phase 2 execution contract
-- [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) — four-minute judging narrative
-- [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md) — local and deployed verification evidence
-- [`docs/OSS_DISCLOSURE.md`](docs/OSS_DISCLOSURE.md) — open-source provenance
-
-## Phase status
-
-The NoBS build is deployed and browser-verified on Google Cloud: native channels/messages/threads, automatic delegates, a responsive Calendar, two meeting-prep outcomes, a private agent workroom, OOO, security quarantine, organizer-gated Calendar actions, and the complete authority-decision learning loop. The production Playwright suite passes 14 scenarios with one explicitly gated screenshot-only test. Google Cloud bounds remain unchanged (`min=0`, `max=1`, one `e2-small`, and the existing `$25` protection).
+Deployment and honest platform disclosures are in [`docs/GOOGLE_CLOUD_DEPLOYMENT.md`](docs/GOOGLE_CLOUD_DEPLOYMENT.md) and live progress is in [`docs/STATUS.md`](docs/STATUS.md).
 
 ## License and attribution
 
-NoBS’s original work is provided under Apache-2.0. Internal plugin IDs retain `noping` for compatibility. The build preserves upstream Mattermost license and notice files outside normal product UI. See [`UPSTREAM.md`](UPSTREAM.md), [`docs/OSS_DISCLOSURE.md`](docs/OSS_DISCLOSURE.md), and [`docs/CONTRIBUTION_MAP.md`](docs/CONTRIBUTION_MAP.md).
+NoBS original work is Apache-2.0. The build preserves upstream Mattermost notices. See [`UPSTREAM.md`](UPSTREAM.md), [`docs/OSS_DISCLOSURE.md`](docs/OSS_DISCLOSURE.md), and [`docs/CONTRIBUTION_MAP.md`](docs/CONTRIBUTION_MAP.md).

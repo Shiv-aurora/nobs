@@ -1,148 +1,45 @@
-# NoBS Implementation
+# NoBS implementation
 
-## Build strategy
+## Runtime boundaries
 
-NoBS is implemented as a mature collaboration substrate plus a distinct agent runtime:
+1. **Collaboration:** pinned Mattermost 11.10.1 web client/server, PostgreSQL, Caddy, NoBS Go plugin, and React product surfaces.
+2. **Private gateway/runtime:** FastAPI on Cloud Run performs IAM/HMAC/replay checks, access/admission, Model Armor, Less Ping, and durable meeting missions. It is read-only with respect to Calendar.
+3. **Durable control plane:** Firestore owns mission/checkpoint/command state; Pub/Sub carries normalized work events and command IDs with DLQs; Agent Registry/typed manifests own lifecycle; Agent Engine Sessions and preference Memory Bank have narrow roles.
+4. **Private action executor:** separate Cloud Run identity, one Calendar secret, transactional lease/idempotency, `If-Match`, postcondition read, immutable attempt.
 
-1. **NoBS collaboration client** — a reproducible, branded build of pinned Mattermost 11.10.1 webapp source, packaged over the unchanged Team Edition server binary with PostgreSQL.
-2. **NoBS plugin** — Go server proxy/security boundary, native message hooks, Calendar connector, app-bar action, post actions, and contextual right-side panel.
-3. **NoBS agent service** — FastAPI orchestration, routing, policy, evidence, meeting preparation, OOO queues, handoffs, memory, and audit.
-4. **Google Cloud production layer** — private Cloud Run, Gemini through Google ADK, Firestore, Pub/Sub, Model Armor, Secret Manager, observability, and bounded Compute Engine.
+## Governed meeting graph
 
-This avoids a toy rewrite while keeping NoBS’s original contribution isolated and reviewable. Internal `noping` identifiers remain stable to avoid a risky data and infrastructure migration.
+`AccessGate → MissionControllerAgent → [WorkGraphAgent || PolicyEvidenceAgent] → EvidenceCritic → MeetingResolutionAgent → AuthorityGate → HumanCheckpoint? → CommandBuilder → ActionExecutor → ResultVerifier`
 
-## Component boundaries
+The four model nodes are typed Google ADK `LlmAgent` calls on `gemini-3.5-flash`; both specialists use `asyncio.gather` and independent reports. Critic, authority, command, and verification logic is deterministic. Routing permits only approved versioned registry IDs.
 
-### Mattermost plugin server
+Each successful node persists a deterministic step ID, attempt, measured timing, agent ID/version, and output references. Recovery loads Firestore and skips completed nodes. Production uses wall-clock time; deterministic test mode uses an injected fixture clock and executable programs that derive results from source fixtures.
 
-Responsibilities:
+## Less Ping
 
-- trust the authenticated Mattermost session—not browser-supplied identity;
-- translate opaque Mattermost IDs to stable organizational usernames;
-- expose a narrow `/plugins/com.noping.enterprise/api/v1/*` proxy surface;
-- generate a Google-signed identity token for private Cloud Run from Compute metadata;
-- sign the exact method, path/query, timestamp, and body with HMAC v1;
-- publish Mattermost WebSocket notifications for run and decision changes;
-- never hold model credentials.
+The existing path remains intentionally lighter: deterministic scope/delegate resolution, permission-aware retrieval, poisoned-source exclusion, one bounded synthesizer, Model Armor, and a native Mattermost thread reply. The UI says delegates/scopes consulted rather than pretending each logical delegate executed an LLM.
 
-### Native messaging product
+## Typed contracts
 
-The default product is the mature channel workspace: channels, messages, threads, reactions, files, search, unread state, permissions, notifications, keyboard behavior, and responsive layout remain native. `/nobs` and `/noping` resolve into messaging, and `/acme/nobs/calendar` is the canonical meeting-preparation route.
+- `AgentManifest`: ID/version/owner/revision/model/schemas/capabilities/tools/scopes/identity/health/approval/timestamps.
+- `MissionRun` and `MissionStep`: durable graph state and safe trace-linked trajectory.
+- `EvidenceClaim`, `SpecialistReport`, `CriticReport`, `AgendaResolution`, `MissionRecommendation`: schema-validated evidence and outcome.
+- `HumanCheckpoint`: exact authorized actors and one-time durable resolution.
+- `ProposedCommand` / `CommandAttempt`: target, ETag, idempotency, trace, lease, outcome hash.
+- `WorkEvent`: schema version, stable IDs, correlation/trace, classification, bounded payload, credential-key rejection.
 
-The plugin adds personal and organization delegate identities, compact routing metadata, one contextual side panel, a native sidebar Calendar, a private agent workroom, and OOO in the account menu. Calendar writes are organizer-only, revalidated with event ETags, and require explicit confirmation.
+## State and memory
 
-Every human message receives a deterministic, model-free delegation preflight. One-to-one DMs default to the other participant's delegate. In channels and group conversations, answerable work requests are matched to employee, project, or team scope and routed automatically without requiring a mention; routine chatter and informational updates remain normal human conversation. Explicit human mentions still select that person's delegate, and `@noping` remains an optional organization-wide override for ambiguous requests. A leading `--direct` is stripped before persistence and guarantees human-only delivery without model spend.
+Mattermost/PostgreSQL and external providers own source facts. Firestore stores compact projections/references and all distributed workflow authority. Vertex Sessions stores ADK events only. Memory Bank accepts explicit allowlisted preferences and is never read by authorization. Confirmed decision memory remains scope/facts/policy/actor/expiry-bound in Firestore.
 
-### Agent service
+## Security and observability
 
-Core execution order:
-
-1. service identity + HMAC verification;
-2. user/org rate admission;
-3. prompt safety guard;
-4. deterministic intent classification;
-5. restricted-intent and permission policy;
-6. organization routing;
-7. authorized evidence retrieval;
-8. poisoned-evidence quarantine;
-9. scoped decision-memory lookup;
-10. authority resolution / OOO delegation;
-11. AI budget reservation;
-12. Gemini synthesis through Google ADK when needed;
-13. Model Armor response screening;
-14. result persistence, audit, metrics, and notification.
-
-The service deliberately does not call Gemini for permission denials, registry reads, existing decisions, health checks, or deterministic policy outcomes.
-
-## Logical delegate model
-
-Delegate kinds:
-
-- `personal` — employee knowledge and authority boundary;
-- `project` — project relationships, blockers, evidence, and decisions;
-- `team` — department purpose, membership, and approved shared context;
-- `policy` — deterministic policy representation;
-- `router` — entity discovery and route planning;
-- `authority` — escalation and delegation validation.
-
-Delegates share a model provider but not identity, scopes, or authority. Registry records are discoverable and auditable.
-
-## Semantic work state
-
-External activity is normalized to one `WorkEvent` contract:
-
-```json
-{
-  "id": "event-pr-892-reviewed",
-  "source": "github",
-  "event_type": "pull_request.reviewed",
-  "actor_user_id": "daniel",
-  "entity_ids": ["atlas", "auth-392"],
-  "occurred_at": "2026-08-27T13:20:00-04:00",
-  "payload": {"number": 892, "review_state": "approved"}
-}
-```
-
-An event-driven projector converts normalized events and organization relationships into compact person/project states. The projector is tool-neutral; GitHub, Calendar, Jira, and Mattermost adapters only normalize their source payloads.
-
-## Persistence
-
-`StateStore` is a defined adapter boundary:
-
-- in-memory/recording implementations for tests;
-- Firestore implementation for decisions, memories, audit, events, statistics, and query results;
-- Mattermost/PostgreSQL remains the source for collaboration records and large evidence bodies.
-
-NoPing stores compact semantic state and references rather than copying complete message histories into Firestore.
-
-## Security controls
-
-- private Cloud Run IAM—no `allUsers` or `allAuthenticatedUsers`;
-- Compute service account identity token + exact-request HMAC;
-- Pub/Sub OIDC audience and service-account pinning;
-- deterministic authorization before evidence retrieval;
-- restricted data never enters the model context;
-- local poisoned-evidence scanner plus Model Armor prompt/response screening;
-- fail-closed behavior on guard or model ambiguity;
-- least-privilege service accounts;
-- redacted structured logs and optional OTLP traces;
-- independent budget guard that cannot access business data or create infrastructure.
+The plugin resolves the authenticated Mattermost user server-side and signs exact private Cloud Run requests. Pub/Sub push uses OIDC. Model Armor and local scanning protect inputs/evidence/outputs. Logs are structured and redacted. OpenTelemetry spans cover the controller, specialists, critic, synthesizer, authority gate, HTTP requests, and executor commands without bodies or hidden reasoning.
 
 ## Cost controls
 
-The implementation enforces limits at four layers:
+Cloud Run scales from zero to one. Gateway concurrency is four; executor concurrency is one. A meeting reserves at most four calls, 24k input tokens, and 2.4k output tokens, with daily ceilings. The existing $25 budget and separately permissioned VM-stop guard remain unchanged.
 
-1. Terraform resource bounds;
-2. Cloud Run `min=0`, `max=1`, concurrency and memory/CPU caps;
-3. application request/model/token counters with pre-reservation;
-4. Cloud Billing alerts and an independently permissioned 90% VM shutdown guard.
+## Verification
 
-The budget guard begins in dry-run and requires typing `ARM` after its synthetic notification is inspected.
-
-## Phase 1 completion boundary
-
-Built in the sandbox:
-
-- Mattermost plugin source and product UI;
-- deterministic agent runtime and tests;
-- Google ADK, Firestore, Pub/Sub, Model Armor, identity-token, and telemetry adapters;
-- local and Google Cloud deployment source;
-- budget guard and cost constraints;
-- CI/static validation/security scans;
-- demo fixtures, screenshots, docs, and exact Phase 2 handoff.
-
-Not honestly executable without laptop credentials/network:
-
-- full npm and Go dependency installation/package lock generation;
-- Docker Mattermost runtime;
-- Terraform provider initialization and Google Cloud apply;
-- real Gemini/ADK call;
-- real Model Armor template call;
-- real GitHub and Calendar OAuth/webhooks;
-- remote GitHub push and Devpost submission.
-
-## Phase 2 contract
-
-Codex must preserve the architecture and complete only credential/runtime-dependent work. It may fix provider/API mismatches found by real validation, but must not replace Mattermost with a static frontend, make Cloud Run public, remove policy checks, disable Model Armor, raise limits, introduce non-Google production hosting, or exceed the `$25` budget boundary without explicit approval.
-
-See [`docs/CODEX_HANDOFF.md`](docs/CODEX_HANDOFF.md).
+`./scripts/check.sh` is the source gate. Current results and production progress are in [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md) and [`docs/STATUS.md`](docs/STATUS.md). Design rationale is in [`docs/ARCHITECTURE_DECISIONS.md`](docs/ARCHITECTURE_DECISIONS.md).

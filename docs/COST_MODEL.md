@@ -1,62 +1,32 @@
-# Google Cloud Cost Model
+# Cost and scaling model
 
-## Enforced boundary
+The project remains protected by the existing project-filtered **NoPing $25 guardrail**. A Cloud Billing budget is an alert/control input, not an instantaneous hard cap, so NoBS combines it with fixed infrastructure ceilings and application admission.
 
-The dedicated project **`noping-agentic-shiv-2026`** is bounded to a **$25 monthly target**. Raising the budget, VM class, disk, instance count, retention, model quotas, or service footprint requires explicit approval.
+## Bounded deployed profile
 
-A Cloud Billing budget is not an instantaneous hard cap. NoPing combines alerts, fixed resource ceilings, application admission, daily shutdown, an armed independent guard, and teardown automation.
-
-## Deployed footprint
-
-| Resource | Deployed bound |
+| Resource | Bound |
 |---|---|
-| Mattermost VM | one `e2-small` in `us-central1-a`; stopped after final verification, with a daily stop schedule for demo sessions |
-| disk | 20 GB `pd-standard` |
-| Cloud Run agent | private IAM, 1 vCPU / 1 GiB, min 0, max 1, concurrency 4 |
-| Cloud Run budget guard | private IAM, 1 vCPU / 512 MiB, min 0, max 1, concurrency 1 |
-| Firestore | one native default database, PITR disabled |
-| Pub/Sub | work topic, DLQ, budget topic, bounded subscriptions |
-| Artifact Registry | one Docker repository with cleanup policy |
-| Redis / Cloud SQL / GKE / load balancer | **not used** |
+| Mattermost/PostgreSQL/Caddy | one `e2-small` VM, existing standard persistent disk |
+| private agent Cloud Run | 1 vCPU / 1 GiB, min 0, max 1, concurrency 4 |
+| private action executor | 1 vCPU / 512 MiB, min 0, max 1, concurrency 1 |
+| private budget guard | min 0, max 1, concurrency 1 |
+| Firestore | Native single-region, compact documents/references |
+| Pub/Sub | one-day command/work retention; seven-day DLQs |
+| meeting mission | four Gemini calls maximum, 24k input / 2.4k output reservation ceiling |
+| daily model admission | 200 calls, 1M input, 100k output token ceilings |
 
-The final resource inventory matched this list. Both Cloud Run services reported Ready and scale to zero. The VM has a daily stop schedule and must be stopped after recording.
+Scale-to-zero services add no fixed idle instance charge. The executor’s max-one/single-concurrency profile is intentional for the demo’s consequential write path. Agent Engine Sessions/Memory, Agent Registry, Model Armor, logging, traces, Firestore, Pub/Sub, Artifact Registry, and model usage remain consumption-based and are kept bounded by short retained state and explicit calls.
 
-## Application ceilings
+## Budget controls
 
-```text
-per user:          3/minute, 20/hour, 20/day
-per organization: 10/minute, 60/day
-concurrent runs:   2
+The guardrail has 25%, 50%, 75%, 90%, and 100% thresholds. At 90%, Billing publishes to Pub/Sub and the independently permissioned budget guard may inspect and stop only `noping-mattermost`. It cannot read Firestore business data, invoke Gemini, change budgets, create/delete infrastructure, or access secrets. The deployed guard remains armed (`dry_run=false`) after its prior synthetic dry-run proof.
 
-per query:         4 model calls, 24,000 input tokens, 2,400 output tokens
-per day:           200 model calls, 1,000,000 input tokens, 100,000 output tokens
-delegate hops:     5 maximum
-```
+The owner’s broader `$100 Monthly Budget Alert` is separate and does not weaken the project-filtered $25 guardrail.
 
-Operational rate limits and daily model budgets use wall-clock time; the seeded evidence timeline remains deterministic. Usage is reserved before a paid call, and ambiguous provider failures conservatively keep the reservation.
+## Application admission
 
-## Billing controls
+NoBS checks per-user/per-organization request limits, concurrent runs, and model calls/tokens before provider invocation. Each mission reserves its worst-case four calls and 2,400 output tokens. Successful calls finalize measured usage; interrupted missions conservatively retain the full reservation. When admission is exhausted, deterministic policy, Mattermost collaboration, persisted missions, and cached confirmed decisions continue while new synthesis is denied.
 
-The project-filtered budget **`NoPing $25 guardrail`** has thresholds at 25%, 50%, 75%, 90%, and 100%. At 90%, Billing publishes to Pub/Sub and the independently permissioned budget guard may only inspect and stop `noping-mattermost` through a custom role.
+## Scale path
 
-The guard cannot read Firestore business data, invoke Gemini, alter budgets, create resources, or delete infrastructure. A synthetic notification was tested in dry-run before arming; the deployed setting is now **`dry_run=false`**.
-
-## Spend estimate at final verification
-
-Cloud Billing does not expose real-time accrued cost through the project CLI without a billing export, so no fabricated “current” figure is claimed. As of **2026-08-29**, a conservative estimate for VM compute, the 20 GB standard disk allocation, the bounded Gemini/Cloud Run verification calls, storage, logging, and Pub/Sub traffic is **under $2 accrued**.
-
-Even continuous `e2-small` operation plus the disk is roughly in the low teens per month before low-volume serverless/model use; the daily stop schedule reduces that materially. The $25 budget and armed 90% guard remain the authoritative safety boundary.
-
-The project also contains the owner's broader `$100 Monthly Budget Alert`; it does not replace or weaken the project-filtered **NoPing $25 guardrail** or its independently armed 90% VM-stop path.
-
-## Operator commands
-
-```bash
-deploy/gcp/scripts/preflight-cost-check.sh
-deploy/gcp/scripts/resource-inventory.sh
-deploy/gcp/scripts/start-demo.sh
-deploy/gcp/scripts/stop-all.sh
-deploy/gcp/scripts/teardown.sh
-```
-
-`stop-all.sh` stops the sole fixed-cost VM. `teardown.sh` requires the explicit phrase `DESTROY-NOPING` and removes the complete managed stack after evidence is no longer needed.
+Raise Cloud Run instance bounds only after measuring queue latency and Firestore contention. Move Mattermost/PostgreSQL to standard HA architecture for production. Do not add GKE, a mesh, per-agent services, or a graph/vector database without a measured need.

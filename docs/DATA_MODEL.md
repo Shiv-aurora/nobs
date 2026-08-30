@@ -1,84 +1,46 @@
-# Data Model
+# Data and state model
 
-## Organizational graph
+Firestore owns distributed mission state under `organizations/{organization_id}`. Mattermost/PostgreSQL and connected providers retain authoritative source content.
 
-NoPing uses a deliberately small relationship graph for routing rather than attempting to convert every company document into graph triples.
+## Firestore collections
 
-Primary nodes:
+| Collection | Purpose | Important consistency rule |
+|---|---|---|
+| `missions` | mission status, model/workflow version, meeting/ETag, recommendation, trace | transitions persist with step updates |
+| `mission_steps` | deterministic node ID, kind, agent/version, attempt, times, refs, failure | completed step ID is not rerun on resume |
+| `human_checkpoints` | authorized actors, command IDs, decision, rationale, times | pending → approved/rejected once by authorized actor |
+| `commands` | typed approved intent, idempotency key, ETag, lease, terminal result | executor claims transactionally |
+| `command_attempts` | immutable deterministic attempt ID and safe outcome metadata | duplicate create is an idempotent no-op |
+| `agent_manifests` | stable ID/version, schemas, scopes, tools, identity, health | routing selects approved active versions only |
+| `work_events` | normalized bounded envelope and source version | stable source event ID suppresses duplicates |
+| `work_state` | compact semantic projection | source time/version prevents stale overwrite |
+| `decisions` / `decision_memory` | authority-bound outcomes and reusable confirmed memory | reuse requires matching facts/scope/policy/expiry |
+| `audit_events` | safe actor/entity/outcome metadata | no raw secrets, prompts, or private bodies |
+| `usage_counters` | rate/model token admission | reserve before provider call |
 
-- `User`
-- `Team`
-- `Project`
-- `WorkItem`
-- `Policy`
-- `Delegation`
-- `Delegate`
-- `Decision`
-- `DecisionMemory`
-- `Evidence`
-- `WorkEvent`
-- `SemanticWorkState`
+Existing product collections for meetings, delegations, handoffs, sessions, OOO, and query results remain tenant-scoped. Legacy pre-mission meeting runs are retained for audit history but never presented as current executable-agent output.
 
-Representative edges:
+## Mission schema
 
-```text
-user MEMBER_OF team
-user WORKS_ON project
-user OWNS work_item
-work_item BLOCKS project
-project REQUIRES policy
-user DELEGATES authority TO user
-entity REPRESENTED_BY delegate
-query ROUTED_TO delegate
-answer SUPPORTED_BY evidence
-decision CREATES memory
-```
+`MissionRun` includes stable mission ID, meeting ID/ETag, trigger, actor, status/current stage, typed plan, specialist reports, critic report, agenda resolutions, recommendation, proposed commands, checkpoint ID, trace ID, timestamps, and failure code.
 
-The graph is for discovery, ownership, and authority. Detailed text remains in its source system and is retrieved under permission checks.
+`MissionStep` includes stable step ID, ordinal, node ID/kind, agent ID/version where applicable, status, attempt, input/output references, timestamps, measured duration, and failure code. No hidden reasoning is stored.
 
-## Evidence
+`EvidenceClaim` includes a generated claim ID, statement, exact source reference, observed timestamp, and bounded confidence. Specialists may cite only the source map they were given; the critic retains accepted claim IDs and conflicts.
 
-Every evidence record carries:
+## Command schema
 
-- stable ID and title;
-- source type and URL;
-- linked entity IDs;
-- scope;
-- observed timestamp;
-- confidence;
-- allowed roles;
-- security state and reason.
+`ProposedCommand` includes command/action type, target reference, expected ETag, bounded payload, status, deterministic idempotency key, mission/checkpoint/trace IDs, requester/approver and approval time, attempt/lease state, applied ETag, provider response hash, and failure code.
 
-Evidence is filtered before model context construction. Large production evidence should be referenced, not copied into Firestore.
+Only live `google_calendar` projections may produce Calendar commands. Demo fixture records remain useful input data but are not external write targets.
 
-## Work events
+## State ownership
 
-All connectors normalize to the same immutable envelope:
+- Mattermost/PostgreSQL: users, sessions, memberships, channels, posts, threads, files, realtime delivery.
+- Google Calendar/GitHub/other provider: source facts and resource versions.
+- Firestore: compact projections, durable workflow and governance state.
+- Vertex Sessions: ADK session events only.
+- Vertex Memory Bank: explicit non-authoritative preferences only.
+- process memory: tests, static seed/configuration, and bounded cache only.
 
-```text
-id, source, event_type, actor_user_id, entity_ids, occurred_at, payload
-```
-
-The event ID is the idempotency key. The semantic projector mutates compact current state, but retains event references for provenance.
-
-## Decisions and memory
-
-A `Decision` is an asynchronous authority request. It contains:
-
-- canonical decision key;
-- title/summary;
-- requester and assignee;
-- optional project;
-- options;
-- evidence and policy references;
-- due/status/resolution;
-- facts hash.
-
-A `DecisionMemory` is generated only from an explicit resolution. It is reusable only when canonical key, scope, facts hash, and expiry still match.
-
-## Persistence split
-
-- Mattermost/PostgreSQL: people, teams, sessions, rooms, messages, files, collaboration history.
-- Firestore: compact query results, decisions, memory, work events, audit, counters, and semantic state.
-- Pub/Sub: transient event transport with dead-letter handling.
-- Source systems: original GitHub/Calendar/Jira records.
+All production timestamps use real UTC-derived wall time. The fixed demo timestamp is injected only by deterministic tests.

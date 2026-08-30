@@ -1,128 +1,62 @@
-# Security Model
+# Security and authority model
 
-## Security objective
+NoBS makes organizational knowledge easier to reach without flattening identity, evidence permissions, or decision authority.
 
-NoPing should make organizational knowledge easier to reach **without flattening identity, privacy, or decision authority**.
+## Control order
 
-The most important invariant is:
+`identity → tenant → requester role → entity scope → evidence authorization → policy → delegation → model execution → human approval → external action`
 
-> A model may synthesize evidence, but it may not grant itself access, invent authority, or turn untrusted content into policy.
+All controls through delegation are deterministic and occur before Gemini receives evidence. Models cannot grant access, choose an approving actor, waive a policy, resolve an authority checkpoint, or execute a command.
 
-## Identities
+## Trust boundaries
 
-| Identity | Allowed capabilities |
+1. **Browser:** untrusted. The Go plugin discards browser-supplied requester identity and resolves the Mattermost session user server-side.
+2. **Mattermost/plugin:** collaboration authority. It invokes the private gateway using both a Google IAM identity token and an HMAC over method, exact path/query, timestamp, and body.
+3. **Gateway/mission runtime:** read-only enterprise-agent boundary. It applies replay, tenant, rate, concurrency, model-budget, evidence, policy, and Model Armor controls. It lacks the Calendar credential.
+4. **Firestore/Pub/Sub:** durable at-least-once control plane. Tenant-scoped transactions own mission/checkpoint/command state; push uses a pinned service account and audience.
+5. **Action executor:** isolated write boundary. It has no model/query tools and reads only the Calendar credential plus approved command state.
+
+## Evidence security
+
+- Retrieval receives trusted organization/requester context from the runtime, never the model.
+- Source results are permission-filtered, bounded, and represented by IDs, timestamps, confidence, security state, and hashes.
+- Local poisoning detection excludes quarantined sources before agent context.
+- Production Model Armor screens each ADK prompt and response and fails closed when unavailable.
+- The deterministic critic accepts only citations to the exact supplied source map and removes missing, low-confidence, conflicting, or unauthorized claims.
+- Logs and traces contain operational metadata, never prompts, cookies, OAuth tokens, raw message bodies, hidden reasoning, or poisoned payloads.
+
+## Human authority and commands
+
+An authority-bound recommendation persists a checkpoint with the exact authorized actor. Resolution verifies actor and meeting ETag transactionally. Demo sources may record an approved recommendation but cannot produce a command. A live Calendar source produces one typed command containing target, expected ETag, payload, mission/checkpoint IDs, trace ID, approver, and deterministic idempotency key.
+
+The executor reloads the command, verifies its approved state, claims a lease, uses Calendar `If-Match`, reads the result, and stores only a response hash and safe metadata. Duplicate/terminal/leased commands are no-ops. HTTP 412 becomes terminal `stale`.
+
+## Identity matrix
+
+| Identity | Narrow grants |
 |---|---|
-| Mattermost user | normal Mattermost access plus NoPing queries under existing session |
-| Mattermost VM service account | invoke private agent Cloud Run; publish normalized work events; write logs/metrics |
-| agent service account | call Vertex AI/ADK, Model Armor, Firestore, logs/traces/metrics, read one signing secret |
-| Pub/Sub push service account | mint OIDC push tokens and invoke only configured private services |
-| budget guard service account | write logs; inspect and stop Compute instances through a custom two-permission role |
+| Mattermost VM | invoke gateway; publish normalized work events; logging/metrics |
+| agent runtime | Vertex AI, Model Armor, Agent Registry read, Firestore state, traces/logs, publish one command topic |
+| Pub/Sub push | mint OIDC for configured private endpoints |
+| action executor | Firestore, traces/logs, read one Calendar secret |
+| budget guard | logging plus custom `compute.instances.get/stop` for the configured VM |
 
-No runtime service account can create, resize, snapshot, or delete general infrastructure.
+No runtime identity receives Owner or Editor. Cloud Run remains private; no `allUsers` binding is allowed.
 
-## Request authentication
+## Memory boundaries
 
-### Mattermost path
+Confirmed decision memory is authoritative only when scope, facts hash, policy version, actor authority, outcome, freshness, and expiry still match. Preference Memory Bank accepts only explicit allowlisted personalization and is tagged `authority_effect=false`; no authorization code reads it.
 
-1. Mattermost authenticates the user session.
-2. Plugin resolves the server-side user and replaces any browser-supplied requester identity.
-3. VM gets an ID token for the exact Cloud Run audience from the metadata server.
-4. Plugin adds HMAC v1 headers over:
+## Threat-to-control map
 
-```text
-v1
-unix_timestamp
-UPPER_METHOD
-exact_path_and_query
-raw_body
-```
-
-5. Cloud Run IAM and HMAC middleware must both pass.
-
-Replay window and constant-time signature comparison are enforced. Shared cross-language vectors live in `contracts/signature_vector.json`.
-
-### Pub/Sub path
-
-OIDC validation pins:
-
-- expected audience;
-- expected service-account email;
-- verified email claim.
-
-Malformed payloads return `400`, unsigned production delivery returns `401`, and duplicate event IDs are no-ops.
-
-## Authorization order
-
-Authorization is performed before retrieval and before Gemini:
-
-```text
-intent → requester roles → evidence scope → policy → authority/delegation → model
-```
-
-Examples:
-
-- salary/compensation intent from Maya is refused without fetching the HR evidence body;
-- Atlas status evidence is available to project participants;
-- a launch exception requires `security_approver` or an active, scoped `acting_security_approver` delegation;
-- a model cannot convert revenue urgency into permission.
-
-## Prompt injection and tool poisoning
-
-Defense in depth:
-
-1. incoming user prompt is screened;
-2. evidence is scanned and quarantined individually;
-3. only allowed evidence enters the model context;
-4. Google Model Armor screens prompt and final response in production;
-5. the response fails closed if the guard is unavailable or blocks it;
-6. the audit trace records the finding without logging sensitive evidence bodies.
-
-The seeded malicious document says to ignore instructions, reveal private data, and approve Atlas. It is quarantined while trusted evidence still answers the factual question.
-
-## Decision safety
-
-Authority-bound requests never use a model-generated outcome. NoPing may:
-
-- gather facts;
-- identify applicable policy;
-- identify the current authorized human;
-- create a decision card;
-- record that person’s explicit response.
-
-Decision memory includes canonical class, project scope, facts hash, source decision, actor, outcome, rationale, creation, and expiry. A changed facts hash or expired memory forces re-evaluation.
-
-## Privacy and observability
-
-Logs exclude:
-
-- full prompts;
-- private messages;
-- evidence bodies;
-- passwords/tokens;
-- raw authorization headers.
-
-Logs retain operational metadata such as run ID, requester ID, intent, status, route hops, evidence count, security finding count, token usage, and latency. Ordinary traces may be sampled; denials, security findings, escalations, failures, and demo runs should be retained.
-
-## Threats explicitly addressed
-
-- browser impersonates another employee;
-- public caller reaches Cloud Run;
-- replay or body tampering;
-- Pub/Sub spoofing;
-- prompt injection in query or source;
-- retrieval of unauthorized HR data;
-- model approves a human-only decision;
-- stale delegation grants authority;
-- duplicate events create duplicate decisions;
-- agent loop/cost explosion;
-- business runtime can stop or resize infrastructure;
-- secrets accidentally enter Git.
-
-## Residual risks requiring Phase 2 validation
-
-- real Mattermost version/plugin API compatibility;
-- actual Google IAM and Model Armor responses;
-- connector OAuth scopes and webhook signature validation;
-- evidence permission synchronization from production systems;
-- organization-specific data retention and legal requirements;
-- TLS/domain configuration if the demo uses a hostname rather than raw-IP HTTP.
+| Threat | Control |
+|---|---|
+| forged browser identity | server-side Mattermost session resolution |
+| replay/tampering | IAM + exact-body HMAC + timestamp window |
+| cross-tenant/evidence leak | deterministic scope and permission filtering before context |
+| prompt-injected connector content | quarantine + Model Armor + citation allowlist |
+| model self-approval | deterministic authority gate + durable actor-bound checkpoint |
+| direct model side effect | no write tool/credential; separate executor |
+| stale or duplicate action | ETag, idempotency key, lease, terminal states, postcondition read |
+| secret/log leakage | Secret Manager, structured redacted logs, body-free traces |
+| overspend | per-query/day admission, max instances, $25 budget, independent VM-stop guard |

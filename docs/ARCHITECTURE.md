@@ -1,196 +1,188 @@
-# Architecture
+# Governed multi-agent architecture
 
-## System view
+NoBS uses a **Governed Coordinator with Parallel Specialist Agents, Durable Mission State, Human Authority Gates, and a Least-Privilege Action Executor**. The editable overview is [`architecture.mmd`](architecture.mmd) and the video-ready render is [`architecture.png`](architecture.png).
 
 ```mermaid
-flowchart LR
-  U["Employee / demo user"]
-
-  subgraph Browser["Web browser"]
-    UI["NoBS React UI<br/>Channels · Workrooms · Calendar"]
-  end
-
-  subgraph VM["Google Compute Engine VM"]
-    C["Caddy<br/>TLS · routing · demo auto-login"]
-    M["Mattermost server"]
-    P["NoPing Go plugin<br/>session validation · policy boundary"]
-    DB[("PostgreSQL<br/>users · messages · channels · sessions")]
-  end
-
-  subgraph GCP["Google Cloud"]
-    Q["Pub/Sub<br/>normalized work events"]
-
-    subgraph CR["Private Cloud Run"]
-      R["NoPing agent service<br/>routing · retrieval · delegation"]
-      BG["Budget guard"]
-    end
-
-    F[("Firestore<br/>decisions · memory · audit state")]
-    A["Model Armor<br/>prompt and response screening"]
-    G["Google ADK + Gemini"]
-    O["Cloud Logging<br/>Trace · Monitoring"]
-  end
-
-  subgraph Sources["Connected work systems"]
-    GH["GitHub"]
-    CAL["Google Calendar"]
-    ME["Mattermost events"]
-    J["Jira / future connectors"]
-  end
-
-  B["Google Cloud billing budget"]
-
-  U --> UI
-  UI <-->|"HTTPS · API · WebSocket"| C
-  C --> M
-  M <-->|"users · sessions · posts"| DB
-  M <-->|"plugin API · realtime events"| P
-
-  P -->|"Google IAM ID token + HMAC"| R
-  R -->|"structured result"| P
-
-  GH --> Q
-  CAL --> Q
-  ME --> Q
-  J --> Q
-  Q -->|"OIDC push"| R
-
-  R -->|"screen prompt"| A
-  A -->|"allowed prompt"| G
-  G -->|"draft response"| A
-  A -->|"screened result"| R
-
-  R <-->|"decisions · memory · counters"| F
-  R --> O
-  B --> BG
-  BG -->|"inspect / stop only"| VM
+flowchart TB
+  U[Employee] --> UI[NoBS React UI]
+  UI <-->|HTTPS + WebSocket| MM[Mattermost + Go plugin]
+  MM <--> PG[(PostgreSQL collaboration truth)]
+  MM -->|IAM token + HMAC| GW[Private NoBS Gateway]
+  PS[Pub/Sub work events] -->|OIDC, async| GW
+  GW --> AG[Access Gate + Model Armor]
+  DD[Delegate Directory: logical identities] --> AG
+  AG --> MC[Meeting Mission Controller: Gemini 3.5]
+  MC -->|parallel| WG[Work Graph Agent: Gemini 3.5]
+  MC -->|parallel| PE[Policy Evidence Agent: Gemini 3.5]
+  WG --> EC[Evidence Critic: deterministic]
+  PE --> EC
+  EC --> MR[Meeting Resolution Agent: Gemini 3.5]
+  MR --> AU[Authority Gate: deterministic]
+  AU --> HC[Human checkpoint]
+  AU --> DONE[Complete without action]
+  HC --> CB[Approved typed command]
+  CB --> CQ[Pub/Sub command ID]
+  CQ --> EX[Private Action Executor]
+  EX -->|If-Match| CAL[Google Calendar]
+  CAL -->|post-write read| EX
+  EX --> FS[(Firestore mission authority)]
+  MC <--> FS
+  HC <--> FS
+  REG[Google Agent Registry] --> MC
+  SES[Vertex Sessions] <--> MC
+  MEM[Memory Bank: preferences only] -.-> UI
+  GW --> OBS[Logging + Trace + Monitoring]
+  MC --> OBS
+  EX --> OBS
 ```
 
-A submission-ready PNG is available at [`architecture.png`](architecture.png); the editable source is [`architecture.mmd`](architecture.mmd).
+Employee, project, team, and policy delegates are logical organizational identities. Meeting Mission, Work Graph, Policy Evidence, and Meeting Resolution are executable agent components; Evidence Critic and Authority Gate are executable deterministic workflow nodes.
 
-## Request lifecycle
+## What actually executes
+
+The meeting mission is a fixed graph, not a free-form swarm. The controller, Work Graph specialist, Policy Evidence specialist, and resolution synthesizer are typed Google ADK `LlmAgent` invocations on `gemini-3.5-flash`. The two specialists execute concurrently with independent reports and measured durations. Evidence Critic and Authority Gate are deterministic code because support validation and authority cannot be model decisions.
+
+The Agent Registry contains four native service entries and Firestore stores each rich application manifest. The controller can route only to approved known specialist IDs. Agent Engine Sessions store ADK session events; Firestore, not Sessions, owns mission, checkpoint, command, and audit truth. Memory Bank stores only explicit non-authoritative preferences.
+
+## Request and mission sequence
 
 ```mermaid
 sequenceDiagram
-  participant U as Employee
-  participant UI as NoBS React UI
-  participant P as Mattermost + Go plugin
-  participant R as Private agent service
-  participant A as Model Armor
-  participant G as Gemini
+  actor E as Employee
+  participant P as Mattermost + plugin
+  participant G as Private gateway
   participant F as Firestore
+  participant C as Controller
+  participant W as Work Graph
+  participant Y as Policy Evidence
+  participant R as Critic + Resolution
+  participant H as Human authority
 
-  U->>UI: Ask a question or start a Workroom
-  UI->>P: Authenticated Mattermost request
-  P->>P: Resolve the server-side session user
-  P->>R: IAM identity token + HMAC-signed request
-  R->>A: Screen incoming instruction
-  A-->>R: Allow or block
-  R->>R: Apply permissions and authority policy
-  R->>F: Read permitted state and evidence metadata
-
-  alt Human authority is required
-    R->>F: Create pending decision
-    R-->>P: Return Needs You card
-  else Agent may answer
-    R->>G: Send authorized evidence only
-    G-->>R: Draft response
-    R->>A: Screen final response
-    A-->>R: Allow or block
-    R->>F: Persist compact state and audit metadata
-    R-->>P: Return structured answer
+  E->>P: Prepare meeting
+  P->>G: session-derived user + IAM + HMAC + trace
+  G->>G: access, admission, Model Armor
+  G->>F: create mission and controller step
+  G->>C: typed agenda + approved registry
+  C-->>F: typed plan
+  par independent specialists
+    C->>W: authorized work sources only
+    W-->>F: source-cited report
+  and
+    C->>Y: authorized policy sources only
+    Y-->>F: source-cited report
   end
-
-  P-->>UI: Realtime update
-  UI-->>U: Answer, Workroom, or decision card
+  F->>R: accepted claims only
+  R-->>F: resolutions + recommendation
+  alt authority required
+    F-->>H: durable checkpoint
+    H->>G: approve or reject
+    G->>F: resolve the same mission transactionally
+  else no authority required
+    F->>F: complete mission
+  end
 ```
 
-```text
-1. Browser calls the NoPing plugin under an authenticated Mattermost session.
-2. Plugin resolves the session user through the Mattermost server API.
-3. Plugin gets/caches a Google identity token from the Compute metadata server.
-4. Plugin signs method + exact path/query + timestamp + body with HMAC v1.
-5. Cloud Run IAM verifies the VM service account; middleware verifies HMAC/replay window.
-6. Runtime admits the user/org request under hard rate and concurrency limits.
-7. Model Armor/local guard screens the incoming instruction.
-8. Intent and policy engines determine retrieval and authority constraints.
-9. Router discovers relevant logical delegates from the organization model.
-10. Retriever returns only evidence authorized for the requester.
-11. Poisoned evidence is quarantined before model context construction.
-12. Existing decision memory is reused only when scope/facts/expiry still match.
-13. Authority-bound work becomes a Needs You card; Gemini is not allowed to decide.
-14. Other work reserves model calls/tokens before invoking Google ADK.
-15. Model Armor screens the final response before release.
-16. Result, audit metadata, compact state, and counters persist to Firestore.
-17. Plugin receives the structured result and emits realtime Mattermost updates.
+## Durable state machine
+
+```mermaid
+stateDiagram-v2
+  [*] --> accepted
+  accepted --> running
+  running --> running: persist each completed node
+  running --> waiting_human: authority gate
+  running --> completed: no human action
+  running --> failed: safe failure
+  failed --> running: explicit resume
+  waiting_human --> completed: reject / approve demo recommendation
+  waiting_human --> queued_action: approve live command
+  queued_action --> completed: executor verifies result
+  queued_action --> failed: retry limit / uncertain verification
 ```
 
-## Deployment profile
+Completed step IDs and attempts are stable, so recovery skips them instead of fabricating or replaying successful agent work.
 
-The checked-in Google Cloud deployment intentionally optimizes for a bounded-cost demo:
+## Action execution sequence
 
-- one small Compute Engine VM runs Caddy, Mattermost, and PostgreSQL;
-- the private agent and budget guard use Cloud Run with zero minimum instances and one maximum instance;
-- Firestore owns compact agent state while Mattermost/PostgreSQL remains the collaboration source of truth;
-- Pub/Sub absorbs asynchronous work events;
-- the explicitly armed budget guard can stop the demo VM when the configured budget threshold is reached.
+```mermaid
+sequenceDiagram
+  participant H as Organizer
+  participant G as Gateway/runtime
+  participant F as Firestore
+  participant Q as Pub/Sub
+  participant X as Private executor
+  participant C as Calendar
 
-This profile is deliberately not highly available. A production rollout should move PostgreSQL to a managed, backed-up service; introduce a load balancer and managed domain/TLS; allow multiple Mattermost and Cloud Run instances; formalize connector OAuth and webhook verification; and add disaster recovery, service-level objectives, retention policy, and operational alerting.
+  H->>G: approve recommendation + expected ETag
+  G->>F: resolve checkpoint; persist approved command
+  G->>Q: command ID only
+  Q->>X: authenticated at-least-once push
+  X->>F: transactionally claim lease
+  alt duplicate or terminal
+    F-->>X: no-op
+  else claimed
+    X->>C: If-Match write
+    C-->>X: provider result
+    X->>C: read postcondition
+    C-->>X: verified state
+    X->>F: immutable attempt + result hash
+  end
+```
 
-## Trust boundaries
+Seeded demo Calendar rows are deliberately non-writeable. Approval records an approved recommendation and generates no command. Only an ingested `source=google_calendar` snapshot can produce an executor command.
 
-### Browser → Mattermost plugin
+## Identity and permission boundaries
 
-The browser is untrusted. `requester_id` from the browser is ignored/replaced at the plugin server boundary. The plugin trusts only the Mattermost session header and server API user lookup.
-
-### Mattermost VM → Cloud Run
-
-Two independent checks are required:
-
-- Google Cloud IAM ID token proving the Compute service account;
-- NoPing HMAC proving the exact request contents and bounded timestamp.
-
-The identity token prevents arbitrary internet callers. HMAC prevents a compromised intermediary from changing method/path/body inside the trusted channel.
-
-### Pub/Sub → Cloud Run
-
-Push delivery uses an OIDC token with a pinned audience and pinned push service-account email. The application decodes a bounded normalized `WorkEvent`; event IDs make delivery idempotent.
-
-### Agent runtime → model/evidence
-
-Policy is deterministic. Models cannot widen scopes, approve decisions, or choose what restricted evidence they receive. Model Armor and local poison checks are defense in depth, not substitutes for authorization.
+| Identity | Can read | Can write | Explicitly cannot |
+|---|---|---|---|
+| browser user | own Mattermost session/UI | normal UI requests | choose the server-side requester or call private Cloud Run directly |
+| `noping-mattermost` | invoke gateway, publish normalized events | Mattermost plugin state/events | access the Calendar credential |
+| `noping-agent` | Firestore projections, Vertex AI, Model Armor, Agent Registry | mission/checkpoint/proposal state and one command topic | access Calendar OAuth secret or call Calendar writes |
+| `noping-pubsub-push` | none | mint OIDC for private push endpoints | business data, model, Calendar |
+| `noping-action-executor` | approved commands and one Calendar credential | narrow Calendar action and verified result | Gemini, query APIs, arbitrary tools, other secrets |
+| `noping-budget-guard` | configured VM state | stop only the demo VM | business data, budgets, models, deletion |
 
 ## State ownership
 
-| State | Source of truth | Reason |
+| State | Authority | Stored representation |
 |---|---|---|
-| users, sessions, rooms, messages, files | Mattermost/PostgreSQL | mature collaboration substrate |
-| organization entities/relationships | NoPing workspace/config and later approved directory sync | routing and authority |
-| normalized work events | Pub/Sub → Firestore compact event records | asynchronous idempotent projection |
-| semantic work state | derived in agent service, compact persistence | fast organizational answers |
-| pending decisions | Firestore | asynchronous Needs You lifecycle |
-| decision memory | Firestore | cross-session reuse with expiry/facts hash |
-| audit/query metadata | Firestore + Cloud Logging | product audit and operational proof |
-| raw large evidence | original system/Mattermost | avoid duplication and excess storage |
+| users, sessions, channels, posts, files | Mattermost/PostgreSQL | native records |
+| Calendar event content and revision | Google Calendar | compact meeting projection + ID/ETag |
+| GitHub/Jira/source facts | original provider | bounded evidence metadata and work projection |
+| mission, steps, checkpoints | Firestore | tenant-scoped typed documents |
+| approved commands and attempts | Firestore | typed command, lease, immutable attempt, response hash |
+| confirmed decision memory | Firestore | scope/facts/policy/authority/expiry-bound record |
+| non-authoritative preferences | Vertex Memory Bank | allowlisted explicit preference only |
+| ADK session events | Vertex Agent Engine Sessions | context, not business authority |
+| agent lifecycle | Agent Registry + Firestore manifest | native discovery plus typed governance fields |
+| prompts/raw private evidence | originating system / ephemeral request | not persisted in mission state or logs |
 
-## Failure behavior
+## Failure modes
 
-- **Cloud Run unavailable:** plugin returns a bounded service-unavailable state; it does not fabricate an answer. Mattermost Rooms continue working.
-- **Gemini failure after reservation:** reservation remains charged conservatively; evidence may be resolved but no unsafe fallback answer is generated.
-- **Model Armor unavailable in production:** fail closed for new model synthesis.
-- **Pub/Sub duplicate:** accepted as an idempotent no-op.
-- **Worker poison/loop:** maximum route hops, calls, time, and concurrency bound the run.
-- **Authority unavailable:** decision remains pending or routes through a valid delegation; model never inherits authority.
-- **AI budget exhausted:** cached answers, deterministic policy, decisions, and Rooms remain; new model synthesis is blocked before spend.
-- **Project budget 90%:** independent guard stops the Mattermost VM after explicit arming; Cloud Run already has min instances zero.
+| Failure | Safe behavior |
+|---|---|
+| Model Armor unavailable | production synthesis fails closed |
+| source injection | scanner/Model Armor quarantines it before agent context |
+| agent/model error | mission fails safely; no prewritten fallback answer |
+| runtime restart | resume same mission and skip completed steps |
+| unauthorized approver | 403; checkpoint remains pending |
+| source ETag changed | reject approval/execution and require fresh preparation |
+| duplicate event/command | transactional idempotent no-op |
+| executor crash | bounded lease expiry permits safe redelivery |
+| unverifiable provider result | never claim success; bounded retry/manual review |
+| model budget exhausted | block new synthesis before the provider call |
+| project budget threshold | independent guard can stop only the demo VM |
 
-## Scale path
+## Cost and scaling profile
 
-The hackathon deployment intentionally uses one small Mattermost VM. The logical boundaries remain horizontally scalable:
+| Component | Hackathon bound | Scale path |
+|---|---|---|
+| Mattermost/PostgreSQL/Caddy | one `e2-small` VM | normal Mattermost HA + managed database |
+| agent gateway/runtime | Cloud Run min 0, max 1, concurrency 4 | raise cap; Firestore already owns state |
+| action executor | Cloud Run min 0, max 1, concurrency 1 | partition only when measured |
+| Firestore | native single-region database | managed autoscaling; retention/index review |
+| Pub/Sub | retained work/command topics with DLQs | native throughput scaling |
+| Gemini | four calls max per meeting mission | per-tenant admission/token budgets remain |
 
-- plugin server is stateless aside from short token cache;
-- Cloud Run service is stateless with Firestore persistence;
-- Pub/Sub absorbs event bursts;
-- entity delegates are logical registry records, not permanent processes;
-- routing and evidence contracts are organization-agnostic;
-- Mattermost can later move to its normal HA topology without changing the NoPing protocol.
+## Accurate platform choices
+
+Google Agent Gateway is not shown as deployed. It governs A2A/MCP network calls, but this mission’s agents run in one process and the executor consumes an authenticated typed Pub/Sub command ID. There is no A2A/MCP hop for Gateway to mediate today. Agent code executes on private Cloud Run; the deployed Agent Engine resource supplies Sessions and Memory Bank, not an Agent Runtime deployment.

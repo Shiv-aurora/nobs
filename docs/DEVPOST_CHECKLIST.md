@@ -1,48 +1,47 @@
-# Devpost Submission Checklist
+# Submission readiness checklist
 
-## Mandatory technology
+## Compliance and honesty
 
-- [x] Gemini 3.5 or newer shown in code and live logs
-- [x] Google ADK shown in code and live execution
-- [x] Google Cloud infrastructure shown live
-- [ ] Fortified Enterprise Fleet selected
+- [x] visible product name is NoBS; internal `noping-*` compatibility names disclosed
+- [x] primary judged model is exact Vertex ID `gemini-3.5-flash`
+- [x] real Google ADK calls and two parallel specialists proven
+- [x] logical delegates distinguished from executable agents
+- [x] fixture-selected final results, prewritten execution turns, and fake durations removed
+- [x] Cloud Run/Agent Engine/Agent Registry/Gateway claims match actual roles
+- [x] repository and open-source attribution accurate
 
-## Product proof
+## Governance and reliability
 
-- [x] unedited factual query with visible multi-delegate route
-- [x] sourced answer with zero humans interrupted
-- [x] malicious evidence quarantine
-- [x] restricted HR query refused before retrieval/model
-- [x] OOO/delegated authority routing
-- [x] Needs You decision resolved by authorized human
-- [x] repeated decision uses scoped memory without another interruption
-- [x] audit/registry/system view
+- [x] Firestore-authoritative mission/step/checkpoint/command schemas
+- [x] deterministic authority gate and actor-bound checkpoint
+- [x] resume skips completed step IDs
+- [x] demo data cannot create external commands
+- [x] executor duplicate, lease, retry, stale-ETag, and envelope tests
+- [x] preference memory cannot alter authority
+- [x] injection/restricted-evidence tests
+- [ ] production executor identity/IAM/private revision verified after explicit approval
+- [ ] signed production mission and Firestore/trace proof captured
+
+## Google Cloud
+
+- [x] project `noping-agentic-shiv-2026` and billing verified
+- [x] Gemini 3.5 real request
+- [x] four native Agent Registry services
+- [x] Agent Engine Sessions/Memory resource
+- [x] Model Armor fail closed
+- [x] immutable agent/executor/Mattermost images pushed
+- [x] Terraform Google provider 8.0.0 validates
+- [x] existing $25 guardrail and budget guard preserved
+- [ ] final Cloud Run revisions, Pub/Sub command path, narrow IAM, and private bindings recorded
+- [ ] final browser verification and VM stop decision recorded
 
 ## Submission assets
 
-- [x] hosted Mattermost/NoPing URL and judge credentials reference
-- [x] repository URL
-- [x] README spin-up instructions tested from a clean clone
-- [x] `docs/architecture.png` ready to upload
-- [ ] public YouTube/Vimeo video no longer than 4 minutes
-- [ ] video visibly shows Google Cloud console/logs/URL
-- [x] text description: features, technologies, data sources, findings/learnings
-- [x] OSS foundation and upstream commit disclosed
-- [x] project start date documented within submission period
-
-## Cost and security evidence
-
-- [x] private Cloud Run IAM, no public principal
-- [x] Cloud Run min 0/max 1/concurrency 4
-- [x] Model Armor template and blocked test
-- [x] Pub/Sub OIDC and DLQ
-- [x] `$25` budget and thresholds
-- [x] budget guard dry-run reviewed and armed
-- [x] judging-period uptime explicitly requested by owner; daily stop and 90% guard remain active
-- [x] no credentials in repo or video
-
-## Optional points
-
-- [ ] public technical build article with hackathon disclosure
-- [ ] social post with `#AllThingsAgenticHackathon`
-- [ ] optional additional Google model only if it improves the product and remains within budget
+- [x] architecture thesis and main Mermaid source
+- [x] request, state, and action sequence diagrams
+- [x] identity/state/failure/cost tables
+- [x] architecture decisions, agent catalog, mission runtime, recovery, evaluation docs
+- [ ] final 1920×1080-readable `architecture.png` rendered and inspected
+- [ ] final deployment evidence reconciled with revisions/digests
+- [ ] four-minute video recorded from final deployment
+- [ ] Devpost form submitted by the project owner

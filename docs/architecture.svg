@@ -1,5 +1,71 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1120" viewBox="0 0 1800 1120">
-  <image href="architecture.png" width="1800" height="1120"/>
-  <title>NoPing Fortified Enterprise Fleet architecture</title>
-  <desc>Mattermost and the NoPing plugin invoke a private Cloud Run organizational agent service using Google identity and HMAC. The service uses Google ADK, Gemini, Model Armor, Firestore, Pub/Sub, and Cloud observability. A separate budget guard may stop the small Mattermost VM at 90 percent of a 25 dollar budget.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <title>NoBS governed multi-agent architecture</title>
+  <desc>Four trust boundaries show Mattermost collaboration, the private read-only gateway, a durable bounded mission with two parallel Gemini 3.5 specialists, and a separate human-gated action executor.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 Z" fill="#405266"/></marker>
+    <style>
+      .title{font:700 34px Arial,sans-serif;fill:#14213d}.subtitle{font:18px Arial,sans-serif;fill:#405266}
+      .group{fill:#fafbff;stroke:#aab6c5;stroke-width:2}.group-title{font:700 21px Arial,sans-serif;fill:#14213d}
+      .node{fill:#eef2f7;stroke:#77869a;stroke-width:1.5}.exec{fill:#e8f0fe;stroke:#1a73e8}.det{fill:#e6f4ea;stroke:#188038}.state{fill:#fff6d8;stroke:#e69a00}.write{fill:#fce8e6;stroke:#d93025}.human{fill:#f3e8fd;stroke:#9334e6}.future{fill:#fff;stroke:#777;stroke-dasharray:7 5}
+      .label{font:700 16px Arial,sans-serif;fill:#172b4d;text-anchor:middle}.small{font:14px Arial,sans-serif;fill:#405266;text-anchor:middle}.edge{fill:none;stroke:#405266;stroke-width:2;marker-end:url(#arrow)}.dash{fill:none;stroke:#68788c;stroke-width:2;stroke-dasharray:7 5;marker-end:url(#arrow)}.edge-label{font:13px Arial,sans-serif;fill:#405266;text-anchor:middle}
+    </style>
+  </defs>
+
+  <rect width="1920" height="1080" fill="#ffffff"/>
+  <text class="title" x="55" y="52">NoBS · Governed Coordinator with Parallel Specialists and Human-Gated Actions</text>
+  <text class="subtitle" x="55" y="82">Solid boxes are deployed/code-complete boundaries; dashed Agent Gateway is future because no A2A/MCP hop exists today.</text>
+
+  <rect class="group" x="35" y="110" width="430" height="820" rx="14"/><text class="group-title" x="55" y="145">A · Experience + collaboration</text>
+  <rect class="node" x="145" y="180" width="210" height="58" rx="8"/><text class="label" x="250" y="215">Employee</text>
+  <rect class="node" x="110" y="285" width="280" height="66" rx="8"/><text class="label" x="250" y="315">NoBS React UI</text><text class="small" x="250" y="337">untrusted browser</text>
+  <rect class="node" x="85" y="405" width="330" height="72" rx="8"/><text class="label" x="250" y="435">Mattermost + Caddy</text><text class="small" x="250" y="458">sessions · channels · realtime</text>
+  <rect class="node" x="70" y="535" width="200" height="72" rx="8"/><text class="label" x="170" y="566">NoBS Go plugin</text><text class="small" x="170" y="588">server-side identity</text>
+  <rect class="state" x="290" y="535" width="150" height="72" rx="8"/><text class="label" x="365" y="566">PostgreSQL</text><text class="small" x="365" y="588">collaboration truth</text>
+  <rect class="node" x="85" y="730" width="330" height="84" rx="8"/><text class="label" x="250" y="760">$25 budget + independent guard</text><text class="small" x="250" y="785">may stop only the demo VM</text>
+  <path class="edge" d="M250 238 V285"/><path class="edge" d="M250 351 V405"/><path class="edge" d="M190 477 V535"/><path class="edge" d="M310 477 V535"/>
+  <text class="edge-label" x="250" y="385">HTTPS · WebSocket</text>
+
+  <rect class="group" x="500" y="110" width="430" height="820" rx="14"/><text class="group-title" x="520" y="145">B · Private gateway · read-only</text>
+  <rect class="state" x="570" y="180" width="290" height="70" rx="8"/><text class="label" x="715" y="208">Pub/Sub work events</text><text class="small" x="715" y="232">OIDC · retry · dead-letter</text>
+  <rect class="node" x="555" y="300" width="320" height="76" rx="8"/><text class="label" x="715" y="329">NoBS Gateway</text><text class="small" x="715" y="352">IAM · HMAC · replay</text>
+  <rect class="det" x="555" y="425" width="320" height="76" rx="8"/><text class="label" x="715" y="454">Admission</text><text class="small" x="715" y="478">rate · concurrency · calls · tokens</text>
+  <rect class="node" x="525" y="550" width="175" height="76" rx="8"/><text class="label" x="612" y="579">Delegate Directory</text><text class="small" x="612" y="602">logical identities</text>
+  <rect class="det" x="725" y="550" width="175" height="76" rx="8"/><text class="label" x="812" y="579">Access Gate</text><text class="small" x="812" y="602">tenant · evidence</text>
+  <rect class="node" x="555" y="690" width="320" height="76" rx="8"/><text class="label" x="715" y="719">Model Armor</text><text class="small" x="715" y="742">every ADK input/output · fail closed</text>
+  <path class="edge" d="M715 250 V300"/><path class="edge" d="M715 376 V425"/><path class="edge" d="M715 501 V535 H812 V550"/><path class="edge" d="M700 588 H725"/><path class="edge" d="M812 626 V690"/>
+  <path class="edge" d="M270 571 H480 V338 H555"/><text class="edge-label" x="417" y="326">IAM + HMAC + trace</text>
+
+  <rect class="group" x="965" y="110" width="430" height="820" rx="14"/><text class="group-title" x="985" y="145">C · Durable governed mission</text>
+  <rect class="state" x="1015" y="175" width="155" height="62" rx="8"/><text class="label" x="1092" y="201">Agent Registry</text><text class="small" x="1092" y="222">4 services · v1</text>
+  <rect class="state" x="1190" y="175" width="155" height="62" rx="8"/><text class="label" x="1267" y="201">Vertex Sessions</text><text class="small" x="1267" y="222">ADK context</text>
+  <rect class="exec" x="1025" y="275" width="310" height="68" rx="8"/><text class="label" x="1180" y="304">Meeting Mission Controller</text><text class="small" x="1180" y="327">Google ADK · Gemini 3.5 Flash</text>
+  <rect class="exec" x="990" y="395" width="185" height="76" rx="8"/><text class="label" x="1082" y="425">Work Graph Agent</text><text class="small" x="1082" y="449">parallel · Gemini 3.5</text>
+  <rect class="exec" x="1190" y="395" width="180" height="76" rx="8"/><text class="label" x="1280" y="425">Policy Evidence</text><text class="small" x="1280" y="449">parallel · Gemini 3.5</text>
+  <rect class="det" x="1025" y="515" width="310" height="62" rx="8"/><text class="label" x="1180" y="541">Evidence Critic</text><text class="small" x="1180" y="562">deterministic provenance checks</text>
+  <rect class="exec" x="1025" y="615" width="310" height="68" rx="8"/><text class="label" x="1180" y="644">Meeting Resolution</text><text class="small" x="1180" y="667">approved claims · Gemini 3.5</text>
+  <rect class="det" x="1010" y="725" width="180" height="68" rx="8"/><text class="label" x="1100" y="754">Authority Gate</text><text class="small" x="1100" y="777">deterministic policy</text>
+  <rect class="human" x="1210" y="725" width="160" height="68" rx="8"/><text class="label" x="1290" y="754">Human checkpoint</text><text class="small" x="1290" y="777">pause · resume</text>
+  <rect class="state" x="1010" y="840" width="360" height="66" rx="8"/><text class="label" x="1190" y="866">Firestore mission authority</text><text class="small" x="1190" y="889">steps · checkpoints · commands · attempts · audit</text>
+  <path class="edge" d="M1092 237 V260 H1130 V275"/><path class="edge" d="M1267 237 V260 H1230 V275"/>
+  <path class="edge" d="M1125 343 V375 H1082 V395"/><path class="edge" d="M1235 343 V375 H1280 V395"/><text class="edge-label" x="1180" y="370">parallel</text>
+  <path class="edge" d="M1082 471 V495 H1140 V515"/><path class="edge" d="M1280 471 V495 H1220 V515"/><path class="edge" d="M1180 577 V615"/><path class="edge" d="M1180 683 V705 H1100 V725"/><path class="edge" d="M1190 759 H1210"/><path class="edge" d="M1290 793 V840"/>
+  <path class="edge" d="M875 728 H945 V309 H1025"/><text class="edge-label" x="943" y="294">screened context</text>
+
+  <rect class="group" x="1430" y="110" width="455" height="820" rx="14"/><text class="group-title" x="1450" y="145">D · Consequential actions</text>
+  <rect class="det" x="1500" y="180" width="315" height="68" rx="8"/><text class="label" x="1657" y="208">Command builder</text><text class="small" x="1657" y="231">approved live source only</text>
+  <rect class="state" x="1500" y="290" width="315" height="62" rx="8"/><text class="label" x="1657" y="316">Approved command outbox</text><text class="small" x="1657" y="337">Firestore transaction</text>
+  <rect class="state" x="1500" y="395" width="315" height="62" rx="8"/><text class="label" x="1657" y="421">Pub/Sub command ID</text><text class="small" x="1657" y="442">OIDC · retry · DLQ</text>
+  <rect class="write" x="1500" y="500" width="315" height="72" rx="8"/><text class="label" x="1657" y="529">Private Action Executor</text><text class="small" x="1657" y="552">separate service account · max 1</text>
+  <rect class="write" x="1500" y="620" width="315" height="66" rx="8"/><text class="label" x="1657" y="647">Google Calendar</text><text class="small" x="1657" y="669">external source of truth</text>
+  <rect class="det" x="1500" y="735" width="315" height="66" rx="8"/><text class="label" x="1657" y="762">ETag + result verifier</text><text class="small" x="1657" y="784">post-write read · hashed outcome</text>
+  <rect class="node" x="1470" y="850" width="200" height="56" rx="8"/><text class="label" x="1570" y="883">Logging · Trace</text>
+  <rect class="future" x="1690" y="850" width="165" height="56" rx="8"/><text class="label" x="1772" y="875">Agent Gateway</text><text class="small" x="1772" y="896">future A2A/MCP</text>
+  <path class="edge" d="M1657 248 V290"/><path class="edge" d="M1657 352 V395"/><path class="edge" d="M1657 457 V500"/><path class="edge" d="M1657 572 V620"/><path class="edge" d="M1657 686 V735"/>
+  <path class="edge" d="M1370 759 H1415 V214 H1500"/><text class="edge-label" x="1447" y="201">organizer approved</text>
+
+  <rect class="state" x="430" y="970" width="355" height="72" rx="8"/><text class="label" x="607" y="998">Memory Bank · preferences only</text><text class="small" x="607" y="1022">never policy, evidence, authority, or approval</text>
+  <rect class="node" x="810" y="970" width="300" height="72" rx="8"/><text class="label" x="960" y="998">Dedicated service accounts</text><text class="small" x="960" y="1022">gateway ≠ executor ≠ budget guard</text>
+  <rect class="node" x="1135" y="970" width="355" height="72" rx="8"/><text class="label" x="1312" y="998">OpenTelemetry · Cloud observability</text><text class="small" x="1312" y="1022">safe IDs, versions, attempts, timings, usage</text>
+
+  <text class="subtitle" x="55" y="1068">Logical delegates define organizational scope. Executable agents perform bounded knowledge work. Deterministic nodes own access, evidence validation, authority, idempotency, and effects.</text>
 </svg>

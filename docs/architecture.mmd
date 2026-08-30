@@ -1,57 +1,81 @@
 flowchart LR
-  U["Employee / demo user"]
+  classDef exec fill:#e8f0fe,stroke:#1a73e8,color:#174ea6
+  classDef deterministic fill:#e6f4ea,stroke:#188038,color:#137333
+  classDef state fill:#fef7e0,stroke:#f9ab00,color:#7a4d00
+  classDef write fill:#fce8e6,stroke:#d93025,color:#a50e0e
+  classDef human fill:#f3e8fd,stroke:#9334e6,color:#681da8
+  classDef future fill:#fff,stroke:#777,color:#555,stroke-dasharray: 7 5
 
-  subgraph Browser["Web browser"]
-    UI["NoBS React UI<br/>Channels · Workrooms · Calendar"]
+  subgraph A["A · Experience + collaboration"]
+    direction TB
+    U["Employee"] --> UI["NoBS React UI"]
+    UI <-->|"HTTPS · WebSocket"| MM["Mattermost + Caddy"]
+    MM <-->|"collaboration truth"| PG[("PostgreSQL")]
+    MM <-->|"server-side identity"| PL["NoBS Go plugin"]
+    BUD["$25 budget + independent guard<br/>may stop only this demo VM"]
   end
 
-  subgraph VM["Google Compute Engine VM"]
-    C["Caddy<br/>TLS · routing · demo auto-login"]
-    M["Mattermost server"]
-    P["NoPing Go plugin<br/>session validation · policy boundary"]
-    DB[("PostgreSQL<br/>users · messages · channels · sessions")]
+  subgraph B["B · Private gateway · read-only"]
+    direction TB
+    GW["NoBS Gateway<br/>IAM · HMAC · replay"]
+    ADM["rate · concurrency<br/>call + token admission"]
+    DD["Delegate Directory<br/>logical identities"]
+    AG["Access Gate<br/>tenant · scope · evidence"]
+    MA["Model Armor<br/>fail closed"]
+    WE["Pub/Sub work events<br/>OIDC · retry · DLQ"]
+    GW --> ADM --> AG --> MA
+    DD --> AG
+    WE --> GW
   end
 
-  subgraph GCP["Google Cloud"]
-    Q["Pub/Sub<br/>normalized work events"]
-
-    subgraph CR["Private Cloud Run"]
-      R["NoPing agent service<br/>routing · retrieval · delegation"]
-      BG["Budget guard"]
-    end
-
-    F[("Firestore<br/>decisions · memory · audit state")]
-    A["Model Armor<br/>prompt and response screening"]
-    G["Google ADK + Gemini"]
-    O["Cloud Logging<br/>Trace · Monitoring"]
+  PL -->|"sync signed request<br/>+ trace context"| GW
+  subgraph C["C · Durable governed mission"]
+    direction TB
+    REG["Agent Registry<br/>4 versioned services"]
+    MC["Mission Controller<br/>ADK · Gemini 3.5"]
+    WG["Work Graph Agent<br/>ADK · Gemini 3.5"]
+    PE["Policy Evidence Agent<br/>ADK · Gemini 3.5"]
+    EC["Evidence Critic<br/>deterministic"]
+    MR["Meeting Resolution<br/>ADK · Gemini 3.5"]
+    AU["Authority Gate<br/>deterministic"]
+    HC["Human checkpoint<br/>pause + same-run resume"]
+    FS[("Firestore<br/>mission · steps · checkpoints<br/>commands · attempts · audit")]
+    SES["Vertex Sessions<br/>ADK context"]
+    MEM["Memory Bank<br/>preferences only · never authority"]
+    REG --> MC
+    MC -->|"parallel"| WG
+    MC -->|"parallel"| PE
+    WG --> EC
+    PE --> EC
+    EC --> MR --> AU
+    AU -->|"human required"| HC
+    AU -->|"no action"| FS
+    HC <-->|"durable resolution"| FS
+    SES <-->|"ADK events"| MC
   end
 
-  subgraph Sources["Connected work systems"]
-    GH["GitHub"]
-    CAL["Google Calendar"]
-    ME["Mattermost events"]
-    J["Jira / future connectors"]
+  subgraph D["D · Consequential actions"]
+    direction TB
+    CB["Command builder<br/>approved live source only"]
+    OUT[("approved command outbox")]
+    CQ["Pub/Sub command ID<br/>OIDC · retry · DLQ"]
+    EX["Private Action Executor<br/>separate SA · max 1"]
+    CAL["Google Calendar<br/>external truth"]
+    RV["ETag + result verifier<br/>persist hashed outcome"]
+    OBS["Logging · Trace · Monitoring"]
+    FUT["Agent Gateway · future only<br/>no A2A/MCP hop today"]
+    CB --> OUT --> CQ --> EX
+    EX -->|"If-Match write"| CAL
+    CAL -->|"post-write read"| RV
+    EX --> OBS
   end
 
-  B["Google Cloud billing budget"]
+  HC -->|"approved live source"| CB
+  MA --> MC
 
-  U --> UI
-  UI <-->|"HTTPS · API · WebSocket"| C
-  C --> M
-  M <-->|"users · sessions · posts"| DB
-  M <-->|"plugin API · realtime events"| P
-  P -->|"Google IAM ID token + HMAC"| R
-  R -->|"structured result"| P
-  GH --> Q
-  CAL --> Q
-  ME --> Q
-  J --> Q
-  Q -->|"OIDC push"| R
-  R -->|"screen prompt"| A
-  A -->|"allowed prompt"| G
-  G -->|"draft response"| A
-  A -->|"screened result"| R
-  R <-->|"decisions · memory · counters"| F
-  R --> O
-  B --> BG
-  BG -->|"inspect / stop only"| VM
+  class MC,WG,PE,MR exec
+  class ADM,AG,EC,AU,CB,RV deterministic
+  class FS,PG,OUT,WE,CQ,REG,SES,MEM state
+  class EX,CAL write
+  class HC human
+  class FUT future

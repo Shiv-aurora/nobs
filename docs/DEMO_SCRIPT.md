@@ -1,147 +1,80 @@
-# NoBS Four-Minute Demo Script
+# Four-minute architecture proof
 
-## Primary judging path
+Use one continuous screen recording. Show persisted/runtime evidence; do not narrate unavailable services or perform a real Calendar write without the dedicated demo organizer’s approval.
 
-1. Start in native `# Project Atlas` messaging. Ask `Why is Atlas delayed?` without tagging a bot; open the threaded NoBS delegate reply and its evidence route.
-2. Open **Calendar** beside Threads. Prepare **Atlas engineering sync** and show **30 → 0 min** plus the cancellation recommendation.
-3. Prepare **Atlas launch readiness** and show **60 → 15 min**, one remaining authority decision, Gemini Code Assist/GitHub work evidence, and the quarantined malicious instruction.
-4. Open **Agent Workroom · Atlas** to show bounded agent-to-agent coordination in ordinary native messaging.
-5. Open the top-right account menu and enable **OOO mode**; explain that handled activity becomes a grouped return digest.
+## 0:00–0:20 — Problem and result
 
-Close with: **“Fewer pings. Shorter meetings. More actual work.”**
+Open Project Atlas in NoBS.
 
-## Legacy detailed narration
+> “Workplace chat made everyone reachable—and every routine question an interruption. NoBS lets agents complete coordination while identity, evidence permissions, and human authority stay intact.”
 
-## 0:00–0:12 — Promise and first action
+State the two proof outcomes: a routine engineering sync can return 30 minutes; launch readiness can retain only 15 minutes for one human security decision.
 
-> “Workplace chat made everyone reachable—and constantly interruptible. NoPing lets you ask the company instead of pinging a coworker. Every person, project, team, and policy has a permission-aware delegate.”
+## 0:20–0:50 — Create one durable mission
 
-Open `# Project Atlas` and post:
+Open Calendar and prepare **Atlas launch readiness**. Show the returned mission ID/status, then the corresponding Firestore mission/step records or authenticated mission endpoint.
 
-> **Why is Atlas delayed?**
+> “This is not a fixture timeline. The meeting snapshot creates one Firestore-authoritative mission using the current Calendar ETag and real UTC time.”
 
-Do not tag a bot or employee. The automatic scope route is the point of the demo.
+## 0:50–1:25 — Actual parallel agents
 
-## 0:12–0:42 — Wow 1: organization routing
+Show the mission execution view or Cloud Trace. Point to:
 
-Show NoPing's inline threaded reply and the route metadata beneath it:
+- controller on `gemini-3.5-flash`;
+- Work Graph and Policy Evidence agent IDs/version `1.0.0`;
+- overlapping measured timings;
+- source references and accepted claim IDs;
+- deterministic critic after fan-out.
 
-```text
-Maya Delegate → Atlas Delegate → Engineering Delegate → Security Delegate
-```
+> “Employee and project delegates are logical scope records. These two specialists are actual typed ADK executions running concurrently.”
 
-Answer:
+## 1:25–1:50 — Evidence security
 
-> Atlas is blocked by SEC-184. Engineering completed the auth change; the final penetration-test review remains open.
+Show the poisoned vendor evidence security finding and absence from specialist claims.
 
-Point to the channel context and:
+> “Permission filtering and the local source scanner act before context. Model Armor screens every ADK input and output and fails closed. The model cannot cite a source it was not given.”
 
-- evidence links/timestamps;
-- freshness/confidence;
-- poisoned vendor source marked quarantined;
-- **4 delegates consulted · 0 people interrupted**.
+## 1:50–2:15 — Resolution and authority
 
-Say:
+Show resolved engineering/customer context, one authority-bound security item, and the 60 → 15 minute recommendation. Open the persisted pending checkpoint with the exact organizer.
 
-> “Maya asked in the same channel where work already happens. She did not need to know the owner, ticket, or org chart. The agents found the answer, but policy—not the model—controlled what evidence they could use.”
+> “Gemini locates and synthesizes evidence. Deterministic policy decides that a human is required, persists the checkpoint, and pauses the same mission.”
 
-## 0:42–1:03 — Security proof
+## 2:15–2:40 — Approval and executor
 
-Open Insights, then ask:
+If using seeded demo data, approve and show **Approved recommendation · demo data unchanged**, then show zero commands.
 
-> **What is Sarah’s salary?**
+For a dedicated live demo Calendar event only, approve as organizer and show:
 
-Show restricted refusal with zero evidence and zero model calls.
+- one ETag-bound command in Firestore;
+- Pub/Sub command ID delivery;
+- private executor service account;
+- lease/idempotency state;
+- `If-Match` and verified result metadata (never the credential/body).
 
-> “The HR record is blocked before retrieval, so private data never enters Gemini.”
+> “The model and gateway do not hold the Calendar credential. Only this private executor can apply an approved command.”
 
-## 1:03–1:35 — Live organizational state
+## 2:40–3:00 — Failure safety
 
-Open People/Projects and show:
+Run or show the duplicate/stale evaluation output: duplicate delivery is a no-op, active lease prevents concurrent execution, and a stale ETag becomes terminal `stale`. Also show resume keeping the same step IDs/attempts.
 
-- Daniel: AUTH-392 in review or ready to merge from GitHub event;
-- Sarah: out of office;
-- Alex: delegated security authority;
-- Atlas: blocked by SEC-184.
+## 3:00–3:35 — Architecture
 
-Trigger the seeded PR review event and show Daniel/Atlas state update.
+Open `docs/architecture.png` full-screen. Trace the four trust boundaries: collaboration, private read-only gateway, durable bounded mission, isolated write executor. Point to Firestore, Agent Registry, Sessions, preference-only Memory Bank, Model Armor, Pub/Sub/DLQs, traces, identities, and $25 guard.
 
-> “This is not employee surveillance. NoPing reports evidence-backed work state—PRs, tickets, calendar, decisions—not guesses that somebody is typing right now.”
+> “NoBS uses agents only for open-ended knowledge work. Deterministic nodes own access, validation, authority, idempotency, and side effects. That gives us enterprise autonomy without an unrestricted swarm or unnecessary microservices.”
 
-## 1:35–2:18 — Wow 2 and 3: human-only decision
+## 3:35–4:00 — Google Cloud proof
 
-From the channel or Insights, ask:
+Show sanitized commands/pages for:
 
-> **Northstar will pay $200K if Atlas launches tomorrow. Can we bypass security review?**
+- project and private Cloud Run revisions;
+- `gemini-3.5-flash` log/trace metadata;
+- four Agent Registry services;
+- Agent Engine resource;
+- Firestore collections and Pub/Sub topics/DLQs;
+- Model Armor template;
+- dedicated service accounts and absence of `allUsers`;
+- $25 budget and independent guard.
 
-Show:
-
-- SEC-POL-12 policy;
-- Sarah unavailable;
-- active Sarah→Alex delegation;
-- status `Human decision required`;
-- Alex’s Needs You count increases.
-
-Switch to Alex and open the card:
-
-```text
-Decision: Atlas security exception
-Customer value: $200K
-Engineering: ready
-Security: SEC-184 pending
-Policy: SEC-POL-12
-Approve · Reject · Discuss
-```
-
-Reject with rationale.
-
-> “Gemini can assemble the facts. It is technically unable to make this approval.”
-
-## 2:18–2:42 — Memory without repeated interruption
-
-Repeat a materially identical question. Show the scoped decision memory response and:
-
-> **0 new people interrupted**
-
-Explain that a changed facts hash or expired memory reopens the decision.
-
-## 2:42–3:25 — Enterprise architecture
-
-Show `docs/architecture.png` and briefly trace:
-
-- Mattermost/PostgreSQL on Compute Engine;
-- NoPing Go + React plugin;
-- private Cloud Run agent runtime;
-- Google ADK + Gemini 3.5+;
-- Model Armor before and after synthesis;
-- Firestore state/memory;
-- Pub/Sub OIDC events and DLQ;
-- service-account identity, HMAC, audit/observability.
-
-Show Google Cloud console/Cloud Run logs and `.run.app` service URL as required proof.
-
-## 3:25–3:48 — Production and cost proof
-
-Show:
-
-- private Cloud Run IAM;
-- max instances 1/min 0/concurrency 4;
-- `$25` budget and alerts;
-- 90% budget guard dry-run log;
-- rate-limit/AI budget metric or test.
-
-> “NoPing reserves token capacity before Gemini runs, stops new synthesis at its application limits, and can stop the only fixed-cost VM through a separately permissioned guard.”
-
-## 3:48–4:00 — Close
-
-> “Slack made every employee reachable. NoPing makes every employee’s knowledge reachable—without making every employee interruptible.”
-
-End on:
-
-```text
-Questions resolved: 3
-Human decisions: 1
-Unnecessary interruptions: 0
-Restricted requests blocked: 1
-Poisoned sources quarantined: 1
-```
+End on measured values only: agenda items resolved, human checkpoints created, minutes returned, injected sources blocked, model calls/tokens, duplicate effects prevented, and completed mission latency.
