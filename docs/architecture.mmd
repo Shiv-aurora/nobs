@@ -1,13 +1,57 @@
 flowchart LR
-  U[Employee] --> M[Mattermost + NoPing React]
-  M --> P[NoPing Go plugin]
-  P -->|Google ID token + HMAC| R[Private Cloud Run agent service]
-  R --> G[Google ADK + Gemini 3.5+]
-  R --> A[Model Armor]
-  R --> F[(Firestore)]
-  E[GitHub / Calendar / Jira / Mattermost] --> Q[Pub/Sub]
-  Q -->|OIDC push| R
-  R --> O[Logging / Trace / Monitoring]
-  B[Cloud Billing] --> BG[Private budget guard]
-  BG -->|get/stop only| VM[Compute Engine]
-  VM --> M
+  U["Employee / demo user"]
+
+  subgraph Browser["Web browser"]
+    UI["NoBS React UI<br/>Channels · Workrooms · Calendar"]
+  end
+
+  subgraph VM["Google Compute Engine VM"]
+    C["Caddy<br/>TLS · routing · demo auto-login"]
+    M["Mattermost server"]
+    P["NoPing Go plugin<br/>session validation · policy boundary"]
+    DB[("PostgreSQL<br/>users · messages · channels · sessions")]
+  end
+
+  subgraph GCP["Google Cloud"]
+    Q["Pub/Sub<br/>normalized work events"]
+
+    subgraph CR["Private Cloud Run"]
+      R["NoPing agent service<br/>routing · retrieval · delegation"]
+      BG["Budget guard"]
+    end
+
+    F[("Firestore<br/>decisions · memory · audit state")]
+    A["Model Armor<br/>prompt and response screening"]
+    G["Google ADK + Gemini"]
+    O["Cloud Logging<br/>Trace · Monitoring"]
+  end
+
+  subgraph Sources["Connected work systems"]
+    GH["GitHub"]
+    CAL["Google Calendar"]
+    ME["Mattermost events"]
+    J["Jira / future connectors"]
+  end
+
+  B["Google Cloud billing budget"]
+
+  U --> UI
+  UI <-->|"HTTPS · API · WebSocket"| C
+  C --> M
+  M <-->|"users · sessions · posts"| DB
+  M <-->|"plugin API · realtime events"| P
+  P -->|"Google IAM ID token + HMAC"| R
+  R -->|"structured result"| P
+  GH --> Q
+  CAL --> Q
+  ME --> Q
+  J --> Q
+  Q -->|"OIDC push"| R
+  R -->|"screen prompt"| A
+  A -->|"allowed prompt"| G
+  G -->|"draft response"| A
+  A -->|"screened result"| R
+  R <-->|"decisions · memory · counters"| F
+  R --> O
+  B --> BG
+  BG -->|"inspect / stop only"| VM

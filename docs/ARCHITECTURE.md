@@ -4,23 +4,106 @@
 
 ```mermaid
 flowchart LR
-  U[Employee] --> M[Mattermost + NoPing React route]
-  M --> P[NoPing Go plugin]
-  P -->|Google ID token + HMAC| R[Private Cloud Run agent service]
-  R --> G[Google ADK + Gemini 3.5+]
-  R --> A[Model Armor]
-  R --> F[(Firestore)]
-  E[GitHub / Calendar / Jira / Mattermost events] --> Q[Pub/Sub]
-  Q -->|OIDC push| R
-  R --> O[Cloud Logging / Trace / Monitoring]
-  B[Cloud Billing budget topic] --> BG[Private budget guard]
-  BG -->|get/stop only| VM[Compute Engine: Caddy + Mattermost + PostgreSQL]
-  VM --> M
+  U["Employee / demo user"]
+
+  subgraph Browser["Web browser"]
+    UI["NoBS React UI<br/>Channels · Workrooms · Calendar"]
+  end
+
+  subgraph VM["Google Compute Engine VM"]
+    C["Caddy<br/>TLS · routing · demo auto-login"]
+    M["Mattermost server"]
+    P["NoPing Go plugin<br/>session validation · policy boundary"]
+    DB[("PostgreSQL<br/>users · messages · channels · sessions")]
+  end
+
+  subgraph GCP["Google Cloud"]
+    Q["Pub/Sub<br/>normalized work events"]
+
+    subgraph CR["Private Cloud Run"]
+      R["NoPing agent service<br/>routing · retrieval · delegation"]
+      BG["Budget guard"]
+    end
+
+    F[("Firestore<br/>decisions · memory · audit state")]
+    A["Model Armor<br/>prompt and response screening"]
+    G["Google ADK + Gemini"]
+    O["Cloud Logging<br/>Trace · Monitoring"]
+  end
+
+  subgraph Sources["Connected work systems"]
+    GH["GitHub"]
+    CAL["Google Calendar"]
+    ME["Mattermost events"]
+    J["Jira / future connectors"]
+  end
+
+  B["Google Cloud billing budget"]
+
+  U --> UI
+  UI <-->|"HTTPS · API · WebSocket"| C
+  C --> M
+  M <-->|"users · sessions · posts"| DB
+  M <-->|"plugin API · realtime events"| P
+
+  P -->|"Google IAM ID token + HMAC"| R
+  R -->|"structured result"| P
+
+  GH --> Q
+  CAL --> Q
+  ME --> Q
+  J --> Q
+  Q -->|"OIDC push"| R
+
+  R -->|"screen prompt"| A
+  A -->|"allowed prompt"| G
+  G -->|"draft response"| A
+  A -->|"screened result"| R
+
+  R <-->|"decisions · memory · counters"| F
+  R --> O
+  B --> BG
+  BG -->|"inspect / stop only"| VM
 ```
 
 A submission-ready PNG is available at [`architecture.png`](architecture.png); the editable source is [`architecture.mmd`](architecture.mmd).
 
 ## Request lifecycle
+
+```mermaid
+sequenceDiagram
+  participant U as Employee
+  participant UI as NoBS React UI
+  participant P as Mattermost + Go plugin
+  participant R as Private agent service
+  participant A as Model Armor
+  participant G as Gemini
+  participant F as Firestore
+
+  U->>UI: Ask a question or start a Workroom
+  UI->>P: Authenticated Mattermost request
+  P->>P: Resolve the server-side session user
+  P->>R: IAM identity token + HMAC-signed request
+  R->>A: Screen incoming instruction
+  A-->>R: Allow or block
+  R->>R: Apply permissions and authority policy
+  R->>F: Read permitted state and evidence metadata
+
+  alt Human authority is required
+    R->>F: Create pending decision
+    R-->>P: Return Needs You card
+  else Agent may answer
+    R->>G: Send authorized evidence only
+    G-->>R: Draft response
+    R->>A: Screen final response
+    A-->>R: Allow or block
+    R->>F: Persist compact state and audit metadata
+    R-->>P: Return structured answer
+  end
+
+  P-->>UI: Realtime update
+  UI-->>U: Answer, Workroom, or decision card
+```
 
 ```text
 1. Browser calls the NoPing plugin under an authenticated Mattermost session.
@@ -41,6 +124,18 @@ A submission-ready PNG is available at [`architecture.png`](architecture.png); t
 16. Result, audit metadata, compact state, and counters persist to Firestore.
 17. Plugin receives the structured result and emits realtime Mattermost updates.
 ```
+
+## Deployment profile
+
+The checked-in Google Cloud deployment intentionally optimizes for a bounded-cost demo:
+
+- one small Compute Engine VM runs Caddy, Mattermost, and PostgreSQL;
+- the private agent and budget guard use Cloud Run with zero minimum instances and one maximum instance;
+- Firestore owns compact agent state while Mattermost/PostgreSQL remains the collaboration source of truth;
+- Pub/Sub absorbs asynchronous work events;
+- the explicitly armed budget guard can stop the demo VM when the configured budget threshold is reached.
+
+This profile is deliberately not highly available. A production rollout should move PostgreSQL to a managed, backed-up service; introduce a load balancer and managed domain/TLS; allow multiple Mattermost and Cloud Run instances; formalize connector OAuth and webhook verification; and add disaster recovery, service-level objectives, retention policy, and operational alerting.
 
 ## Trust boundaries
 
