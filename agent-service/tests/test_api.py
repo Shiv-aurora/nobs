@@ -66,6 +66,21 @@ def test_meeting_missions_run_versioned_agents_and_reach_authority_gate(client):
     assert len(launch.json()["turns"]) == 4
 
 
+def test_prepare_hides_internal_model_validation_details(client, services, monkeypatch):
+    def fail_safely(*_args, **_kwargs):
+        raise ValueError("raw model output must not cross the service boundary")
+
+    monkeypatch.setattr(services.meetings, "prepare", fail_safely)
+    response = client.post(
+        "/v1/meetings/meeting-atlas-engineering-sync/prepare",
+        json={"actor_id": "shivam", "trigger": "manual"},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Meeting preparation could not complete safely. Please try again."
+    assert "raw model output" not in response.text
+
+
 def test_executable_registry_is_separate_from_logical_delegates(client):
     response = client.get("/v1/executable-agents")
     assert response.status_code == 200

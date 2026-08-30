@@ -1,10 +1,18 @@
 from __future__ import annotations
 
-from app.missions import _PlanOutput
+from app.missions import _PlanOutput, _SpecialistOutput
 
 
 def test_controller_model_cannot_choose_executable_agent_ids_or_route_coverage() -> None:
     assert set(_PlanOutput.model_fields) == {"objective", "authority_required"}
+
+
+def test_specialist_schema_bounds_structured_output_to_fit_the_model_budget() -> None:
+    schema = _SpecialistOutput.model_json_schema()
+
+    assert schema["properties"]["findings"]["maxItems"] == 4
+    assert schema["properties"]["claims"]["maxItems"] == 4
+    assert schema["properties"]["unresolved_questions"]["maxItems"] == 2
 
 
 def prepare_launch(client):

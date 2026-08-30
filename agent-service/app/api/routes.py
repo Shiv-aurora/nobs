@@ -328,7 +328,10 @@ def prepare_meeting(meeting_id: str, payload: MeetingPreparationRequest, service
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     except ValueError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=409,
+            detail="Meeting preparation could not complete safely. Please try again.",
+        ) from exc
 
 
 @router.post("/v1/meetings/{meeting_id}/actions")
