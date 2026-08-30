@@ -16,7 +16,12 @@ class Settings:
     organization_id: str = "acme"
     pubsub_push_audience: str = ""
     pubsub_push_service_account: str = ""
-    gemini_model: str = "gemini-2.5-flash"
+    action_command_topic: str = ""
+    agent_registry_enabled: bool = False
+    agent_registry_location: str = "global"
+    agent_engine_id: str = ""
+    agent_engine_location: str = "us-central1"
+    gemini_model: str = "gemini-3.5-flash"
     live_model: str = "gemini-live-2.5-flash-native-audio"
     live_location: str = "us-central1"
     live_max_concurrent_sessions: int = 1
@@ -62,7 +67,12 @@ class Settings:
             organization_id=os.getenv("NOPING_ORGANIZATION_ID", "acme"),
             pubsub_push_audience=os.getenv("NOPING_PUBSUB_PUSH_AUDIENCE", ""),
             pubsub_push_service_account=os.getenv("NOPING_PUBSUB_PUSH_SERVICE_ACCOUNT", ""),
-            gemini_model=os.getenv("NOPING_GEMINI_MODEL", "gemini-2.5-flash"),
+            action_command_topic=os.getenv("NOPING_ACTION_COMMAND_TOPIC", ""),
+            agent_registry_enabled=flag("NOPING_AGENT_REGISTRY_ENABLED", False),
+            agent_registry_location=os.getenv("NOPING_AGENT_REGISTRY_LOCATION", "global"),
+            agent_engine_id=os.getenv("NOPING_AGENT_ENGINE_ID", ""),
+            agent_engine_location=os.getenv("NOPING_AGENT_ENGINE_LOCATION", "us-central1"),
+            gemini_model=os.getenv("NOPING_GEMINI_MODEL", "gemini-3.5-flash"),
             live_model=os.getenv("NOPING_LIVE_MODEL", "gemini-live-2.5-flash-native-audio"),
             live_location=os.getenv("NOPING_LIVE_LOCATION", "us-central1"),
             live_max_concurrent_sessions=int(os.getenv("NOPING_LIVE_MAX_CONCURRENT_SESSIONS", "1")),

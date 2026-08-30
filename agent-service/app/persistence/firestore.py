@@ -5,6 +5,7 @@ from collections.abc import Iterable
 from typing import Any, TYPE_CHECKING
 
 from ..models import AuditEvent, Decision, DecisionMemory, HandoffPacket, KnowledgeMemory, LiveMeetingSession, Meeting, MeetingDelegation, MeetingHandoff, MeetingPrepRun, OOOQueueItem, QueryResult, WorkEvent
+from ..mission_models import AgentManifest, HumanCheckpoint, MissionRun, MissionStep, ProposedCommand
 from .base import StateStore
 
 if TYPE_CHECKING:
@@ -21,7 +22,7 @@ class FirestoreStateStore(StateStore):
     remain in Mattermost; query results store compact references and traces.
     """
 
-    DYNAMIC_COLLECTIONS = ("queries", "decisions", "memories", "audit", "work_events", "meetings", "meeting_runs", "knowledge_memories", "ooo_queue", "handoff_packets", "meeting_delegations", "live_meeting_sessions", "meeting_handoffs")
+    DYNAMIC_COLLECTIONS = ("queries", "decisions", "memories", "audit", "work_events", "meetings", "meeting_runs", "knowledge_memories", "ooo_queue", "handoff_packets", "meeting_delegations", "live_meeting_sessions", "meeting_handoffs", "missions", "mission_steps", "human_checkpoints", "commands", "agents")
 
     def __init__(self, *, project_id: str, database: str, organization_id: str):
         if not project_id:
@@ -50,7 +51,10 @@ class FirestoreStateStore(StateStore):
             memory = DecisionMemory.model_validate(snapshot.to_dict())
             workspace.memories[memory.id] = memory
         for snapshot in self._collection("queries").order_by("created_at", direction=self._firestore.Query.DESCENDING).limit(100).stream():
-            result = QueryResult.model_validate(snapshot.to_dict())
+            payload = snapshot.to_dict()
+            for evidence in payload.get("evidence", []):
+                evidence.setdefault("content", "[source body not persisted]")
+            result = QueryResult.model_validate(payload)
             workspace.query_results[result.run_id] = result
         restored_audit = [AuditEvent.model_validate(snapshot.to_dict()) for snapshot in self._collection("audit").order_by("created_at").limit(500).stream()]
         workspace.audit.extend(restored_audit)
@@ -81,6 +85,21 @@ class FirestoreStateStore(StateStore):
         for snapshot in self._collection("meeting_handoffs").stream():
             handoff = MeetingHandoff.model_validate(snapshot.to_dict())
             workspace.meeting_handoffs[handoff.id] = handoff
+        for snapshot in self._collection("missions").stream():
+            mission = MissionRun.model_validate(snapshot.to_dict())
+            workspace.missions[mission.id] = mission
+        for snapshot in self._collection("mission_steps").stream():
+            step = MissionStep.model_validate(snapshot.to_dict())
+            workspace.mission_steps[step.id] = step
+        for snapshot in self._collection("human_checkpoints").stream():
+            checkpoint = HumanCheckpoint.model_validate(snapshot.to_dict())
+            workspace.human_checkpoints[checkpoint.id] = checkpoint
+        for snapshot in self._collection("agents").stream():
+            manifest = AgentManifest.model_validate(snapshot.to_dict())
+            workspace.agent_manifests[f"{manifest.id}@{manifest.version}"] = manifest
+        for snapshot in self._collection("commands").stream():
+            command = ProposedCommand.model_validate(snapshot.to_dict())
+            workspace.commands[command.id] = command
         stats = self.root.collection("config").document("stats").get()
         if stats.exists:
             workspace.stats.update({key: int(value) for key, value in stats.to_dict().items() if key in workspace.stats})
@@ -101,7 +120,6 @@ class FirestoreStateStore(StateStore):
                 "confidence": item.confidence,
                 "security_state": item.security_state.value,
                 "security_reason": item.security_reason,
-                "content": item.content[:600],
             }
             for item in result.evidence
         ]
@@ -148,6 +166,27 @@ class FirestoreStateStore(StateStore):
 
     def put_meeting_handoff(self, handoff: MeetingHandoff) -> None:
         self._collection("meeting_handoffs").document(handoff.id).set(self._payload(handoff))
+
+    def put_mission_transition(self, mission: MissionRun, step: MissionStep | None = None) -> None:
+        transaction = self.client.transaction()
+
+        @self._firestore.transactional
+        def persist(txn) -> None:
+            txn.set(self._collection("missions").document(mission.id), self._payload(mission))
+            if step is not None:
+                txn.set(self._collection("mission_steps").document(step.id), self._payload(step))
+
+        persist(transaction)
+
+    def put_checkpoint(self, checkpoint: HumanCheckpoint) -> None:
+        self._collection("human_checkpoints").document(checkpoint.id).set(self._payload(checkpoint))
+
+    def put_agent_manifest(self, manifest: AgentManifest) -> None:
+        document_id = f"{manifest.id.replace(':', '-')}-{manifest.version}"
+        self._collection("agents").document(document_id).set(self._payload(manifest))
+
+    def put_command(self, command: ProposedCommand) -> None:
+        self._collection("commands").document(command.id).set(self._payload(command))
 
     def clear_dynamic(self) -> None:
         for name in self.DYNAMIC_COLLECTIONS:

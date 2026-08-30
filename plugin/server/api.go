@@ -397,46 +397,8 @@ func (p *Plugin) handleMeetingAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	meetingID := url.PathEscape(mux.Vars(r)["meetingID"])
-	// Calendar is the source of truth. For real Calendar projections, re-read
-	// the private meeting projection and apply the organizer-confirmed write
-	// with If-Match before recording the action in the agent service.
-	client, clientErr := p.currentAgentClient()
-	if clientErr != nil {
-		writeJSONError(w, http.StatusServiceUnavailable, clientErr.Error())
-		return
-	}
-	query := url.Values{}
-	query.Set("user_id", actorKey)
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
-	defer cancel()
-	payload, detailStatus, _, detailErr := client.do(ctx, http.MethodGet, "/v1/meetings/"+meetingID+"?"+query.Encode(), nil)
-	if detailErr != nil || detailStatus != http.StatusOK {
-		writeJSONError(w, http.StatusBadGateway, "The current meeting could not be revalidated")
-		return
-	}
-	var detail meetingDetailResponse
-	if json.Unmarshal(payload, &detail) != nil {
-		writeJSONError(w, http.StatusBadGateway, "The current meeting projection is invalid")
-		return
-	}
-	if detail.Meeting.Source == "google_calendar" {
-		if detail.Meeting.OrganizerUserID != actorKey {
-			writeJSONError(w, http.StatusForbidden, "Only the meeting organizer can change the Calendar event")
-			return
-		}
-		startAt, parseErr := time.Parse(time.RFC3339, detail.Meeting.StartAt)
-		calendarClient, calendarErr := calendarClientFromConfig(p.getConfiguration())
-		if parseErr != nil || calendarErr != nil {
-			writeJSONError(w, http.StatusServiceUnavailable, "Google Calendar is not available for this confirmed action")
-			return
-		}
-		appliedETag, calendarErr := calendarClient.applyConfirmedAction(ctx, detail.Meeting.CalendarEventID, request, startAt)
-		if calendarErr != nil {
-			writeJSONError(w, http.StatusConflict, calendarErr.Error())
-			return
-		}
-		request.AppliedETag = appliedETag
-	}
+	// The plugin never writes Calendar. It records organizer approval through
+	// the gateway, which queues an idempotent command for the isolated executor.
 	p.proxy(w, r, http.MethodPost, "/v1/meetings/"+meetingID+"/actions", request)
 }
 

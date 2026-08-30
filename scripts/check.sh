@@ -12,6 +12,12 @@ echo '== Budget guard =='
   python -m pytest tests
 )
 
+echo '== Action executor =='
+(
+  cd executor-service
+  python -m pytest tests
+)
+
 echo '== Go plugin and connector runtime =='
 (
   cd plugin
@@ -22,7 +28,7 @@ echo '== Strict TypeScript =='
 npm --prefix plugin/webapp run typecheck
 
 echo '== Python compilation =='
-python -m compileall -q agent-service/app deploy/gcp/budget-guard seed scripts
+python -m compileall -q agent-service/app executor-service/app deploy/gcp/budget-guard seed scripts
 
 echo '== Shell syntax =='
 while IFS= read -r -d '' file; do bash -n "${file}"; done < <(find scripts deploy -type f -name '*.sh' -print0)

@@ -102,7 +102,7 @@ Rules, in priority order:
 
     def __init__(
         self,
-        model_name: str = "gemini-2.5-flash",
+        model_name: str = "gemini-3.5-flash",
         *,
         max_output_tokens: int = 600,
         runner_factory: Callable[[], object] | None = None,
@@ -178,6 +178,11 @@ Rules, in priority order:
         except ImportError as exc:  # pragma: no cover - deployment-only path
             raise RuntimeError("Install noping-agent-service[google] to use Google ADK") from exc
 
+        thinking_config = (
+            types.ThinkingConfig(thinking_level=types.ThinkingLevel.MINIMAL)
+            if self.model_name.startswith("gemini-3")
+            else types.ThinkingConfig(thinking_budget=0)
+        )
         agent = LlmAgent(
             name="organizational_evidence_synthesizer",
             description="Synthesizes a permission-filtered evidence packet into a concise organizational answer.",
@@ -185,9 +190,7 @@ Rules, in priority order:
             instruction=self.INSTRUCTION,
             generate_content_config=types.GenerateContentConfig(
                 max_output_tokens=self.max_output_tokens,
-                # Gemini 2.5 Flash uses the numeric thinking budget. The newer
-                # thinking_level field is rejected by this GA model on Vertex.
-                thinking_config=types.ThinkingConfig(thinking_budget=0),
+                thinking_config=thinking_config,
             ),
         )
         session_service = InMemorySessionService()

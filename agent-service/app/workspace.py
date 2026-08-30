@@ -7,6 +7,7 @@ from threading import RLock
 from typing import Any
 
 from .models import AuditEvent, Decision, DecisionMemory, Evidence, HandoffPacket, KnowledgeMemory, LiveMeetingSession, Meeting, MeetingDelegation, MeetingHandoff, MeetingPrepRun, OOOQueueItem, Policy, Project, QueryResult, Team, User, WorkEvent, WorkItem, Delegation
+from .mission_models import AgentManifest, HumanCheckpoint, MissionRun, MissionStep, ProposedCommand
 from .persistence.base import NullStateStore, StateStore
 
 
@@ -43,6 +44,11 @@ class Workspace:
             self.meeting_delegations: dict[str, MeetingDelegation] = {}
             self.live_meeting_sessions: dict[str, LiveMeetingSession] = {}
             self.meeting_handoffs: dict[str, MeetingHandoff] = {}
+            self.missions: dict[str, MissionRun] = {}
+            self.mission_steps: dict[str, MissionStep] = {}
+            self.human_checkpoints: dict[str, HumanCheckpoint] = {}
+            self.agent_manifests: dict[str, AgentManifest] = {}
+            self.commands: dict[str, ProposedCommand] = {}
             self.stats = {
                 "queries_total": 0,
                 "resolved_without_human": 0,
@@ -144,6 +150,28 @@ class Workspace:
             self.meeting_handoffs[handoff.id] = handoff
         self.state_store.put_meeting_handoff(handoff)
 
+    def save_mission_transition(self, mission: MissionRun, step: MissionStep | None = None) -> None:
+        with self.lock:
+            self.missions[mission.id] = mission
+            if step is not None:
+                self.mission_steps[step.id] = step
+        self.state_store.put_mission_transition(mission, step)
+
+    def save_checkpoint(self, checkpoint: HumanCheckpoint) -> None:
+        with self.lock:
+            self.human_checkpoints[checkpoint.id] = checkpoint
+        self.state_store.put_checkpoint(checkpoint)
+
+    def save_agent_manifest(self, manifest: AgentManifest) -> None:
+        with self.lock:
+            self.agent_manifests[f"{manifest.id}@{manifest.version}"] = manifest
+        self.state_store.put_agent_manifest(manifest)
+
+    def save_command(self, command: ProposedCommand) -> None:
+        with self.lock:
+            self.commands[command.id] = command
+        self.state_store.put_command(command)
+
     def increment_stat(self, key: str, amount: int = 1) -> None:
         with self.lock:
             self.stats[key] = self.stats.get(key, 0) + amount
@@ -179,5 +207,10 @@ class Workspace:
                 "meeting_delegations": self.meeting_delegations,
                 "live_meeting_sessions": self.live_meeting_sessions,
                 "meeting_handoffs": self.meeting_handoffs,
+                "missions": self.missions,
+                "mission_steps": self.mission_steps,
+                "human_checkpoints": self.human_checkpoints,
+                "agent_manifests": self.agent_manifests,
+                "commands": self.commands,
                 "stats": self.stats,
             })

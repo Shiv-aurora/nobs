@@ -5,7 +5,7 @@ from enum import StrEnum
 from typing import Any, Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class Intent(StrEnum):
@@ -121,6 +121,7 @@ class Evidence(BaseModel):
 
 
 class WorkEvent(BaseModel):
+    schema_version: Literal["1.0"] = "1.0"
     id: str
     source: str
     event_type: str
@@ -128,6 +129,20 @@ class WorkEvent(BaseModel):
     entity_ids: list[str]
     occurred_at: datetime
     payload: dict[str, Any]
+    source_event_id: str | None = None
+    correlation_id: str | None = None
+    trace_id: str | None = None
+    data_classification: Literal["work_metadata", "confidential", "restricted"] = "work_metadata"
+
+    @model_validator(mode="after")
+    def validate_normalized_contract(self) -> "WorkEvent":
+        encoded = str(self.payload)
+        if len(encoded) > 16_000:
+            raise ValueError("WorkEvent payload exceeds the compact metadata limit")
+        forbidden = {"password", "secret", "access_token", "refresh_token", "authorization", "cookie"}
+        if forbidden.intersection(key.lower() for key in self.payload):
+            raise ValueError("WorkEvent payload contains a forbidden credential field")
+        return self
 
 
 class Delegate(BaseModel):
@@ -147,7 +162,8 @@ class RouteStep(BaseModel):
     delegate_name: str
     reason: str
     outcome: str
-    duration_ms: int = 0
+    step_type: Literal["logical_delegate", "deterministic_policy"] = "logical_delegate"
+    duration_ms: float = Field(ge=0)
 
 
 class QueryRequest(BaseModel):
@@ -279,6 +295,8 @@ class MeetingBrief(BaseModel):
 class MeetingPrepRun(BaseModel):
     id: str = Field(default_factory=lambda: f"meeting-run-{uuid4().hex[:12]}")
     meeting_id: str
+    mission_id: str | None = None
+    trace_id: str | None = None
     status: Literal["accepted", "screened", "routed", "retrieved", "agent_turn", "work_action", "synthesizing", "completed", "failed"]
     trigger: Literal["manual", "scheduled"]
     started_by: str
@@ -310,6 +328,8 @@ class Meeting(BaseModel):
     updated_at: datetime
     source: Literal["google_calendar", "demo"] = "demo"
     confirmed_action: Literal["none", "cancelled", "shortened", "agenda_updated"] = "none"
+    pending_action: Literal["none", "cancel", "shorten", "update_agenda"] = "none"
+    approved_recommendation: Literal["none", "cancel", "shorten", "update_agenda"] = "none"
     attendance_plans: dict[str, Literal["attend", "agent", "decline"]] = Field(default_factory=dict)
 
 

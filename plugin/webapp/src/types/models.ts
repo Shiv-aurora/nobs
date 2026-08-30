@@ -51,6 +51,7 @@ export interface RouteStep {
     delegate_name: string;
     reason: string;
     outcome: string;
+    step_type: 'logical_delegate' | 'deterministic_policy';
     duration_ms: number;
 }
 
@@ -245,6 +246,8 @@ export interface MeetingBrief {
 export interface MeetingPrepRun {
     id: string;
     meeting_id: string;
+    mission_id?: string | null;
+    trace_id?: string | null;
     status: string;
     trigger: 'manual' | 'scheduled';
     started_by: string;
@@ -276,6 +279,8 @@ export interface Meeting {
     updated_at: string;
     source: 'google_calendar' | 'demo';
     confirmed_action: 'none' | 'cancelled' | 'shortened' | 'agenda_updated';
+    pending_action: 'none' | 'cancel' | 'shorten' | 'update_agenda';
+    approved_recommendation: 'none' | 'cancel' | 'shorten' | 'update_agenda';
     attendance_plans: Record<string, 'attend' | 'agent' | 'decline'>;
 }
 

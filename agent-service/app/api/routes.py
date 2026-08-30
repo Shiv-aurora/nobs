@@ -30,7 +30,9 @@ from ..models import (
     RegistryResponse,
     WorkEvent,
 )
+from ..mission_models import MissionCheckpointResolution
 from ..pubsub import PubSubPushEnvelope
+from ..preferences import PreferenceWrite
 from ..rate_limit import RateLimitExceeded
 from ..service import Services
 from ..live_adapter import MeetingLiveAdapter
@@ -162,6 +164,10 @@ def meeting(meeting_id: str, user_id: str = Query(...), services: Services = Dep
     if not result:
         raise HTTPException(status_code=404, detail="Meeting not found")
     run = services.workspace.meeting_runs.get(result.prep_run_id or "")
+    if run and not run.mission_id:
+        # Legacy pre-mission projections remain in storage for audit history,
+        # but are never presented as current executable-agent results.
+        run = None
     delegation = services.meeting_delegations.for_meeting(meeting_id, user_id)
     handoff = services.meeting_delegations.handoff(delegation) if delegation else None
     return {"meeting": result, "run": run, "delegation": delegation, "handoff": handoff}
@@ -423,6 +429,79 @@ def resolve_decision(
 @router.get("/v1/registry", response_model=RegistryResponse)
 def registry(services: Services = Depends(get_services)) -> RegistryResponse:
     return services.registry.response()
+
+
+@router.get("/v1/executable-agents")
+def executable_agents(services: Services = Depends(get_services)):
+    return services.executable_registry.response()
+
+
+@router.get("/v1/executable-agents/{service_id}")
+def executable_agent(service_id: str, services: Services = Depends(get_services)):
+    try:
+        return services.executable_registry.get_by_service_id(service_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail="Executable agent not found") from exc
+
+
+@router.post("/v1/preferences")
+def save_preference(payload: PreferenceWrite, services: Services = Depends(get_services)):
+    if payload.actor_id not in services.workspace.users:
+        raise HTTPException(status_code=404, detail="User not found")
+    return services.preference_memory.write(payload)
+
+
+@router.get("/v1/missions/{mission_id}")
+def get_mission(mission_id: str, user_id: str = Query(...), services: Services = Depends(get_services)):
+    mission = services.workspace.missions.get(mission_id)
+    if not mission:
+        raise HTTPException(status_code=404, detail="Mission not found")
+    if not services.meetings.get_for_user(mission.meeting_id, user_id):
+        raise HTTPException(status_code=403, detail="Mission is outside the user's meeting scope")
+    return mission
+
+
+@router.get("/v1/missions/{mission_id}/steps")
+def get_mission_steps(mission_id: str, user_id: str = Query(...), services: Services = Depends(get_services)):
+    mission = services.workspace.missions.get(mission_id)
+    if not mission:
+        raise HTTPException(status_code=404, detail="Mission not found")
+    if not services.meetings.get_for_user(mission.meeting_id, user_id):
+        raise HTTPException(status_code=403, detail="Mission is outside the user's meeting scope")
+    return sorted(
+        [item for item in services.workspace.mission_steps.values() if item.mission_id == mission_id],
+        key=lambda item: item.ordinal,
+    )
+
+
+@router.post("/v1/missions/{mission_id}/resume")
+def resume_mission(mission_id: str, payload: MeetingPreparationRequest, services: Services = Depends(get_services)):
+    mission = services.workspace.missions.get(mission_id)
+    if not mission:
+        raise HTTPException(status_code=404, detail="Mission not found")
+    meeting = services.meetings.get_for_user(mission.meeting_id, payload.actor_id)
+    if not meeting:
+        raise HTTPException(status_code=403, detail="Mission is outside the user's meeting scope")
+    return services.mission_runtime.resume(mission_id, meeting)
+
+
+@router.post("/v1/checkpoints/{checkpoint_id}/resolve")
+def resolve_mission_checkpoint(
+    checkpoint_id: str,
+    payload: MissionCheckpointResolution,
+    services: Services = Depends(get_services),
+):
+    checkpoint = services.workspace.human_checkpoints.get(checkpoint_id)
+    if not checkpoint:
+        raise HTTPException(status_code=404, detail="Checkpoint not found")
+    mission = services.workspace.missions[checkpoint.mission_id]
+    meeting = services.workspace.meetings[mission.meeting_id]
+    try:
+        return services.mission_runtime.resolve_checkpoint(checkpoint_id, payload, meeting)
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @router.get("/v1/audit")

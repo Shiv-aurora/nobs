@@ -32,23 +32,52 @@ def test_calendar_lists_private_meetings_and_skips_social_preparation(client):
     assert skipped.status_code == 409
 
 
-def test_meeting_swarm_proves_cancel_and_shorten_outcomes(client):
+def test_meeting_missions_run_versioned_agents_and_reach_authority_gate(client):
     engineering = client.post("/v1/meetings/meeting-atlas-engineering-sync/prepare", json={"actor_id": "shivam", "trigger": "manual"})
     assert engineering.status_code == 200
     assert engineering.json()["brief"]["recommended_disposition"] == "cancel"
     assert engineering.json()["brief"]["minutes_saved"] == 30
-    assert len(engineering.json()["turns"]) == 30
-    assert engineering.json()["turns"][0]["agent_name"] == "Atlas Agent"
-    assert engineering.json()["turns"][-1]["agent_name"] == "Atlas Agent"
-    assert any(turn["agent_name"] == "Gemini Code Assist" for turn in engineering.json()["turns"])
+    assert engineering.json()["mission_id"].startswith("mission-")
+    assert engineering.json()["trace_id"]
+    assert [turn["agent_name"] for turn in engineering.json()["turns"]] == [
+        "Meeting Mission Controller",
+        "Work Graph Specialist",
+        "Policy Evidence Specialist",
+        "Meeting Resolution Synthesizer",
+    ]
+    mission = client.get(
+        f"/v1/missions/{engineering.json()['mission_id']}", params={"user_id": "shivam"}
+    ).json()
+    assert mission["status"] == "waiting_human"
+    assert mission["checkpoint_id"].startswith("checkpoint-")
+    steps = client.get(
+        f"/v1/missions/{mission['id']}/steps", params={"user_id": "shivam"}
+    ).json()
+    assert [step["node_kind"] for step in steps] == [
+        "controller", "specialist", "specialist", "critic", "synthesizer", "authority_gate"
+    ]
+    assert all(step["status"] == "completed" and step["duration_ms"] >= 0 for step in steps)
 
     launch = client.post("/v1/meetings/meeting-atlas-launch-readiness/prepare", json={"actor_id": "shivam", "trigger": "manual"})
     assert launch.status_code == 200
     assert launch.json()["brief"]["recommended_disposition"] == "shorten"
     assert launch.json()["brief"]["recommended_duration_minutes"] == 15
     assert launch.json()["brief"]["humans_required"] == 1
-    assert len(launch.json()["turns"]) == 10
-    assert launch.json()["security_findings"][0]["blocked"] is True
+    assert len(launch.json()["turns"]) == 4
+
+
+def test_executable_registry_is_separate_from_logical_delegates(client):
+    response = client.get("/v1/executable-agents")
+    assert response.status_code == 200
+    assert response.json()["source"] == "local_manifest"
+    agents = response.json()["agents"]
+    assert {item["id"] for item in agents} == {
+        "agent:meeting-mission-controller",
+        "agent:work-graph-specialist",
+        "agent:policy-evidence-specialist",
+        "agent:meeting-resolution-synthesizer",
+    }
+    assert all(item["runtime"] == "deterministic_test_program" for item in agents)
 
 
 def test_missing_demo_meeting_is_restored_without_overwriting_persisted_state(services):
@@ -78,7 +107,13 @@ def test_calendar_action_requires_organizer_and_matching_etag(client):
     current = client.get("/v1/meetings/meeting-atlas-engineering-sync", params={"user_id": "shivam"}).json()["meeting"]
     confirmed = client.post("/v1/meetings/meeting-atlas-engineering-sync/actions", json={"actor_id": "shivam", "action": "cancel", "expected_etag": current["etag"]})
     assert confirmed.status_code == 200
-    assert confirmed.json()["confirmed_action"] == "cancelled"
+    assert confirmed.json()["confirmed_action"] == "none"
+    assert confirmed.json()["pending_action"] == "none"
+    assert confirmed.json()["approved_recommendation"] == "cancel"
+    run = client.get("/v1/meetings/meeting-atlas-engineering-sync", params={"user_id": "shivam"}).json()["run"]
+    mission = client.get(f"/v1/missions/{run['mission_id']}", params={"user_id": "shivam"}).json()
+    assert mission["status"] == "completed"
+    assert mission["proposed_commands"] == []
 
 
 def test_ooo_mode_is_actor_scoped_and_audited(client):

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import time
 
 from .models import DelegationResolution, DelegationResolutionRequest, Intent, RouteStep
 from .workspace import Workspace
@@ -145,17 +146,18 @@ class OrganizationRouter:
 
     def build_route(self, requester_id: str, text: str, intent: Intent, delegate_for_user_id: str | None = None) -> list[RouteStep]:
         represented = self.workspace.users.get(delegate_for_user_id or "")
-        route = [
-            RouteStep(
-                ordinal=1,
-                delegate_id="delegate:project:atlas",
-                delegate_name="Project Atlas Delegate",
-                reason="Atlas is the named project and owns the launch state.",
-                outcome="Current blocker SEC-184 discovered.",
-                duration_ms=67,
-            ),
-        ]
+        route_started = time.perf_counter()
+        project = self.workspace.projects["atlas"]
+        route = [RouteStep(
+            ordinal=1,
+            delegate_id=f"delegate:project:{project.id}",
+            delegate_name=f"{project.name} Delegate",
+            reason="Atlas is the named project and owns the launch state.",
+            outcome="Project scope selected for permission-filtered evidence retrieval.",
+            duration_ms=round((time.perf_counter() - route_started) * 1000, 3),
+        )]
         if intent in {Intent.FACTUAL, Intent.LIVE_STATUS}:
+            step_started = time.perf_counter()
             personal = represented or self.workspace.users["sarah"]
             route.extend([
                 RouteStep(
@@ -163,27 +165,28 @@ class OrganizationRouter:
                     delegate_id="delegate:team:engineering",
                     delegate_name="Engineering Delegate",
                     reason="AUTH-392 is an engineering dependency linked to Atlas.",
-                    outcome="PR #892 and Daniel's work state retrieved.",
-                    duration_ms=58,
+                    outcome="Engineering scope selected for permission-filtered evidence retrieval.",
+                    duration_ms=round((time.perf_counter() - step_started) * 1000, 3),
                 ),
                 RouteStep(
                     ordinal=3,
                     delegate_id=f"delegate:user:{personal.id}",
                     delegate_name=f"{personal.name} Delegate",
                     reason=f"{personal.name}'s working context owns or informs the active launch gate.",
-                    outcome="Permission-aware personal context selected without interrupting the employee.",
-                    duration_ms=37,
+                    outcome="Permission-aware personal scope selected without interrupting the employee.",
+                    duration_ms=round((time.perf_counter() - step_started) * 1000, 3),
                 ),
                 RouteStep(
                     ordinal=4,
                     delegate_id="delegate:team:security",
                     delegate_name="Security Delegate",
                     reason="SEC-184 is the active launch gate.",
-                    outcome="Review schedule and approver availability retrieved.",
-                    duration_ms=61,
+                    outcome="Security scope selected for permission-filtered evidence retrieval.",
+                    duration_ms=round((time.perf_counter() - step_started) * 1000, 3),
                 ),
             ])
         elif intent in {Intent.POLICY, Intent.DECISION}:
+            step_started = time.perf_counter()
             personal = represented or self.workspace.users["sarah"]
             route.extend([
                 RouteStep(
@@ -191,24 +194,25 @@ class OrganizationRouter:
                     delegate_id="delegate:policy:sec-pol-12",
                     delegate_name="SEC-POL-12 Policy Delegate",
                     reason="The request could alter a mandatory launch control.",
-                    outcome="Security approval requirement confirmed.",
-                    duration_ms=49,
+                    outcome="Security policy scope selected for deterministic evaluation.",
+                    duration_ms=round((time.perf_counter() - step_started) * 1000, 3),
                 ),
                 RouteStep(
                     ordinal=3,
                     delegate_id=f"delegate:user:{personal.id}",
                     delegate_name=f"{personal.name} Delegate",
                     reason="The security owner context establishes current availability and delegated authority.",
-                    outcome="Sarah is unavailable; Alex is the acting approver.",
-                    duration_ms=37,
+                    outcome="Security-owner scope selected for permission-filtered availability evidence.",
+                    duration_ms=round((time.perf_counter() - step_started) * 1000, 3),
                 ),
                 RouteStep(
                     ordinal=4,
                     delegate_id="delegate:authority",
                     delegate_name="Authority Gate",
                     reason="Only a valid human approver may decide the exception.",
-                    outcome="Sarah is unavailable; Alex's delegated authority validated.",
-                    duration_ms=54,
+                    outcome="Authority policy selected; validation runs after evidence retrieval.",
+                    step_type="deterministic_policy",
+                    duration_ms=round((time.perf_counter() - step_started) * 1000, 3),
                 ),
             ])
         for ordinal, step in enumerate(route, start=1):

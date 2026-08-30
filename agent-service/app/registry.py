@@ -4,7 +4,8 @@ from .models import Delegate, RegistryResponse
 from .workspace import Workspace
 
 
-class DelegateRegistry:
+class DelegateDirectory:
+    """Directory of logical organization scopes, not executable AI agents."""
     def __init__(self, workspace: Workspace):
         self.workspace = workspace
 

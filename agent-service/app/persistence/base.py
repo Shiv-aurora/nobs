@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Any, TYPE_CHECKING
 
 from ..models import AuditEvent, Decision, DecisionMemory, HandoffPacket, KnowledgeMemory, LiveMeetingSession, Meeting, MeetingDelegation, MeetingHandoff, MeetingPrepRun, OOOQueueItem, QueryResult, WorkEvent
+from ..mission_models import AgentManifest, HumanCheckpoint, MissionRun, MissionStep, ProposedCommand
 
 if TYPE_CHECKING:
     from ..workspace import Workspace
@@ -78,6 +79,22 @@ class StateStore(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def put_mission_transition(self, mission: MissionRun, step: MissionStep | None = None) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def put_checkpoint(self, checkpoint: HumanCheckpoint) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def put_agent_manifest(self, manifest: AgentManifest) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def put_command(self, command: ProposedCommand) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
     def clear_dynamic(self) -> None:
         raise NotImplementedError
 
@@ -133,6 +150,18 @@ class NullStateStore(StateStore):
     def put_meeting_handoff(self, handoff: MeetingHandoff) -> None:
         return None
 
+    def put_mission_transition(self, mission: MissionRun, step: MissionStep | None = None) -> None:
+        return None
+
+    def put_checkpoint(self, checkpoint: HumanCheckpoint) -> None:
+        return None
+
+    def put_agent_manifest(self, manifest: AgentManifest) -> None:
+        return None
+
+    def put_command(self, command: ProposedCommand) -> None:
+        return None
+
     def clear_dynamic(self) -> None:
         return None
 
@@ -172,6 +201,18 @@ class RecordingStateStore(NullStateStore):
 
     def put_meeting_handoff(self, handoff: MeetingHandoff) -> None:
         self.operations.append(("meeting_handoff", handoff.id))
+
+    def put_mission_transition(self, mission: MissionRun, step: MissionStep | None = None) -> None:
+        self.operations.append(("mission_transition", (mission.id, step.id if step else None)))
+
+    def put_checkpoint(self, checkpoint: HumanCheckpoint) -> None:
+        self.operations.append(("checkpoint", checkpoint.id))
+
+    def put_agent_manifest(self, manifest: AgentManifest) -> None:
+        self.operations.append(("agent_manifest", f"{manifest.id}@{manifest.version}"))
+
+    def put_command(self, command: ProposedCommand) -> None:
+        self.operations.append(("command", command.id))
 
     def put_meeting(self, meeting: Meeting) -> None:
         self.operations.append(("meeting", meeting.id))

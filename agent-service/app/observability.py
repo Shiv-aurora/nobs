@@ -5,6 +5,7 @@ import logging
 import os
 import sys
 import time
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import Any, Callable
 from uuid import uuid4
@@ -61,6 +62,36 @@ def configure_logging(level: str = "INFO") -> None:
 
 def event(logger: logging.Logger, message: str, *, level: int = logging.INFO, **fields: Any) -> None:
     logger.log(level, message, extra={"noping_fields": fields})
+
+
+def current_trace_id() -> str:
+    try:
+        from opentelemetry import trace
+
+        value = trace.get_current_span().get_span_context().trace_id
+        return f"{value:032x}" if value else ""
+    except ImportError:
+        return ""
+
+
+@contextmanager
+def mission_span(name: str, **attributes: Any):
+    """Create a bounded mission span without recording prompts or evidence."""
+    try:
+        from opentelemetry import trace
+    except ImportError:
+        yield None
+        return
+    tracer = trace.get_tracer("nobs.missions")
+    with tracer.start_as_current_span(name) as span:
+        for key, value in attributes.items():
+            if value is not None:
+                span.set_attribute(f"nobs.{key}", value)
+        try:
+            yield span
+        except Exception as exc:
+            span.record_exception(exc)
+            raise
 
 
 def configure_opentelemetry(app: Any, *, service_name: str, endpoint: str) -> bool:
