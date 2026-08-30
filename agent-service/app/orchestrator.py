@@ -142,7 +142,12 @@ class Orchestrator:
         key = canonical_key(request.text, intent)
         route = self.router.build_route(request.requester_id, request.text, intent, request.delegate_for_user_id)
         emit("routed", route=[step.model_dump(mode="json") for step in route])
-        evidence, findings, denied = self.retriever.retrieve(request.requester_id, request.text, intent)
+        evidence, findings, denied = self.retriever.retrieve(
+            request.requester_id,
+            request.text,
+            intent,
+            request.delegate_for_user_id,
+        )
         emit("retrieved", evidence_count=len(evidence), security_findings=len(findings), denied_count=denied)
         facts_hash = self._facts_hash()
         self.workspace.increment_stat("queries_total")

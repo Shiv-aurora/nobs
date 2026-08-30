@@ -14,13 +14,34 @@ class EvidenceRetriever:
         self.policy = policy
         self.scanner = scanner
 
-    def retrieve(self, requester_id: str, text: str, intent: Intent) -> tuple[list[Evidence], list[SecurityFinding], int]:
+    def retrieve(
+        self,
+        requester_id: str,
+        text: str,
+        intent: Intent,
+        delegate_for_user_id: str | None = None,
+    ) -> tuple[list[Evidence], list[SecurityFinding], int]:
         requester = self.workspace.users[requester_id]
         lowered = text.lower()
+        represented = self.workspace.users.get(delegate_for_user_id or "")
+        greeting_only = lowered.strip(" \t\n!.,?") in {"hi", "hello", "hey", "yo"}
+        represented_scope: set[str] = set()
+        if represented and not greeting_only:
+            # A DM already establishes which employee delegate is answering.
+            # Select that employee's authorized work graph independently of how
+            # their name is spelled in the message (for example "daniled").
+            represented_scope = {
+                represented.id,
+                *represented.team_ids,
+                *represented.project_ids,
+            }
+            for item in self.workspace.work_items.values():
+                if item.owner_user_id == represented.id:
+                    represented_scope.update({item.id, item.key.lower()})
         candidates: list[Evidence] = []
         denied = 0
         for evidence in self.workspace.evidence.values():
-            relevant = False
+            relevant = bool(represented_scope.intersection(entity_id.lower() for entity_id in evidence.entity_ids))
             if intent == Intent.RESTRICTED:
                 relevant = "sarah" in lowered and "sarah" in evidence.entity_ids
             elif "vendor" in lowered or "attachment" in lowered or "poison" in lowered:

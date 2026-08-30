@@ -160,6 +160,22 @@ def test_short_dm_greeting_is_accepted_and_answered(client):
     assert response.status_code == 200
     assert response.json()["status"] == "answered"
     assert response.json()["answer"]
+    assert response.json()["evidence"] == []
+
+
+def test_personal_delegate_uses_dm_identity_when_employee_name_is_misspelled(client):
+    response = client.post(
+        "/v1/query",
+        json={
+            "requester_id": "maya",
+            "delegate_for_user_id": "daniel",
+            "text": "what proj is daniled working on",
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "answered"
+    assert "Project Atlas" in response.json()["answer"]
+    assert "ev-auth-pr" in {item["id"] for item in response.json()["evidence"]}
 
 
 def test_streaming_query_reports_real_phases_and_personal_delegate(client):

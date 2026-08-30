@@ -61,7 +61,7 @@ class DeterministicDemoModel(ModelAdapter):
             answer = "Hey — Daniel is out of office, but I have his current Atlas and AUTH-392 context. Ask me the work question normally and I’ll answer what I can without interrupting him."
         elif intent == Intent.LIVE_STATUS:
             answer = (
-                "Daniel Kim is handling AUTH-392; his fix is in PR #892, all 84 checks passed, "
+                "Daniel Kim is working on Project Atlas, specifically AUTH-392; his fix is in PR #892, all 84 checks passed, "
                 "and it is awaiting one reviewer. Sarah Chen is out through 9:00 AM tomorrow, "
                 "so Alex Morgan is the authorized security approver tonight."
             )
