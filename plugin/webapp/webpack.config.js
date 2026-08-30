@@ -25,6 +25,11 @@ module.exports = {
         type: 'asset/resource',
         generator: {filename: 'assets/[name].[contenthash:8][ext]'},
       },
+      {
+        test: /\.worklet\.js$/i,
+        type: 'asset/resource',
+        generator: {filename: 'assets/[name].[contenthash:8][ext]'},
+      },
     ],
   },
   externals: {

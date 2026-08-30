@@ -3,6 +3,7 @@ import React, {useEffect, useMemo, useState} from 'react';
 import {api, APIError} from '../api/client';
 import logo from '../assets/logo.png';
 import type {Meeting, MeetingDetail} from '../types/models';
+import {SendAgentModal} from './SendAgentModal';
 
 const GEMINI_ENTERPRISE_ICON = 'https://avatars.slack-edge.com/2025-09-17/9549827723233_9cb3f87dee7d9088b89b_512.png';
 const DEMO_USERNAMES = ['shivam', 'maya', 'daniel', 'sarah', 'priya', 'alex'];
@@ -52,6 +53,15 @@ async function loadUserAvatars(): Promise<Record<string, string>> {
     return Object.fromEntries(entries.filter(([, url]) => Boolean(url)));
 }
 
+async function loadCurrentUsername(): Promise<string> {
+    const response = await fetch('/api/v4/users/me', {credentials: 'same-origin'});
+    if (!response.ok) {
+        return '';
+    }
+    const user = await response.json() as {username: string};
+    return user.username.toLowerCase();
+}
+
 function agentUsername(agentName: string): string {
     return agentName.split(/[\s']/)[0].toLowerCase();
 }
@@ -85,6 +95,8 @@ export function CalendarPage(): JSX.Element {
     const [shareChannelID, setShareChannelID] = useState('');
     const [mobileDetail, setMobileDetail] = useState(false);
     const [userAvatars, setUserAvatars] = useState<Record<string, string>>({});
+    const [currentUsername, setCurrentUsername] = useState('');
+    const [showMission, setShowMission] = useState(false);
 
     const refreshList = async (keepSelection = true) => {
         const next = await api.meetings();
@@ -106,9 +118,10 @@ export function CalendarPage(): JSX.Element {
         const teamName = window.location.pathname.split('/').filter(Boolean)[0] || 'acme';
         window.history.replaceState(null, '', `/${teamName}/nobs/calendar`);
         document.title = 'Calendar - NoBS';
-        Promise.all([refreshList(false), loadChannels(), loadUserAvatars()]).then(async ([meetingID, nextChannels, avatars]) => {
+        Promise.all([refreshList(false), loadChannels(), loadUserAvatars(), loadCurrentUsername()]).then(async ([meetingID, nextChannels, avatars, username]) => {
             setChannels(nextChannels);
             setUserAvatars(avatars);
+            setCurrentUsername(username);
             const project = nextChannels.find((channel) => channel.name === 'project-atlas');
             setShareChannelID(project?.id || nextChannels[0]?.id || '');
             await refreshDetail(meetingID);
@@ -179,6 +192,39 @@ export function CalendarPage(): JSX.Element {
         }
     };
 
+    const setAttendance = async (choice: 'attend' | 'decline') => {
+        if (!detail) {
+            return;
+        }
+        setWorking(true);
+        try {
+            await api.setMeetingAttendance(detail.meeting.id, choice);
+            await refreshList();
+            await refreshDetail(detail.meeting.id);
+            setError('');
+        } catch (caught) {
+            setError(caught instanceof APIError ? caught.message : 'Your attendance plan could not be updated.');
+        } finally {
+            setWorking(false);
+        }
+    };
+
+    const startHuddle = async () => {
+        if (!detail?.delegation) {
+            return;
+        }
+        setWorking(true);
+        try {
+            const started = await api.startMeetingDelegation(detail.delegation.id);
+            sessionStorage.setItem(`nobs-live-nonce:${started.delegation.id}`, started.session_nonce);
+            const teamName = window.location.pathname.split('/').filter(Boolean)[0] || 'acme';
+            window.location.assign(`/${teamName}/nobs/huddle/${encodeURIComponent(started.delegation.id)}`);
+        } catch (caught) {
+            setError(caught instanceof APIError ? caught.message : 'The secure agent huddle could not be started.');
+            setWorking(false);
+        }
+    };
+
     const grouped = useMemo(() => meetings.reduce<Record<string, Meeting[]>>((groups, meeting) => {
         const day = dateLabel(meeting.start_at);
         groups[day] = [...(groups[day] || []), meeting];
@@ -187,6 +233,15 @@ export function CalendarPage(): JSX.Element {
 
     const selected = detail?.meeting;
     const brief = detail?.run?.brief;
+    const conflicts = useMemo(() => {
+        if (!selected) {
+            return [];
+        }
+        const start = new Date(selected.start_at).getTime();
+        const end = new Date(selected.end_at).getTime();
+        return meetings.filter((meeting) => meeting.id !== selected.id && meeting.attendees.some((attendee) => attendee.user_id === currentUsername && attendee.response_status !== 'declined') && new Date(meeting.start_at).getTime() < end && new Date(meeting.end_at).getTime() > start);
+    }, [currentUsername, meetings, selected]);
+    const attendancePlan = selected?.attendance_plans?.[currentUsername] || (detail?.delegation && !['ended', 'revoked'].includes(detail.delegation.status) ? 'agent' : 'attend');
 
     return <main className={`nobs-calendar ${mobileDetail ? 'is-mobile-detail' : ''}`}>
         <header className='nobs-calendar__header'>
@@ -210,16 +265,27 @@ export function CalendarPage(): JSX.Element {
                 {!selected || loading ? <div className='nobs-calendar__empty'><img src={logo} alt=''/><strong>Select a meeting</strong><span>NoBS will show what agents can resolve before humans join.</span></div> : <>
                     <button type='button' className='nobs-mobile-back' onClick={() => setMobileDetail(false)}>Back to agenda</button>
                     <header className='nobs-meeting-hero'>
-                        <div><span>{dateLabel(selected.start_at)} · {timeLabel(selected.start_at)}–{timeLabel(selected.end_at)}</span><h1>{selected.title}</h1><p>{selected.description}</p></div>
+                        <div><span>{dateLabel(selected.start_at)} · {timeLabel(selected.start_at)}–{timeLabel(selected.end_at)}</span><h1>{selected.title}</h1><p>{selected.description}</p>{conflicts.length > 0 && <div className='nobs-conflict-badge'><i className='icon-alert-outline'/> Double-booked with {conflicts.map((meeting) => meeting.title).join(', ')}</div>}</div>
                         <div className='nobs-meeting-hero__actions'>
                             {selected.preparation_eligibility === 'eligible' && !detail?.run && <button type='button' className='nobs-primary-button' disabled={working} onClick={() => void prepare()}>{working ? 'Agents preparing…' : 'Prepare meeting'}</button>}
                             {selected.preparation_eligibility === 'skipped' && <span className='nobs-human-badge'>Human meeting · agents skipped</span>}
                             {detail?.run && <span className='nobs-prepared-badge'>Prepared by {new Set(detail.run.turns.map((turn) => turn.agent_name)).size} agents</span>}
                         </div>
                     </header>
+                    {selected.preparation_eligibility !== 'skipped' && <section className='nobs-attendance-plan' aria-label='Your attendance plan'><div><strong>Your plan</strong><span>NoBS attendance does not impersonate your Calendar RSVP.</span></div><div className='nobs-attendance-plan__buttons'><button type='button' className={attendancePlan === 'attend' ? 'is-active' : ''} disabled={working} onClick={() => void setAttendance('attend')}><i className='icon-account-check-outline'/>Attend</button><button type='button' className={attendancePlan === 'agent' ? 'is-agent' : ''} disabled={working} onClick={() => setShowMission(true)}><img src={logo} alt=''/>Send my Agent</button><button type='button' className={attendancePlan === 'decline' ? 'is-active' : ''} disabled={working} onClick={() => void setAttendance('decline')}><i className='icon-close'/>Decline</button></div>{detail?.delegation && !['ended', 'revoked'].includes(detail.delegation.status) && <div className='nobs-agent-assigned'><span><img src={logo} alt=''/><strong>{detail.delegation.represented_user_name}'s Agent</strong><small>{detail.delegation.mission.mode} mode · explicitly representing you</small></span><button type='button' className='nobs-primary-button' disabled={working} onClick={() => void startHuddle()}><i className='icon-microphone-outline'/> Start huddle</button></div>}</section>}
                     <section className='nobs-attendee-strip' aria-label='Attendees'>{selected.attendees.map((attendee) => <article key={attendee.user_id}><span>{userAvatars[attendee.user_id] ? <img src={userAvatars[attendee.user_id]} alt=''/> : attendee.name.split(' ').map((part) => part[0]).join('')}</span><div><strong>{attendee.name}</strong><small>{attendee.role} · delegate ready</small></div></article>)}</section>
+                    {detail?.handoff && <section className='nobs-calendar-handoff'><div><span className='nobs-eyebrow'>YOUR AGENT ATTENDED</span><strong>{detail.handoff.meeting_minutes_avoided} meeting minutes avoided</strong><p>{detail.handoff.summary || (detail.handoff.for_you.length ? `${detail.handoff.for_you.length} item${detail.handoff.for_you.length === 1 ? '' : 's'} require your judgment.` : 'Nothing from this meeting requires your judgment.')}</p></div><button type='button' className='nobs-secondary-button' onClick={() => {
+                        const teamName = window.location.pathname.split('/').filter(Boolean)[0] || 'acme';
+                        window.location.assign(`/${teamName}/nobs/huddle/${encodeURIComponent(detail.handoff!.delegation_id)}`);
+                    }}>Open handoff</button></section>}
                     <div className='nobs-meeting-grid'>
                         <div className='nobs-meeting-main'>
+                            <section className='nobs-surface nobs-meeting-brief'>
+                                <div className='nobs-section-title'><div><strong>Meeting brief</strong><span>Agenda and unresolved decisions</span></div>{brief && <em>{brief.humans_required} human decision{brief.humans_required === 1 ? '' : 's'}</em>}</div>
+                                <div className='nobs-agenda-list'>{selected.agenda.length ? selected.agenda.map((item) => <article key={item.id} className={`is-${item.status}`}><span className='nobs-agenda-state'>{item.status === 'resolved' ? 'Done' : item.status === 'needs_human' ? 'Needs judgment' : 'Open'}</span><div><strong>{item.title}</strong>{item.resolution && <p>{item.resolution}</p>}{item.evidence_ids.length > 0 && <small>{item.evidence_ids.length} evidence source{item.evidence_ids.length === 1 ? '' : 's'}</small>}</div></article>) : <p className='nobs-muted'>{selected.preparation_reason}</p>}</div>
+                            </section>
+                        </div>
+                        <aside className='nobs-meeting-aside'>
                             {brief && <section className='nobs-brief-hero'>
                                 <div><span>Time saved</span><strong>{brief.original_duration_minutes} → {brief.recommended_duration_minutes} min</strong><p>{brief.summary}</p></div>
                                 <div><strong>{brief.minutes_saved}</strong><span>minutes returned</span></div>
@@ -228,19 +294,12 @@ export function CalendarPage(): JSX.Element {
                                 <div className='nobs-section-title'><div><strong>Related work</strong><span>Completed before the meeting</span></div></div>
                                 <div className='nobs-work-actions'>{detail.run.work_actions.map((action) => <article key={action.id}><header><span className='nobs-provider'>{action.provider === 'GitHub' ? <i className='icon-github' aria-hidden='true'/> : null}{action.provider}</span><em>{action.status}</em></header><strong>{action.title}</strong><p>{action.summary}</p>{action.source_url && <a href={action.source_url} target='_blank' rel='noreferrer'>Open evidence</a>}</article>)}</div>
                             </section>}
-                            {detail?.run?.security_findings.length ? <section className='nobs-security-card'><span>Security boundary enforced</span><strong>Untrusted content quarantined</strong><p>{detail.run.security_findings[0].reason}</p></section> : null}
                             {brief && <section className='nobs-surface nobs-disposition'>
                                 <span>Recommendation</span><strong>{brief.recommended_disposition === 'cancel' ? 'Cancel this meeting' : brief.recommended_disposition === 'shorten' ? 'Shorten to 15 minutes' : 'Keep this meeting'}</strong>
                                 <p>Calendar changes require the organizer's confirmation.</p>
                                 {selected.confirmed_action === 'none' ? <button type='button' className='nobs-primary-button' disabled={working} onClick={() => void confirm(brief.recommended_disposition === 'cancel' ? 'cancel' : 'shorten')}>{brief.recommended_disposition === 'cancel' ? 'Confirm cancellation' : 'Confirm 15-minute agenda'}</button> : <div className='nobs-confirmed'>Confirmed · {selected.confirmed_action}</div>}
                             </section>}
                             {brief && <section className='nobs-surface nobs-share-card'><span>Share brief</span><select aria-label='Share meeting brief to' value={shareChannelID} onChange={(event) => setShareChannelID(event.target.value)}>{channels.filter((channel) => channel.type !== 'D').map((channel) => <option key={channel.id} value={channel.id}>{channel.display_name}</option>)}</select><button type='button' className='nobs-secondary-button' disabled={working || !shareChannelID} onClick={() => void share()}>Share to channel</button></section>}
-                        </div>
-                        <aside className='nobs-meeting-aside'>
-                            <section className='nobs-surface nobs-meeting-brief'>
-                                <div className='nobs-section-title'><div><strong>Meeting brief</strong><span>Agenda and unresolved decisions</span></div>{brief && <em>{brief.humans_required} human decision{brief.humans_required === 1 ? '' : 's'}</em>}</div>
-                                <div className='nobs-agenda-list'>{selected.agenda.length ? selected.agenda.map((item) => <article key={item.id} className={`is-${item.status}`}><span className='nobs-agenda-state'>{item.status === 'resolved' ? 'Done' : item.status === 'needs_human' ? 'Needs judgment' : 'Open'}</span><div><strong>{item.title}</strong>{item.resolution && <p>{item.resolution}</p>}{item.evidence_ids.length > 0 && <small>{item.evidence_ids.length} evidence source{item.evidence_ids.length === 1 ? '' : 's'}</small>}</div></article>) : <p className='nobs-muted'>{selected.preparation_reason}</p>}</div>
-                            </section>
                         </aside>
                         {detail?.run && <section className='nobs-surface nobs-preparation'>
                             <div className='nobs-section-title'><div><strong>Agent meeting</strong><span>Attendee agents worked for 15 minutes before the human meeting</span></div><em>{detail.run.turns.length} messages · {new Set(detail.run.turns.map((turn) => turn.agent_name)).size} agents</em></div>
@@ -257,6 +316,16 @@ export function CalendarPage(): JSX.Element {
                 </>}
             </section>
         </div>
+        {showMission && selected && <SendAgentModal
+            meeting={selected}
+            conflicts={conflicts}
+            onClose={() => setShowMission(false)}
+            onSaved={async () => {
+                setShowMission(false);
+                await refreshList();
+                await refreshDetail(selected.id);
+            }}
+        />}
     </main>;
 }
 

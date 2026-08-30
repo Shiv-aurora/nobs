@@ -276,9 +276,65 @@ export interface Meeting {
     updated_at: string;
     source: 'google_calendar' | 'demo';
     confirmed_action: 'none' | 'cancelled' | 'shortened' | 'agenda_updated';
+    attendance_plans: Record<string, 'attend' | 'agent' | 'decline'>;
+}
+
+export type MeetingAgentMode = 'listen' | 'represent' | 'mission';
+
+export interface MissionPacket {
+    mode: MeetingAgentMode;
+    tell: string[];
+    ask: string[];
+    capability_ids: string[];
+    escalation_rules: string[];
+    participant_user_ids: string[];
+}
+
+export interface MeetingDelegation {
+    id: string;
+    meeting_id: string;
+    represented_user_id: string;
+    represented_user_name: string;
+    status: 'draft' | 'ready' | 'live' | 'paused' | 'reconnecting' | 'ended' | 'escalated' | 'failed' | 'revoked';
+    mission: MissionPacket;
+    calendar_etag: string;
+    policy_snapshot_hash: string;
+    expires_at: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface LiveMeetingSession {
+    id: string;
+    delegation_id: string;
+    status: 'created' | 'connecting' | 'live' | 'paused' | 'reconnecting' | 'ended' | 'failed';
+    started_at?: string | null;
+    ended_at?: string | null;
+    input_audio_seconds: number;
+    output_audio_seconds: number;
+    tool_calls: number;
+}
+
+export interface MeetingHandoff {
+    id: string;
+    delegation_id: string;
+    meeting_id: string;
+    represented_user_id: string;
+    summary: string;
+    told: string[];
+    asked: string[];
+    answers: string[];
+    decisions_observed: string[];
+    for_you: string[];
+    escalations: string[];
+    evidence_ids: string[];
+    meeting_minutes_avoided: number;
+    created_at: string;
 }
 
 export interface MeetingDetail {
     meeting: Meeting;
     run?: MeetingPrepRun | null;
+    delegation?: MeetingDelegation | null;
+    handoff?: MeetingHandoff | null;
 }

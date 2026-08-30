@@ -1,4 +1,4 @@
-import type {AuditEvent, BootstrapResponse, Decision, HealthResponse, Meeting, MeetingDetail, MeetingPrepRun, MetricsResponse, QueryResult, RegistryResponse} from '../types/models';
+import type {AuditEvent, BootstrapResponse, Decision, HealthResponse, LiveMeetingSession, Meeting, MeetingAgentMode, MeetingDelegation, MeetingDetail, MeetingHandoff, MeetingPrepRun, MetricsResponse, QueryResult, RegistryResponse} from '../types/models';
 import type {MattermostPost} from '../types/messaging';
 
 const BASE = '/plugins/com.noping.enterprise/api/v1';
@@ -54,6 +54,13 @@ export const api = {
     prepareMeeting: (meetingID: string): Promise<MeetingPrepRun> => request(`/meetings/${encodeURIComponent(meetingID)}/prepare`, {method: 'POST', body: JSON.stringify({trigger: 'manual'})}),
     confirmMeetingAction: (meetingID: string, action: 'cancel' | 'shorten' | 'update_agenda', expectedETag: string, durationMinutes?: number): Promise<Meeting> => request(`/meetings/${encodeURIComponent(meetingID)}/actions`, {method: 'POST', body: JSON.stringify({action, expected_etag: expectedETag, duration_minutes: durationMinutes})}),
     shareMeeting: (meetingID: string, channelID: string): Promise<unknown> => request(`/meetings/${encodeURIComponent(meetingID)}/share`, {method: 'POST', body: JSON.stringify({channel_id: channelID})}),
+    setMeetingAttendance: (meetingID: string, choice: 'attend' | 'agent' | 'decline'): Promise<Meeting> => request(`/meetings/${encodeURIComponent(meetingID)}/attendance`, {method: 'POST', body: JSON.stringify({choice})}),
+    createMeetingDelegation: (meetingID: string, mission: {mode: MeetingAgentMode; tell: string[]; ask: string[]; capability_ids: string[]; escalation_rules: string[]}, expectedETag: string): Promise<MeetingDelegation> => request(`/meetings/${encodeURIComponent(meetingID)}/delegations`, {method: 'POST', body: JSON.stringify({...mission, expected_etag: expectedETag})}),
+    meetingDelegation: (delegationID: string): Promise<{delegation: MeetingDelegation; session?: LiveMeetingSession | null; handoff?: MeetingHandoff | null; meeting: Meeting}> => request(`/meeting-delegations/${encodeURIComponent(delegationID)}`),
+    startMeetingDelegation: (delegationID: string): Promise<{delegation: MeetingDelegation; session: LiveMeetingSession; session_nonce: string}> => request(`/meeting-delegations/${encodeURIComponent(delegationID)}/start`, {method: 'POST', body: '{}'}),
+    endMeetingDelegation: (delegationID: string): Promise<MeetingHandoff> => request(`/meeting-delegations/${encodeURIComponent(delegationID)}/end`, {method: 'POST', body: '{}'}),
+    revokeMeetingDelegation: (delegationID: string): Promise<MeetingHandoff> => request(`/meeting-delegations/${encodeURIComponent(delegationID)}/revoke`, {method: 'POST', body: '{}'}),
+    meetingHandoff: (delegationID: string): Promise<MeetingHandoff> => request(`/meeting-delegations/${encodeURIComponent(delegationID)}/handoff`),
     setOOO: (enabled: boolean, until?: string, delegateUserID?: string): Promise<unknown> => request('/ooo', {method: 'POST', body: JSON.stringify({enabled, until, delegate_user_id: delegateUserID})}),
     oooDigest: (): Promise<{total: number; urgent: number; items: unknown[]}> => request('/ooo/digest'),
     resetDemo: (): Promise<{status: string}> => request('/demo/reset', {method: 'POST', body: '{}'}),

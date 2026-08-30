@@ -107,10 +107,14 @@
 .nobs-attendee-strip strong { font-size: 10px; line-height: 13px; }
 .nobs-attendee-strip small { color: var(--nobs-muted); font-size: 9px; line-height: 12px; }
 
-.nobs-meeting-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 14px 16px 28px; background: rgba(var(--center-channel-color-rgb, 61, 60, 64), .025); }
-.nobs-meeting-main, .nobs-meeting-aside { display: grid; min-width: 0; align-content: start; gap: 12px; }
+.nobs-meeting-grid { display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(280px, .88fr); gap: 12px; padding: 14px 16px 28px; background: rgba(var(--center-channel-color-rgb, 61, 60, 64), .025); }
+.nobs-meeting-main { display: flex; min-width: 0; align-self: stretch; flex-direction: column; gap: 12px; }
+.nobs-meeting-aside { display: grid; min-width: 0; align-content: start; gap: 12px; }
+.nobs-meeting-main .nobs-meeting-brief { display: flex; min-height: 0; flex: 1 1 auto; flex-direction: column; }
+.nobs-meeting-main .nobs-agenda-list { flex: 1; grid-auto-rows: minmax(84px, 1fr); }
+.nobs-meeting-main .nobs-agenda-list article { align-content: start; }
 .nobs-preparation { grid-column: 1 / -1; }
-.nobs-surface, .nobs-brief-hero, .nobs-security-card { border: 1px solid var(--nobs-line); border-radius: 5px; background: var(--nobs-bg); }
+.nobs-surface, .nobs-brief-hero { border: 1px solid var(--nobs-line); border-radius: 5px; background: var(--nobs-bg); }
 .nobs-surface { padding: 14px; }
 
 .nobs-section-title { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 10px; }
@@ -176,10 +180,6 @@
 .nobs-work-actions p { margin: 3px 0; color: var(--nobs-muted); font-size: 9px; line-height: 14px; }
 .nobs-work-actions a { color: var(--link-color, #1c58d9); font-size: 9px; font-weight: 600; }
 
-.nobs-security-card { padding: 12px; border-color: rgba(210, 53, 42, .25); background: rgba(210, 53, 42, .05); }
-.nobs-security-card span { color: #a1241b; font-size: 9px; font-weight: 700; text-transform: uppercase; }
-.nobs-security-card strong { display: block; margin-top: 3px; font-size: 11px; }
-.nobs-security-card p { margin: 3px 0 0; color: var(--nobs-muted); font-size: 9px; line-height: 14px; }
 .nobs-disposition { display: grid; gap: 6px; }
 .nobs-disposition > strong { font-size: 15px; line-height: 20px; }
 .nobs-disposition p { margin: 0 0 4px; color: var(--nobs-muted); font-size: 10px; line-height: 15px; }
@@ -192,6 +192,7 @@
     .nobs-calendar__workspace { grid-template-columns: 250px minmax(0, 1fr); }
     .nobs-meeting-grid { grid-template-columns: 1fr; }
     .nobs-meeting-aside { grid-template-columns: 1fr; }
+    .nobs-meeting-main .nobs-agenda-list { flex: none; grid-auto-rows: auto; }
 }
 
 @media (max-width: 768px) {
