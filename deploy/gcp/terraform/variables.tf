@@ -95,6 +95,18 @@ variable "agent_image_uri" {
   default     = ""
 }
 
+variable "deploy_action_executor" {
+  type        = bool
+  description = "Deploy the private least-privilege action executor after its image exists."
+  default     = false
+}
+
+variable "action_executor_image_uri" {
+  type        = string
+  description = "Immutable Artifact Registry image URI for the action executor."
+  default     = ""
+}
+
 variable "deploy_budget_guard" {
   type        = bool
   description = "Second-stage switch: deploy the private budget guard after its image exists."
@@ -162,7 +174,7 @@ variable "model_armor_template_id" {
 variable "gemini_model" {
   type        = string
   description = "Gemini model used by Google ADK through Vertex AI."
-  default     = "gemini-2.5-flash"
+  default     = "gemini-3.5-flash"
 }
 
 variable "gemini_location" {
@@ -199,6 +211,12 @@ variable "google_calendar_identity_map_json" {
   type        = string
   description = "JSON mapping approved Calendar identities to privacy-minimal NoPing availability identities."
   default     = "{}"
+}
+
+variable "google_calendar_id" {
+  type        = string
+  description = "Calendar ID used by the approved-action executor."
+  default     = "primary"
 }
 
 variable "labels" {

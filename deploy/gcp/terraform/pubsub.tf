@@ -25,6 +25,74 @@ resource "google_pubsub_topic" "budget_updates" {
   depends_on = [google_project_service.required["pubsub.googleapis.com"]]
 }
 
+resource "google_pubsub_topic" "action_commands" {
+  name   = "${var.name_prefix}-action-commands"
+  labels = local.common_labels
+
+  message_retention_duration = "86400s"
+}
+
+resource "google_pubsub_topic" "action_commands_dlq" {
+  name   = "${var.name_prefix}-action-commands-dlq"
+  labels = local.common_labels
+
+  message_retention_duration = "604800s"
+}
+
+resource "google_pubsub_topic_iam_member" "agent_publishes_action_commands" {
+  topic  = google_pubsub_topic.action_commands.name
+  role   = "roles/pubsub.publisher"
+  member = "serviceAccount:${google_service_account.agent.email}"
+}
+
+resource "google_pubsub_subscription" "action_commands_push" {
+  count = var.deploy_action_executor ? 1 : 0
+
+  name   = "${var.name_prefix}-action-commands-push"
+  topic  = google_pubsub_topic.action_commands.id
+  labels = local.common_labels
+
+  ack_deadline_seconds       = 60
+  message_retention_duration = "86400s"
+
+  retry_policy {
+    minimum_backoff = "10s"
+    maximum_backoff = "300s"
+  }
+
+  dead_letter_policy {
+    dead_letter_topic     = google_pubsub_topic.action_commands_dlq.id
+    max_delivery_attempts = 5
+  }
+
+  push_config {
+    push_endpoint = "${google_cloud_run_v2_service.action_executor[0].uri}/v1/commands/pubsub"
+    oidc_token {
+      service_account_email = google_service_account.pubsub_push.email
+      audience              = local.action_executor_audience
+    }
+  }
+
+  depends_on = [
+    google_cloud_run_v2_service_iam_member.pubsub_invokes_action_executor,
+    google_service_account_iam_member.pubsub_mints_tokens,
+  ]
+}
+
+resource "google_pubsub_topic_iam_member" "pubsub_service_publishes_action_dlq" {
+  topic  = google_pubsub_topic.action_commands_dlq.name
+  role   = "roles/pubsub.publisher"
+  member = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
+}
+
+resource "google_pubsub_subscription_iam_member" "pubsub_service_reads_action_source" {
+  count = var.deploy_action_executor ? 1 : 0
+
+  subscription = google_pubsub_subscription.action_commands_push[0].name
+  role         = "roles/pubsub.subscriber"
+  member       = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
+}
+
 resource "google_pubsub_topic_iam_member" "billing_budget_publishes_updates" {
   topic = google_pubsub_topic.budget_updates.name
   role  = "roles/pubsub.publisher"

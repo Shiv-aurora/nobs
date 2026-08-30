@@ -10,6 +10,10 @@ output "budget_guard_image_prefix" {
   value = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.noping.repository_id}/budget-guard"
 }
 
+output "action_executor_image_prefix" {
+  value = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.noping.repository_id}/action-executor"
+}
+
 output "mattermost_instance_name" {
   value = google_compute_instance.mattermost.name
 }
@@ -28,6 +32,14 @@ output "agent_service_url" {
 
 output "budget_guard_url" {
   value = var.deploy_budget_guard ? google_cloud_run_v2_service.budget_guard[0].uri : null
+}
+
+output "action_executor_url" {
+  value = var.deploy_action_executor ? google_cloud_run_v2_service.action_executor[0].uri : null
+}
+
+output "action_commands_topic" {
+  value = google_pubsub_topic.action_commands.name
 }
 
 output "service_signing_secret_id" {

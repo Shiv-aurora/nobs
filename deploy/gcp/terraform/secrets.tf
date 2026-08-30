@@ -69,3 +69,9 @@ resource "google_secret_manager_secret_iam_member" "agent_reads_signing_secret" 
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.agent.email}"
 }
+
+resource "google_secret_manager_secret_iam_member" "executor_reads_calendar_credentials" {
+  secret_id = google_secret_manager_secret.google_calendar_credentials.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.action_executor.email}"
+}

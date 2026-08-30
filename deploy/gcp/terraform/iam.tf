@@ -30,6 +30,14 @@ resource "google_service_account" "budget_guard" {
   depends_on = [google_project_service.required["iam.googleapis.com"]]
 }
 
+resource "google_service_account" "action_executor" {
+  account_id   = "${var.name_prefix}-action-executor"
+  display_name = "NoBS Action Executor"
+  description  = "Executes only organizer-approved commands; has no model, query, or gateway authority."
+
+  depends_on = [google_project_service.required["iam.googleapis.com"]]
+}
+
 resource "google_project_iam_member" "agent_roles" {
   for_each = local.agent_project_roles
 
@@ -44,6 +52,14 @@ resource "google_project_iam_member" "vm_roles" {
   project = var.project_id
   role    = each.value
   member  = "serviceAccount:${google_service_account.mattermost.email}"
+}
+
+resource "google_project_iam_member" "action_executor_roles" {
+  for_each = local.executor_project_roles
+
+  project = var.project_id
+  role    = each.value
+  member  = "serviceAccount:${google_service_account.action_executor.email}"
 }
 
 resource "google_project_iam_member" "budget_guard_logging" {

@@ -86,6 +86,26 @@ resource "google_cloud_run_v2_service" "agent" {
         value = var.gemini_model
       }
       env {
+        name  = "NOPING_ACTION_COMMAND_TOPIC"
+        value = google_pubsub_topic.action_commands.name
+      }
+      env {
+        name  = "NOPING_AGENT_REGISTRY_ENABLED"
+        value = "true"
+      }
+      env {
+        name  = "NOPING_AGENT_REGISTRY_LOCATION"
+        value = "global"
+      }
+      env {
+        name  = "NOPING_AGENT_ENGINE_ID"
+        value = "1977754786799288320"
+      }
+      env {
+        name  = "NOPING_AGENT_ENGINE_LOCATION"
+        value = "us-central1"
+      }
+      env {
         name  = "NOPING_LIVE_MODEL"
         value = var.live_model
       }
@@ -357,6 +377,125 @@ resource "google_cloud_run_v2_service" "budget_guard" {
   depends_on = [google_project_iam_member.budget_guard_custom]
 }
 
+resource "google_cloud_run_v2_service" "action_executor" {
+  count = var.deploy_action_executor ? 1 : 0
+
+  name                = local.action_executor_name
+  location            = var.region
+  ingress             = "INGRESS_TRAFFIC_ALL"
+  deletion_protection = false
+  labels              = local.common_labels
+  custom_audiences    = [local.action_executor_audience]
+
+  scaling {
+    min_instance_count = 0
+    max_instance_count = 1
+  }
+
+  template {
+    service_account                  = google_service_account.action_executor.email
+    timeout                          = "60s"
+    max_instance_request_concurrency = 1
+    execution_environment            = "EXECUTION_ENVIRONMENT_GEN2"
+    labels                           = local.common_labels
+
+    scaling {
+      min_instance_count = 0
+      max_instance_count = 1
+    }
+
+    containers {
+      name  = "action-executor"
+      image = var.action_executor_image_uri
+
+      ports {
+        name           = "http1"
+        container_port = 8080
+      }
+
+      resources {
+        limits = {
+          cpu    = "1"
+          memory = "512Mi"
+        }
+        cpu_idle = true
+      }
+
+      env {
+        name  = "GOOGLE_CLOUD_PROJECT"
+        value = var.project_id
+      }
+      env {
+        name  = "NOPING_ORGANIZATION_ID"
+        value = "acme"
+      }
+      env {
+        name  = "NOPING_FIRESTORE_DATABASE"
+        value = "(default)"
+      }
+      env {
+        name  = "NOPING_GOOGLE_CALENDAR_ID"
+        value = var.google_calendar_id
+      }
+      env {
+        name  = "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"
+        value = "https://telemetry.googleapis.com/v1/traces"
+      }
+      env {
+        name  = "NOPING_LOG_LEVEL"
+        value = "INFO"
+      }
+      env {
+        name = "NOPING_GOOGLE_CALENDAR_CREDENTIALS"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.google_calendar_credentials.secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      startup_probe {
+        initial_delay_seconds = 1
+        timeout_seconds       = 3
+        period_seconds        = 5
+        failure_threshold     = 6
+        http_get {
+          path = "/healthz"
+          port = 8080
+        }
+      }
+
+      liveness_probe {
+        timeout_seconds   = 3
+        period_seconds    = 30
+        failure_threshold = 3
+        http_get {
+          path = "/healthz"
+          port = 8080
+        }
+      }
+    }
+  }
+
+  traffic {
+    type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
+    percent = 100
+  }
+
+  lifecycle {
+    precondition {
+      condition     = trimspace(var.action_executor_image_uri) != ""
+      error_message = "action_executor_image_uri must be an immutable Artifact Registry image before deploy_action_executor=true."
+    }
+  }
+
+  depends_on = [
+    google_project_iam_member.action_executor_roles,
+    google_secret_manager_secret_iam_member.executor_reads_calendar_credentials,
+  ]
+}
+
 resource "google_cloud_run_v2_service_iam_member" "mattermost_invokes_agent" {
   count = var.deploy_agent_service ? 1 : 0
 
@@ -383,6 +522,16 @@ resource "google_cloud_run_v2_service_iam_member" "pubsub_invokes_budget_guard" 
   project  = var.project_id
   location = google_cloud_run_v2_service.budget_guard[0].location
   name     = google_cloud_run_v2_service.budget_guard[0].name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.pubsub_push.email}"
+}
+
+resource "google_cloud_run_v2_service_iam_member" "pubsub_invokes_action_executor" {
+  count = var.deploy_action_executor ? 1 : 0
+
+  project  = var.project_id
+  location = google_cloud_run_v2_service.action_executor[0].location
+  name     = google_cloud_run_v2_service.action_executor[0].name
   role     = "roles/run.invoker"
   member   = "serviceAccount:${google_service_account.pubsub_push.email}"
 }
