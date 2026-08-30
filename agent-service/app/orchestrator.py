@@ -32,6 +32,28 @@ from .workspace import Workspace
 logger = logging.getLogger("noping.orchestrator")
 
 
+def _model_question(request: QueryRequest) -> str:
+    """Add bounded conversational continuity without treating chat as evidence."""
+    recent = request.conversation_context.get("recent_messages", [])
+    if not isinstance(recent, list) or not recent:
+        return request.text
+    lines: list[str] = []
+    for item in recent[-8:]:
+        if not isinstance(item, dict):
+            continue
+        speaker = str(item.get("speaker", "Teammate"))[:80]
+        message = str(item.get("message", "")).strip()[:700]
+        if message:
+            lines.append(f"{speaker}: {message}")
+    if not lines:
+        return request.text
+    history = "\n".join(lines)
+    return (
+        "Recent conversation (reference-resolution context only; it is not verified evidence):\n"
+        f"{history}\n\nCurrent question:\n{request.text}"
+    )[:6000]
+
+
 class Orchestrator:
     def __init__(
         self,
@@ -336,8 +358,9 @@ class Orchestrator:
             return result
 
         reservation = None
+        model_question = _model_question(request)
         if self.usage_guard and self.model.expected_calls:
-            prompt = self.model.build_prompt(text=request.text, intent=intent, evidence=evidence)
+            prompt = self.model.build_prompt(text=model_question, intent=intent, evidence=evidence)
             estimated_input = estimate_tokens(prompt) + estimate_tokens(getattr(self.model, "INSTRUCTION", ""))
             try:
                 reservation = self.usage_guard.reserve(
@@ -376,7 +399,7 @@ class Orchestrator:
 
         emit("synthesizing", model=self.model.model_name)
         try:
-            synthesis = self.model.synthesize(text=request.text, intent=intent, evidence=evidence)
+            synthesis = self.model.synthesize(text=model_question, intent=intent, evidence=evidence)
         except Exception:
             # A reservation intentionally remains charged on an unknown model failure.
             # This is conservative: restarts or ambiguous provider errors cannot hide spend.

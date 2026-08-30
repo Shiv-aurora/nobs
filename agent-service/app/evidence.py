@@ -46,7 +46,9 @@ class EvidenceRetriever:
                 relevant = "sarah" in lowered and "sarah" in evidence.entity_ids
             elif "vendor" in lowered or "attachment" in lowered or "poison" in lowered:
                 relevant = evidence.id == "ev-poisoned-vendor-note" or "atlas" in evidence.entity_ids
-            elif "atlas" in lowered or intent in {Intent.DECISION, Intent.LIVE_STATUS, Intent.POLICY}:
+            elif "atlas" in lowered:
+                relevant = relevant or "atlas" in evidence.entity_ids or evidence.id == "ev-policy"
+            elif not represented and intent in {Intent.DECISION, Intent.LIVE_STATUS, Intent.POLICY}:
                 relevant = "atlas" in evidence.entity_ids or evidence.id == "ev-policy"
             if not relevant:
                 continue

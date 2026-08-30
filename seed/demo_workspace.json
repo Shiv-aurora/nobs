@@ -11,7 +11,7 @@
       "title": "Engineering Lead",
       "team_ids": ["engineering"],
       "roles": ["employee", "engineer", "engineering_lead", "meeting_organizer"],
-      "project_ids": ["atlas"],
+      "project_ids": ["atlas", "relay"],
       "availability": {"status": "available", "until": null, "delegate_user_id": null},
       "avatar": "SA",
       "avatar_file": "avatars/shivam.jpg"
@@ -22,7 +22,7 @@
       "title": "Overnight Customer Support Representative",
       "team_ids": ["support"],
       "roles": ["employee", "support"],
-      "project_ids": ["atlas"],
+      "project_ids": ["atlas", "relay"],
       "availability": {"status": "available", "until": null, "delegate_user_id": null},
       "avatar": "MP",
       "avatar_file": "avatars/maya.jpg"
@@ -59,7 +59,7 @@
       "title": "Mobile Engineer",
       "team_ids": ["engineering"],
       "roles": ["employee", "engineer"],
-      "project_ids": ["atlas"],
+      "project_ids": ["atlas", "relay"],
       "availability": {"status": "out_of_office", "until": "2026-09-02T09:00:00-04:00", "delegate_user_id": "shivam"},
       "avatar": "DK",
       "avatar_file": "avatars/daniel.jpg"
@@ -105,6 +105,17 @@
       "health": "at_risk",
       "blocker_ids": ["sec-184"],
       "target_date": "2026-08-28"
+    },
+    {
+      "id": "relay",
+      "name": "Project Relay",
+      "summary": "Offline-safe mobile handoff and activity sync for field teams.",
+      "owner_user_id": "shivam",
+      "team_ids": ["engineering", "product", "support"],
+      "status": "active",
+      "health": "on_track",
+      "blocker_ids": [],
+      "target_date": "2026-09-18"
     }
   ],
   "work_items": [
@@ -129,6 +140,17 @@
       "priority": "P0",
       "updated_at": "2026-08-27T10:15:00-04:00",
       "url": "https://jira.example.local/browse/SEC-184"
+    },
+    {
+      "id": "rel-214",
+      "key": "REL-214",
+      "title": "Reconcile queued mobile handoffs after reconnect",
+      "project_id": "relay",
+      "owner_user_id": "daniel",
+      "status": "in_progress",
+      "priority": "P1",
+      "updated_at": "2026-08-27T15:18:00-04:00",
+      "url": "https://jira.example.local/browse/REL-214"
     }
   ],
   "policies": [
@@ -177,6 +199,18 @@
       "content": "Daniel Kim opened PR #892 for AUTH-392. CI passed 84 tests and the fix is awaiting one reviewer.",
       "observed_at": "2026-08-27T11:42:00-04:00",
       "confidence": 0.99,
+      "allowed_roles": []
+    },
+    {
+      "id": "ev-relay-daniel",
+      "title": "Project Relay mobile sync update",
+      "source_type": "mattermost_post",
+      "source_url": "/acme/pl/relay-mobile-sync",
+      "entity_ids": ["relay", "rel-214", "daniel", "engineering"],
+      "scope": "project:relay",
+      "content": "Daniel Kim also owns REL-214 for Project Relay, an offline-safe mobile handoff and activity-sync project. The reconnect reconciliation path is implemented behind a feature flag. Daniel finished the duplicate-event guard and is now validating a 48-hour offline recovery case; the current target is September 18 and no launch blocker is open.",
+      "observed_at": "2026-08-27T15:18:00-04:00",
+      "confidence": 0.98,
       "allowed_roles": []
     },
     {

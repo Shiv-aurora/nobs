@@ -1,6 +1,35 @@
 from __future__ import annotations
 
 from app.models import QueryRequest, RunStatus
+from app.orchestrator import _model_question
+
+
+def test_follow_up_includes_bounded_recent_conversation_for_reference_resolution():
+    request = QueryRequest(
+        requester_id="maya",
+        text="Can you tell me more about this?",
+        conversation_context={
+            "recent_messages": [
+                {"speaker": "Maya Patel", "message": "What is Daniel working on?"},
+                {"speaker": "Daniel's Agent", "message": "Daniel owns AUTH-392 and REL-214."},
+            ]
+        },
+    )
+
+    prompt = _model_question(request)
+
+    assert "Daniel owns AUTH-392 and REL-214" in prompt
+    assert prompt.endswith("Can you tell me more about this?")
+
+
+def test_personal_delegate_live_status_is_not_forced_back_to_atlas(services):
+    result = services.orchestrator.run(QueryRequest(
+        requester_id="maya",
+        delegate_for_user_id="daniel",
+        text="What projects are you working on right now?",
+    ))
+
+    assert "ev-relay-daniel" in [item.id for item in result.evidence]
 
 
 def test_factual_answer_routes_across_departments_without_interrupting(services):

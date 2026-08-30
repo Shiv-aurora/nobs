@@ -161,6 +161,42 @@ func (p *Plugin) ensureBotInChannel(channel *model.Channel) error {
 	return nil
 }
 
+func (p *Plugin) recentConversation(rootID, sourcePostID string) []map[string]any {
+	thread, appErr := p.API.GetPostThread(rootID)
+	if appErr != nil || thread == nil {
+		return nil
+	}
+	messages := make([]map[string]any, 0, 8)
+	start := len(thread.Order) - 10
+	if start < 0 {
+		start = 0
+	}
+	for _, postID := range thread.Order[start:] {
+		post := thread.Posts[postID]
+		if post == nil || post.Id == sourcePostID || post.Type != "" || strings.TrimSpace(post.Message) == "" {
+			continue
+		}
+		if state, _ := post.Props["noping_state"].(string); state != "" && state != "answered" {
+			continue
+		}
+		speaker := "Teammate"
+		if represented, _ := post.Props["noping_represented_user_name"].(string); represented != "" {
+			speaker = represented + "'s Agent"
+		} else if user, userErr := p.API.GetUser(post.UserId); userErr == nil && user != nil {
+			speaker = displayName(user)
+		}
+		message := strings.TrimSpace(post.Message)
+		if len(message) > 700 {
+			message = message[:700] + "…"
+		}
+		messages = append(messages, map[string]any{"speaker": speaker, "message": message})
+	}
+	if len(messages) > 8 {
+		messages = messages[len(messages)-8:]
+	}
+	return messages
+}
+
 func (p *Plugin) createDanielOOODemoReply(source *model.Post) {
 	if p.hasAgentReply(source.Id) || p.botUserID == "" {
 		return
@@ -215,6 +251,7 @@ func (p *Plugin) answerTriggeredPost(source *model.Post, requesterActor string, 
 	if rootID == "" {
 		rootID = source.Id
 	}
+	recentMessages := p.recentConversation(rootID, source.Id)
 	pendingMessage := "NoBS is checking the relevant organizational context…"
 	if trigger.Kind == "personal" {
 		pendingMessage = trigger.RepresentedName + "'s agent is checking the relevant context…"
@@ -235,7 +272,7 @@ func (p *Plugin) answerTriggeredPost(source *model.Post, requesterActor string, 
 	}
 	queryText := strings.TrimSpace(strings.NewReplacer("@noping", "", "@NoPing", "", "@nobs", "", "@NoBS", "").Replace(source.Message))
 	query := queryRequest{RequesterID: requesterActor, Text: queryText, TeamID: channel.TeamId, DelegateForUserID: trigger.RepresentedActor,
-		ConversationContext: map[string]any{"channel_id": source.ChannelId, "root_id": rootID, "source_post_id": source.Id},
+		ConversationContext: map[string]any{"channel_id": source.ChannelId, "root_id": rootID, "source_post_id": source.Id, "recent_messages": recentMessages},
 		Context:             map[string]any{"channel_id": source.ChannelId, "source_post_id": source.Id}}
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
