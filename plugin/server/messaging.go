@@ -161,6 +161,48 @@ func (p *Plugin) ensureBotInChannel(channel *model.Channel) error {
 	return nil
 }
 
+func (p *Plugin) createDanielOOODemoReply(source *model.Post) {
+	if p.hasAgentReply(source.Id) || p.botUserID == "" {
+		return
+	}
+	channel, appErr := p.API.GetChannel(source.ChannelId)
+	if appErr != nil || channel == nil || p.ensureBotInChannel(channel) != nil {
+		return
+	}
+	daniel, userErr := p.API.GetUserByUsername("daniel")
+	if userErr != nil || daniel == nil {
+		p.API.LogWarn("NoBS could not resolve Daniel for the seeded OOO exchange")
+		return
+	}
+	rootID := source.RootId
+	if rootID == "" {
+		rootID = source.Id
+	}
+	_, createErr := p.API.CreatePost(&model.Post{
+		UserId:    p.botUserID,
+		ChannelId: source.ChannelId,
+		RootId:    rootID,
+		Message:   "AUTH-392 changes how iOS refresh tokens persist during the OAuth migration. The full mobile integration run is green, so the implementation is technically ready. The merge still waits on the scoped SEC-184 security decision and Daniel's final human merge verification when he returns.\n\nYou can keep Daniel offline; I will add any follow-up to his return digest.",
+		Props: model.StringInterface{
+			"noping_agent":                 true,
+			"noping_state":                 "answered",
+			"noping_source_post_id":        source.Id,
+			"noping_represented_user_id":   daniel.Id,
+			"noping_represented_user_name": displayName(daniel),
+			"noping_agent_kind":            "personal",
+			"noping_route":                 "Daniel Agent → Atlas Agent → Engineering Agent",
+			"noping_agents_consulted":      3,
+			"noping_people_interrupted":    0,
+			"noping_delivery_mode":         "delegate",
+			"noping_security_state":        "allowed",
+			"noping_seed":                  "nobs-daniel-ooo-agent-reply",
+		},
+	})
+	if createErr != nil {
+		p.API.LogError("NoBS could not create seeded Daniel OOO reply", "source_post_id", source.Id, "error", createErr.Error())
+	}
+}
+
 func (p *Plugin) answerTriggeredPost(source *model.Post, requesterActor string, trigger delegateTrigger) {
 	if p.hasAgentReply(source.Id) || p.botUserID == "" {
 		return
@@ -221,7 +263,14 @@ func (p *Plugin) answerTriggeredPost(source *model.Post, requesterActor string, 
 		_, _ = p.API.UpdatePost(created)
 	})
 	if streamErr != nil || result == nil {
-		p.failPendingPost(created, "NoBS could not complete this delegate request. No human was interrupted.")
+		message := trigger.RepresentedName + "'s agent could not get a verified Gemini response just now. Try again in a moment; no human was interrupted."
+		if trigger.Kind != "personal" {
+			message = "NoBS could not get a verified Gemini response just now. Try again in a moment; no human was interrupted."
+		}
+		if streamErr != nil && strings.Contains(strings.ToLower(streamErr.Error()), "limit") {
+			message = "This public demo is briefly rate-limited. Try again shortly; no model call or human interruption was added."
+		}
+		p.failPendingPost(created, message)
 		return
 	}
 	routeNames := make([]string, 0, len(result.Route))
@@ -239,6 +288,7 @@ func (p *Plugin) answerTriggeredPost(source *model.Post, requesterActor string, 
 	created.Props["noping_route"] = strings.Join(routeNames, " → ")
 	created.Props["noping_agents_consulted"] = len(routeNames)
 	created.Props["noping_people_interrupted"] = result.PeopleInterrupted
+	created.Props["noping_model_name"] = result.ModelName
 	if result.Status == "refused" {
 		created.Props["noping_security_state"] = "denied"
 	} else {

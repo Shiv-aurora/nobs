@@ -79,6 +79,7 @@ type channelAgentResult struct {
 	Answer            string `json:"answer"`
 	Headline          string `json:"headline"`
 	PeopleInterrupted int    `json:"people_interrupted"`
+	ModelName         string `json:"model_name,omitempty"`
 	Route             []struct {
 		DelegateName string `json:"delegate_name"`
 	} `json:"route"`
@@ -112,6 +113,32 @@ type oooUpdateRequest struct {
 
 type meetingShareRequest struct {
 	ChannelID string `json:"channel_id"`
+}
+
+type meetingDelegationRequest struct {
+	ActorID         string   `json:"actor_id"`
+	Mode            string   `json:"mode"`
+	Tell            []string `json:"tell"`
+	Ask             []string `json:"ask"`
+	CapabilityIDs   []string `json:"capability_ids"`
+	EscalationRules []string `json:"escalation_rules"`
+	ExpectedETag    string   `json:"expected_etag,omitempty"`
+}
+
+type meetingDelegationAction struct {
+	ActorID string `json:"actor_id"`
+}
+
+type meetingAttendanceRequest struct {
+	ActorID string `json:"actor_id"`
+	Choice  string `json:"choice"`
+}
+
+type meetingDelegationStartResponse struct {
+	SessionNonce string `json:"session_nonce"`
+	Delegation   struct {
+		ID string `json:"id"`
+	} `json:"delegation"`
 }
 
 type meetingDetailResponse struct {

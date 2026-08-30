@@ -52,6 +52,28 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 	if post == nil || post.UserId == "" || post.Type != "" || post.UserId == p.botUserID {
 		return
 	}
+	// This one fixture-backed exchange makes the seeded OOO story repeatable
+	// without spending model budget whenever the demo workspace is rebuilt. The
+	// reply still uses the real audited bot identity, native thread, and stable
+	// delegate metadata used by live agent replies.
+	if seededDelegateDemo(post) == "daniel-ooo" {
+		if _, loaded := p.activeSources.LoadOrStore(post.Id, struct{}{}); loaded {
+			return
+		}
+		go func() {
+			defer p.activeSources.Delete(post.Id)
+			p.createDanielOOODemoReply(post)
+		}()
+		return
+	}
+	// Demo history is inserted through the normal Mattermost API so it retains
+	// native authors, threads, search, and permissions. It must not enqueue
+	// work events or invoke delegates while the idempotent seeder is running.
+	if post.Props != nil {
+		if _, seeded := post.Props["noping_seed"]; seeded {
+			return
+		}
+	}
 	user, appErr := p.API.GetUser(post.UserId)
 	if appErr != nil || user == nil || user.Username == "" {
 		p.API.LogWarn("NoBS could not resolve message actor", "user_id", post.UserId)
@@ -75,6 +97,14 @@ func (p *Plugin) MessageHasBeenPosted(_ *plugin.Context, post *model.Post) {
 		}
 		p.answerTriggeredPost(post, user.Username, trigger)
 	}()
+}
+
+func seededDelegateDemo(post *model.Post) string {
+	if post == nil || post.Props == nil {
+		return ""
+	}
+	value, _ := post.Props["nobs_seed_delegate_demo"].(string)
+	return value
 }
 
 func (p *Plugin) publishPostWorkEvent(post *model.Post, actor string) {

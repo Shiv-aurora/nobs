@@ -35,7 +35,7 @@ bundle: webapp server
 # Build only the current Linux architecture for fast local/Codex iteration.
 dev-bundle: webapp
 	mkdir -p server/dist $(DIST_DIR)
-	GOCACHE=$(GOCACHE) CGO_ENABLED=0 $(GO) build -trimpath -o server/dist/plugin-linux-amd64 ./server
+	GOCACHE=$(GOCACHE) CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build -trimpath -o server/dist/plugin-linux-amd64 ./server
 	tar -czf $(BUNDLE) plugin.json assets server/dist webapp/dist
 	@echo "Built $(BUNDLE)"
 

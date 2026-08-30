@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 )
@@ -39,6 +40,15 @@ func (p *Plugin) initRouter() *mux.Router {
 	api.HandleFunc("/meetings/{meetingID}/prepare", p.handlePrepareMeeting).Methods(http.MethodPost)
 	api.HandleFunc("/meetings/{meetingID}/actions", p.handleMeetingAction).Methods(http.MethodPost)
 	api.HandleFunc("/meetings/{meetingID}/share", p.handleShareMeeting).Methods(http.MethodPost)
+	api.HandleFunc("/meetings/{meetingID}/delegations", p.handleCreateMeetingDelegation).Methods(http.MethodPost)
+	api.HandleFunc("/meetings/{meetingID}/attendance", p.handleMeetingAttendance).Methods(http.MethodPost)
+	api.HandleFunc("/meeting-delegations/{delegationID}", p.handleMeetingDelegation).Methods(http.MethodGet)
+	api.HandleFunc("/meeting-delegations/{delegationID}/mission", p.handleUpdateMeetingDelegation).Methods(http.MethodPatch)
+	api.HandleFunc("/meeting-delegations/{delegationID}/start", p.handleStartMeetingDelegation).Methods(http.MethodPost)
+	api.HandleFunc("/meeting-delegations/{delegationID}/end", p.handleEndMeetingDelegation).Methods(http.MethodPost)
+	api.HandleFunc("/meeting-delegations/{delegationID}/revoke", p.handleRevokeMeetingDelegation).Methods(http.MethodPost)
+	api.HandleFunc("/meeting-delegations/{delegationID}/handoff", p.handleMeetingDelegationHandoff).Methods(http.MethodGet)
+	api.HandleFunc("/live/meetings/{delegationID}", p.handleLiveMeeting).Methods(http.MethodGet)
 	api.HandleFunc("/ooo", p.handleOOO).Methods(http.MethodPost)
 	api.HandleFunc("/ooo/digest", p.handleOOODigest).Methods(http.MethodGet)
 	api.HandleFunc("/demo/reset", p.handleDemoReset).Methods(http.MethodPost)
@@ -150,6 +160,7 @@ func (p *Plugin) handleChannelAgentReply(w http.ResponseWriter, r *http.Request)
 			"noping_route":                 strings.Join(routeNames, " → "),
 			"noping_agents_consulted":      len(result.Route),
 			"noping_people_interrupted":    result.PeopleInterrupted,
+			"noping_model_name":            result.ModelName,
 			"noping_delivery_mode":         "delegate",
 			"noping_security_state":        map[bool]string{true: "denied", false: "allowed"}[result.Status == "refused"],
 		},
@@ -502,6 +513,203 @@ func (p *Plugin) handleShareMeeting(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{"post": post})
+}
+
+func (p *Plugin) handleCreateMeetingDelegation(w http.ResponseWriter, r *http.Request) {
+	var request meetingDelegationRequest
+	if err := decodeJSON(r, &request); err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	actorKey, ok := p.actorKeyOrError(w, r)
+	if !ok {
+		return
+	}
+	request.ActorID = actorKey
+	if request.Mode == "" {
+		request.Mode = "represent"
+	}
+	if request.Mode != "listen" && request.Mode != "represent" && request.Mode != "mission" {
+		writeJSONError(w, http.StatusBadRequest, "Invalid meeting-agent mode")
+		return
+	}
+	if strings.TrimSpace(request.ExpectedETag) == "" {
+		writeJSONError(w, http.StatusBadRequest, "The current Calendar version is required")
+		return
+	}
+	meetingID := url.PathEscape(mux.Vars(r)["meetingID"])
+	p.proxy(w, r, http.MethodPost, "/v1/meetings/"+meetingID+"/delegations", request)
+}
+
+func (p *Plugin) handleMeetingAttendance(w http.ResponseWriter, r *http.Request) {
+	var request meetingAttendanceRequest
+	if err := decodeJSON(r, &request); err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	actorKey, ok := p.actorKeyOrError(w, r)
+	if !ok {
+		return
+	}
+	request.ActorID = actorKey
+	if request.Choice != "attend" && request.Choice != "agent" && request.Choice != "decline" {
+		writeJSONError(w, http.StatusBadRequest, "Invalid attendance choice")
+		return
+	}
+	meetingID := url.PathEscape(mux.Vars(r)["meetingID"])
+	p.proxy(w, r, http.MethodPost, "/v1/meetings/"+meetingID+"/attendance", request)
+}
+
+func (p *Plugin) handleMeetingDelegation(w http.ResponseWriter, r *http.Request) {
+	actorKey, ok := p.actorKeyOrError(w, r)
+	if !ok {
+		return
+	}
+	delegationID := url.PathEscape(mux.Vars(r)["delegationID"])
+	query := url.Values{}
+	query.Set("user_id", actorKey)
+	p.proxy(w, r, http.MethodGet, "/v1/meeting-delegations/"+delegationID+"?"+query.Encode(), nil)
+}
+
+func (p *Plugin) handleUpdateMeetingDelegation(w http.ResponseWriter, r *http.Request) {
+	var request meetingDelegationRequest
+	if err := decodeJSON(r, &request); err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	actorKey, ok := p.actorKeyOrError(w, r)
+	if !ok {
+		return
+	}
+	request.ActorID = actorKey
+	delegationID := url.PathEscape(mux.Vars(r)["delegationID"])
+	p.proxy(w, r, http.MethodPatch, "/v1/meeting-delegations/"+delegationID+"/mission", request)
+}
+
+func (p *Plugin) meetingDelegationAction(w http.ResponseWriter, r *http.Request, action string) {
+	actorKey, ok := p.actorKeyOrError(w, r)
+	if !ok {
+		return
+	}
+	delegationID := url.PathEscape(mux.Vars(r)["delegationID"])
+	p.proxy(w, r, http.MethodPost, "/v1/meeting-delegations/"+delegationID+"/"+action, meetingDelegationAction{ActorID: actorKey})
+}
+
+func (p *Plugin) handleStartMeetingDelegation(w http.ResponseWriter, r *http.Request) {
+	p.meetingDelegationAction(w, r, "start")
+}
+
+func (p *Plugin) handleEndMeetingDelegation(w http.ResponseWriter, r *http.Request) {
+	p.meetingDelegationAction(w, r, "end")
+}
+
+func (p *Plugin) handleRevokeMeetingDelegation(w http.ResponseWriter, r *http.Request) {
+	p.meetingDelegationAction(w, r, "revoke")
+}
+
+func (p *Plugin) handleMeetingDelegationHandoff(w http.ResponseWriter, r *http.Request) {
+	actorKey, ok := p.actorKeyOrError(w, r)
+	if !ok {
+		return
+	}
+	delegationID := url.PathEscape(mux.Vars(r)["delegationID"])
+	query := url.Values{}
+	query.Set("user_id", actorKey)
+	p.proxy(w, r, http.MethodGet, "/v1/meeting-delegations/"+delegationID+"/handoff?"+query.Encode(), nil)
+}
+
+func (p *Plugin) handleLiveMeeting(w http.ResponseWriter, r *http.Request) {
+	actorKey, ok := p.actorKeyOrError(w, r)
+	if !ok {
+		return
+	}
+	if !websocket.IsWebSocketUpgrade(r) {
+		writeJSONError(w, http.StatusBadRequest, "A WebSocket upgrade is required")
+		return
+	}
+	if origin := r.Header.Get("Origin"); origin != "" {
+		parsed, parseErr := url.Parse(origin)
+		if parseErr != nil || !strings.EqualFold(parsed.Host, r.Host) {
+			writeJSONError(w, http.StatusForbidden, "Cross-origin live connections are not allowed")
+			return
+		}
+	}
+	nonce := strings.TrimSpace(r.URL.Query().Get("nonce"))
+	if len(nonce) < 16 || len(nonce) > 256 {
+		writeJSONError(w, http.StatusUnauthorized, "Invalid live session")
+		return
+	}
+	delegationID := url.PathEscape(mux.Vars(r)["delegationID"])
+	query := url.Values{}
+	query.Set("user_id", actorKey)
+	query.Set("nonce", nonce)
+	target := "/v1/live/meetings/" + delegationID + "?" + query.Encode()
+	client, err := p.currentAgentClient()
+	if err != nil {
+		writeJSONError(w, http.StatusServiceUnavailable, err.Error())
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 16*time.Minute)
+	defer cancel()
+	upstream, response, err := client.dialLive(ctx, target)
+	if err != nil {
+		statusCode := http.StatusBadGateway
+		if response != nil && response.StatusCode == http.StatusUnauthorized {
+			statusCode = http.StatusUnauthorized
+		}
+		writeJSONError(w, statusCode, "The private live agent connection could not be opened")
+		return
+	}
+	defer upstream.Close()
+	upgrader := websocket.Upgrader{
+		HandshakeTimeout: 10 * time.Second,
+		CheckOrigin: func(request *http.Request) bool {
+			origin := request.Header.Get("Origin")
+			if origin == "" {
+				return true
+			}
+			parsed, parseErr := url.Parse(origin)
+			return parseErr == nil && strings.EqualFold(parsed.Host, request.Host)
+		},
+	}
+	downstream, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		return
+	}
+	defer downstream.Close()
+	downstream.SetReadLimit(1024 * 1024)
+	upstream.SetReadLimit(1024 * 1024)
+	errors := make(chan error, 2)
+	copyMessages := func(destination, source *websocket.Conn) {
+		for {
+			messageType, reader, readErr := source.NextReader()
+			if readErr != nil {
+				errors <- readErr
+				return
+			}
+			writer, writeErr := destination.NextWriter(messageType)
+			if writeErr != nil {
+				errors <- writeErr
+				return
+			}
+			_, copyErr := io.Copy(writer, io.LimitReader(reader, 1024*1024))
+			closeErr := writer.Close()
+			if copyErr != nil {
+				errors <- copyErr
+				return
+			}
+			if closeErr != nil {
+				errors <- closeErr
+				return
+			}
+		}
+	}
+	go copyMessages(upstream, downstream)
+	go copyMessages(downstream, upstream)
+	select {
+	case <-ctx.Done():
+	case <-errors:
+	}
 }
 
 func (p *Plugin) handleDemoReset(w http.ResponseWriter, r *http.Request) {

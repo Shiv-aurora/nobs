@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/shiv-aurora/noping/plugin/internal/googleidentity"
 	"github.com/shiv-aurora/noping/plugin/internal/signing"
 )
@@ -22,6 +23,36 @@ var errAgentUnavailable = errors.New("NoBS agent service unavailable")
 
 type tokenProvider interface {
 	Token(context.Context) (string, error)
+}
+
+func (c *agentClient) dialLive(ctx context.Context, path string) (*websocket.Conn, *http.Response, error) {
+	parsed, err := url.Parse(c.baseURL + path)
+	if err != nil {
+		return nil, nil, fmt.Errorf("parse live agent URL: %w", err)
+	}
+	if parsed.Scheme == "https" {
+		parsed.Scheme = "wss"
+	} else {
+		parsed.Scheme = "ws"
+	}
+	headers := http.Header{}
+	if c.tokenProvider != nil {
+		token, tokenErr := c.tokenProvider.Token(ctx)
+		if tokenErr != nil {
+			return nil, nil, fmt.Errorf("obtain Google service identity: %w", tokenErr)
+		}
+		headers.Set("Authorization", "Bearer "+token)
+	}
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+	headers.Set("X-NoPing-Timestamp", timestamp)
+	headers.Set("X-NoPing-Signature-Version", signing.Version)
+	headers.Set("X-NoPing-Signature", c.sign(timestamp, http.MethodGet, path, nil))
+	dialer := websocket.Dialer{HandshakeTimeout: 15 * time.Second, Proxy: http.ProxyFromEnvironment}
+	connection, response, err := dialer.DialContext(ctx, parsed.String(), headers)
+	if err != nil {
+		return nil, response, fmt.Errorf("%w: live connection failed: %v", errAgentUnavailable, err)
+	}
+	return connection, response, nil
 }
 
 type agentClient struct {
@@ -162,6 +193,13 @@ func (c *agentClient) streamQuery(ctx context.Context, query queryRequest, onEve
 			foundResult = true
 		}
 		if event.Event == "failed" {
+			var failure struct {
+				Detail string `json:"detail"`
+				Status int    `json:"status"`
+			}
+			if json.Unmarshal(event.Data, &failure) == nil && strings.TrimSpace(failure.Detail) != "" {
+				return nil, failure.Status, response.Header, fmt.Errorf("agent stream failed: %s", failure.Detail)
+			}
 			return nil, response.StatusCode, response.Header, errors.New("agent stream failed")
 		}
 	}

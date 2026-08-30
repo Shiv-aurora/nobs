@@ -1,6 +1,10 @@
 package main
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/mattermost/mattermost/server/public/model"
+)
 
 func TestParseHumanOnlyMessage(t *testing.T) {
 	tests := []struct {
@@ -28,5 +32,15 @@ func TestMentionPatternExcludesEmailAddresses(t *testing.T) {
 	matches := mentionPattern.FindAllStringSubmatch("email maya@example.com, ask @sarah and @channel", -1)
 	if len(matches) != 2 || matches[0][1] != "sarah" || matches[1][1] != "channel" {
 		t.Fatalf("unexpected mentions: %#v", matches)
+	}
+}
+
+func TestSeededDelegateDemo(t *testing.T) {
+	post := &model.Post{Props: model.StringInterface{"nobs_seed_delegate_demo": "daniel-ooo"}}
+	if got := seededDelegateDemo(post); got != "daniel-ooo" {
+		t.Fatalf("got %q, want daniel-ooo", got)
+	}
+	if got := seededDelegateDemo(&model.Post{}); got != "" {
+		t.Fatalf("empty props returned %q", got)
 	}
 }
