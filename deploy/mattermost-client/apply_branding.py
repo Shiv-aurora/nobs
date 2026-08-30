@@ -286,7 +286,7 @@ def main() -> None:
                                 className='SidebarLink sidebar-item'
                                 tabIndex={0}
                             >
-                                <span className='icon'><i className='icon-briefcase-outline'/></span>
+                                <span className='icon'><i className='icon-folder-outline'/></span>
                                 <div className='SidebarChannelLinkLabel_wrapper'>
                                     <span className='SidebarChannelLinkLabel sidebar-item__name'>Workrooms</span>
                                 </div>

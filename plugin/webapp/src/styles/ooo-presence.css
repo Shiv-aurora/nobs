@@ -18,12 +18,6 @@
     line-height: 13px;
 }
 
-.nobs-sidebar-user-ooo [class*='status'],
-.nobs-sidebar-user-ooo [class*='Status'],
-.nobs-sidebar-user-ooo [data-testid*='status'] {
-    display: none !important;
-}
-
 .nobs-sidebar-user-ooo img,
 .nobs-sidebar-user-ooo [class*='Avatar'] {
     visibility: visible !important;
