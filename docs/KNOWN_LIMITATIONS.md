@@ -12,4 +12,4 @@
 - The source-poisoning scanner and Model Armor protect the demonstrated ingress/agent paths; this is not a claim that arbitrary future connectors are safe without their own parser and authorization review.
 - Mattermost mobile clients are not rebranded; the submitted experience is the web client.
 - The public URL uses `sslip.io` over the existing static IP, not a purchased custom domain.
-- Final executor IAM/Cloud Run rollout and production trace/browser evidence are pending the explicit approval recorded in `STATUS.md`.
+- The private executor, authenticated command subscription, and retry/DLQ path are deployed and IAM-audited. A real Calendar mutation was intentionally not used as synthetic evidence; that final provider-side proof requires an organizer-approved dedicated Google Calendar demo event.

@@ -1,12 +1,12 @@
 # Test and evaluation report
 
-Verified 2026-08-30 from clean tracked source at commits `4a65f61` and `22fe77e`.
+Verified 2026-08-30 from tracked source through commit `4bee667`.
 
 ## Credential-free gate
 
 | Suite | Command | Result |
 |---|---|---|
-| governed agent runtime | `python -m pytest agent-service/tests` | **87 passed** |
+| governed agent runtime | `python -m pytest agent-service/tests` | **90 passed** |
 | budget guard | `(cd deploy/gcp/budget-guard && python -m pytest tests)` | **8 passed** |
 | action executor | `(cd executor-service && python -m pytest tests)` | **6 passed** |
 | Go plugin/runtime | `(cd plugin && go test ./...)` | **all packages passed** |
@@ -33,11 +33,14 @@ Verified 2026-08-30 from clean tracked source at commits `4a65f61` and `22fe77e`
 | bounded retry | command stops after configured maximum |
 | preference isolation | only allowlisted explicit preference writes; `authority_effect=none`; mission authorization never reads memory |
 | credential-shaped event | rejected with schema validation before ingestion |
+| controller routing authority | model output cannot select executable identities or omit agenda coverage; runtime routes every agenda item to the two approved specialists |
+| bounded specialist output | structured schema caps claims/findings/unknowns and fits the existing 2,400-token mission reservation |
+| API error boundary | raw model validation output is not returned to the browser |
 
 ## Live Google proof
 
 A real four-call ADK mission completed on Vertex AI `gemini-3.5-flash`, with Model Armor configured, native Agent Registry discovery, Agent Engine Sessions, and overlapping specialist timings. The exact measured values are in `STATUS.md`.
 
-## Pending production evidence
+## Production evidence
 
-The final signed Cloud Run smoke, Firestore document inventory, private executor IAM check, trace query, and browser mission walkthrough must be captured after the final revision rollout. No external Calendar mutation will be performed merely to manufacture a test result; production action proof requires an organizer-approved dedicated demo event.
+The final private Cloud Run revisions passed startup health, the deployed Mattermost routes return 200, Firestore contains the successful mission and seven durable steps, Cloud Logging correlates its trace and four real model calls, and the browser walkthrough reached a human checkpoint. The executor IAM, single-secret grant, command topic/DLQ, OIDC push subscription, and absence of public invokers were audited directly. No external Calendar mutation was performed merely to manufacture a test result; action proof still requires an organizer-approved dedicated Google Calendar demo event.
