@@ -1,80 +1,79 @@
-# NoBS Calendar Native-Shell Design QA
+**Source visual truth**
 
-## Evidence
+- User-annotated NoBS screenshots in the active request.
+- Source viewport: 1195 × 993 CSS pixels.
+- Source states: native NoBS Calendar/channel shell; global header OOO insertion point; preview-mode banner; product menu Team Edition notice; annotated 371px NoBS right sidebar with four sparse tabs and generic empty states.
+- Source pixel dimensions: 1195 × 993 as supplied; density was not exposed by the browser annotation capture.
 
-- Source visual truth: `/Users/shivamarora/Documents/Code/noping/output/design-qa/messaging-native-reference.png`
-- Implementation: `/Users/shivamarora/Documents/Code/noping/output/design-qa/calendar-native-final.png`
-- Latest implementation: `/Users/shivamarora/Documents/Code/noping/output/design-qa/calendar-agent-meeting-final.jpg`
-- Annotated-layout implementation: `/Users/shivamarora/Documents/Code/noping/output/design-qa/calendar-agent-meeting-30-final.jpg`
-- Full-view comparison: `/Users/shivamarora/Documents/Code/noping/output/design-qa/native-shell-comparison.png`
-- Focused shell/header comparison: `/Users/shivamarora/Documents/Code/noping/output/design-qa/native-shell-header-comparison.png`
-- Viewport and state: authenticated Acme workspace, light center channel, 1327 × 1103 CSS px, device pixel ratio 1.7
-- Source pixels: 1327 × 1103
-- Implementation pixels: 1327 × 1103
-- Density normalization: none required; both captures came from the same in-app browser tab, viewport, and DPR
-- Latest capture: 1327 × 1103 CSS px at DPR 4 (5308 × 4412 output pixels); compared against the prior 1327 × 1103 Calendar capture in one review pass
+**Implementation evidence**
 
-## Full-view comparison
+- Local routes: `http://localhost:8065/acme/channels/off-topic` and `http://localhost:8065/acme/nobs/calendar`.
+- Plugin bundle rebuilt and installed: `com.noping.enterprise` 0.3.0.
+- Mattermost configuration reports `EmailSettings.EnablePreviewModeBanner = false`.
+- Native API verification confirms eight seeded channels with 19–87 posts each and non-empty profile images for all seven human accounts.
+- Intended visual-verification viewport: 1195 × 993 CSS pixels.
+- Implementation screenshot path: unavailable because the Codex in-app browser runtime reported no available browser.
+- Browser-rendered dimensions/density: unavailable for the same reason.
+- Console errors checked: blocked because no browser session was available.
 
-The post-fix Calendar keeps the native global header, Acme workspace sidebar, Threads and Calendar destinations, channel list, direct-message list, and app bar in exactly the same shell as Project Atlas. Calendar replaces only the center region. Its list/detail split uses the same compact density, border rhythm, typography, theme colors, and control treatment as the native messaging surface.
+**Full-view comparison evidence**
 
-## Focused-region comparison
+- The source shows a native Mattermost/NoBS shell with the requested OOO slot immediately before the right-side mentions control. The implementation inserts a native-sized OOO pill as a direct child of the pinned upstream `RightControlsContainer`, immediately before the actual Recent Mentions control.
+- The source shows a green email Preview Mode banner and a Team Edition menu card. The implementation disables the banner in local and production Mattermost configuration and removes both notices through product CSS plus a plugin DOM fallback.
+- The source shows letter avatars. The implementation uploads licensed Unsplash portraits through Mattermost's native profile-image API, so channels, posts, DMs, Calendar attendees, and employee-delegate context reuse the platform avatar system.
+- The latest source shows a generic “NoBS context” header, four tabs, and large empty states. The implementation replaces that with the signed-in employee's photo and personal agent identity, three tabs (My Agent, Needs Me, Impact), a populated work-context profile, compact permission boundary, and quantified attention savings.
+- A rendered post-change comparison could not be captured, so exact visual placement and photo crops cannot be passed from code/API evidence alone.
 
-The focused comparison confirms that the global bar height, sidebar width, workspace selector, search field, navigation rows, channel rows, active-state treatment, center header height, icon sizing, and title typography remain aligned. Calendar uses the upstream icon font and existing logo assets; no replacement CSS art or improvised brand asset was introduced.
+**Focused region comparison evidence**
 
-## Required fidelity surfaces
+- Target region 1: global header between search/help and Recent Mentions. The inserted control uses the native 30px header-control height, 6px radius, existing dark header palette, visible inactive/active states, keyboard focus, `aria-pressed`, and an active “Agent covering” label.
+- Target region 2: account/product menu. `#startTrial` is suppressed in both the branded client overlay and plugin runtime; the preview banner is disabled at configuration level and hidden as a runtime fallback.
+- Target region 3: people surfaces. The seed API returned non-empty image bytes for Shivam, Maya, Sarah, Alex, Daniel, Priya, and Helen; the delegate panel now loads the same native image endpoint instead of initials.
+- Target region 4: 371px native right panel. The default view now uses one identity row, one compact tab row, and four concise content blocks; detailed route/evidence content appears only after opening an actual agent answer.
+- Focused post-change image evidence is unavailable because no browser session was connected.
 
-- Fonts and typography: inherited native font stack; center title, metadata, list labels, and buttons follow the messaging hierarchy and optical weights.
-- Spacing and layout rhythm: native 56 px center header, persistent 264 px sidebar, compact meeting rows, 4–5 px radii, 1 px dividers, and no elevated dashboard cards.
-- Colors and visual tokens: Calendar now uses `--center-channel-*`, `--button-*`, and `--link-color` theme tokens. Status colors remain semantic and restrained.
-- Image quality and assets: the supplied NoBS logo remains limited to existing identity/empty states; Calendar uses the native calendar and refresh icons. The official Gemini asset is unchanged in the detailed activity feed.
-- Copy and content: AI-marketing language was replaced by workplace labels such as “Meeting brief,” “Preparation activity,” “Related work,” “Recommendation,” and “Share brief.”
+**Findings**
 
-## Comparison history
+- [P2] Rendered visual comparison unavailable
+  - Location: global header OOO control, product menu, channel/avatar surfaces, and personal-agent right sidebar.
+  - Evidence: source annotations are available, but no browser-rendered implementation screenshot could be captured.
+  - Impact: exact OOO horizontal alignment, popup positioning, and portrait focal crops at 1195 × 993 remain visually unverified.
+  - Fix: reconnect the in-app browser, refresh a channel and Calendar, toggle OOO, open the product menu, and capture the same viewport.
 
-1. P1 — Calendar replaced the native channel controller, so the workspace sidebar disappeared.
-   - Fix: the pinned Mattermost team route now mounts the real upstream `Sidebar` alongside the team-scoped Calendar pluggable.
-   - Post-fix evidence: both comparison images show the identical Acme sidebar; Calendar remains highlighted beside Threads.
-2. P1 — The first Calendar treatment looked like a separate AI dashboard because it used gradients, large promotional metrics, pill-heavy cards, broad rounded corners, and marketing copy.
-   - Fix: removed gradients and shadows, tightened spacing and type, adopted native theme tokens, flattened surfaces, and rewrote section labels as ordinary work UI.
-   - Post-fix evidence: the full and focused comparisons show matching visual density and hierarchy.
-3. P2 — The native Threads link inherited the plugin route and resolved under `/com.noping.enterprise/calendar/threads`.
-   - Fix: anchor the native link to the current team’s `/acme/threads` route.
-   - Post-fix evidence: Calendar → Threads → Calendar → Project Atlas navigation completed successfully.
-4. P2 — The attendee strip exposed a desktop horizontal scrollbar.
-   - Fix: preserve horizontal access while hiding the decorative scrollbar chrome.
-   - Post-fix evidence: final Calendar capture has no visible strip scrollbar or document-level overflow.
-5. P1 — The preparation activity was the product's main story but occupied only the narrow main-column card and read like four status rows.
-   - Fix: promoted it to a full-width **Agent meeting** surface spanning both detail columns, added a participant roster, ten timestamped turns over 15 minutes, explicit questions, evidence, conclusions, and handoffs.
-   - Post-fix evidence: the latest capture shows the agent conversation using the entire center width below the decision summary while the native workspace shell remains intact.
-6. P2 — The meeting brief and related work had the wrong hierarchy for the demo story.
-   - Fix: moved Meeting brief into the right decision rail, retained Related work directly below it, and left the main column available for time saved and the full conversation.
-7. P2 — Agent identities were abstract initials and GitHub had no recognizable identity.
-   - Fix: mapped personal delegates to native Mattermost profile-image endpoints, used the existing project icon for Atlas, the native GitHub icon, and the official Gemini asset already used by the integration.
-8. P1 — Related work, recommendation, and sharing were isolated in the right rail instead of reading as outcomes of time saved.
-   - Fix: moved all three beneath the Time saved summary in the left column and changed the summary grid to two equal tracks. Meeting brief now owns the opposite column by itself.
-   - Post-fix evidence: the annotated-layout capture shows a balanced 50/50 summary with the requested outcome hierarchy and the agent meeting beginning only after the taller column ends.
-9. P1 — Ten short status turns did not feel like agents actually held an engineering meeting.
-   - Fix: expanded the seeded engineering sync to 30 evidence-backed turns across Atlas, Daniel, GitHub, Gemini Code Assist, Shivam, Maya, and Priya over 15 minutes. The exchange now covers branch state, missing review, diff inspection, background-resume testing, CI retry classification, artifact verification, customer impact, rollback ownership, and code-owner review.
-   - Post-fix evidence: the final capture and live DOM show **30 messages · 7 agents** with questions, replies, tool updates, handoffs, disagreement resolution, and a bounded final recommendation.
+**Required fidelity surfaces**
 
-## Verification
+- Fonts and typography: native Mattermost typography is retained. The new control and sidebar use 9–15px native-density type with compact single-line labels; rendered antialiasing/wrapping remains unverified.
+- Spacing and layout rhythm: OOO is inserted into the upstream right-controls flex row rather than absolutely overlaying the header. The sidebar uses 68px identity, 3 equal tabs, 12px body gaps, and compact cards within the existing RHS width. Rendered alignment remains unverified.
+- Colors and visual tokens: NoBS cyan/violet accents are used only for active coverage; inactive state inherits the native dark header treatment.
+- Image quality and asset fidelity: real 512–640px Unsplash portraits are uploaded through the native avatar API with source attribution recorded. Exact UI crops remain unverified.
+- Copy and content: active coverage explicitly says “Agent covering”; the confirmation explains routine replies and the return digest. Seeded conversations are multi-person, threaded, work-specific, and distributed across all visible channels.
 
-- Primary interactions: Calendar → Threads → Calendar → Project Atlas; all routes resolved correctly.
-- Meeting preparation: cancellation and shortened-meeting proof cases passed.
-- Revised seeded engineering-sync preparation: 30 turns, 7 agents/integrations, 15-minute timeline, realistic software-delivery evidence, and final cancellation recommendation verified in the live DOM.
-- Demo access: the native login page exposes **Enter demo workspace · No password needed** and returns directly to Project Atlas.
-- Messaging density: Project Atlas now contains three substantial multi-person threads plus six additional realistic status, OOO, security, ownership, and delegate-saved-time updates.
-- Responsive checks: 1440 × 900, 1024 × 600, 768 × 1024, and 390 × 844 passed with no document-level horizontal overflow.
-- Console errors: no new Calendar application error observed; the deliberate logout/login test produced only the expected expired-session requests and a pre-existing autoplay warning.
-- Automated result: focused Calendar browser suite 2/2 passed; TypeScript and static validation passed.
+**Comparison history**
 
-## Findings
+- Iteration 1: the earlier Calendar brief gap and unwanted security card were fixed structurally, but visual recapture was blocked.
+- Iteration 2: the latest source identified hidden OOO state, letter avatars, sparse channels, the preview banner, and Team Edition residue. The implementation added a header-level OOO state, native profile images, 168+ seeded channel posts across eight channels, configuration/CSS cleanup, and automated assertions. Post-fix visual evidence remains blocked by the unavailable browser runtime.
+- Iteration 3: the annotated RHS showed generic product framing, four low-value tabs, and empty states consuming most of the panel. The implementation changed it to a dynamic employee-owned agent profile, removed the Security tab, added compact live context and boundaries, simplified Needs Me, and added an Impact view with time and interruptions saved. The rebuilt plugin passes automated checks; post-fix visual evidence remains blocked by the unavailable browser runtime.
+- Iteration 4: the annotated OOO control read visually as four O characters because an inactive status dot preceded the label. The dot was removed while preserving the native-sized `OOO` button, active label, and accessibility state. Daniel's native DM was populated with a Daniel-authored OOO handoff, Maya's ordinary work question, and an audited `Daniel's Agent` thread reply. Mattermost API verification confirms the reply represents Daniel Kim, consulted 3 delegates, interrupted 0 humans, and retained the OOO exchange as native searchable posts. The in-app browser still reports no available session, so the refreshed 1195 × 993 comparison remains blocked.
+- Iteration 5: the Daniel DM annotation showed the native green online check contradicting his OOO handoff. Daniel's fixture now ends every idempotent seed in Mattermost's native `offline` presence, and the native DM sidebar row receives a compact accessible `OOO` badge while its redundant presence glyph is hidden. Daniel's delegate profile also reports `OOO through Wednesday · agent covering`. The local Mattermost API confirms `status: offline`; rendered comparison remains blocked by the unavailable in-app browser connection.
 
-No actionable P0, P1, or P2 mismatch remains. The center region is necessarily denser than a message timeline because it presents an agenda and meeting brief, but it now behaves and reads as a native destination inside the same product.
+**Implementation checklist**
 
-## Follow-up polish
+- [x] Add a visible header-level OOO control at the annotated position.
+- [x] Show an explicit active “Agent covering” state and explanatory confirmation.
+- [x] Preserve the account-menu OOO action.
+- [x] Remove Preview Mode through configuration and runtime fallback.
+- [x] Remove Team Edition from the product menu.
+- [x] Add licensed, attributed human profile portraits.
+- [x] Upload portraits through Mattermost's native avatar API.
+- [x] Populate all visible channels with realistic threaded work history.
+- [x] Prevent seeded history from invoking agents or consuming model budget.
+- [x] Replace the generic four-tab RHS with My Agent, Needs Me, and Impact.
+- [x] Populate the default sidebar state with current work, blocker, answerable scope, current sources, and a compact permission boundary.
+- [x] Keep route and evidence details available only for selected agent answers.
+- [x] Build, install, seed, and pass credential-free checks.
+- [x] Remove the stray visual dot before the global OOO label.
+- [x] Add the Daniel OOO native-DM demo with a personal-agent response and zero human interruptions.
+- [x] Replace Daniel's misleading green presence check with an OOO sidebar badge and native offline state.
+- [ ] Capture and compare the rendered 1195 × 993 states.
 
-- P3: upload photographic seed avatars if the demo needs recognizable faces instead of Mattermost's generated user images. The UI now uses the native image pipeline, so no component change is required.
-
-final result: passed
+final result: blocked
