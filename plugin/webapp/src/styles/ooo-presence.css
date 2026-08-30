@@ -1,0 +1,52 @@
+.nobs-sidebar-user-ooo .SidebarChannelLinkLabel_wrapper {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 6px;
+}
+
+.nobs-sidebar-ooo-badge {
+    flex: 0 0 auto;
+    padding: 1px 5px;
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    line-height: 13px;
+}
+
+.nobs-sidebar-user-ooo [class*='status'],
+.nobs-sidebar-user-ooo [class*='Status'],
+.nobs-sidebar-user-ooo [data-testid*='status'] {
+    display: none !important;
+}
+
+.nobs-sidebar-user-ooo img,
+.nobs-sidebar-user-ooo [class*='Avatar'] {
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+.nobs-ooo-native-status {
+    display: none !important;
+}
+
+.nobs-channel-ooo-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 19px;
+    margin-left: 7px;
+    padding: 1px 6px;
+    border: 1px solid rgba(229, 162, 41, .32);
+    border-radius: 999px;
+    background: rgba(229, 162, 41, .1);
+    color: #9a6500;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .01em;
+    line-height: 15px;
+    vertical-align: middle;
+}
