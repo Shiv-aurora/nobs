@@ -104,6 +104,12 @@ type meetingActionRequest struct {
 	Agenda          []string `json:"agenda,omitempty"`
 }
 
+type checkpointResolutionRequest struct {
+	ActorID   string `json:"actor_id"`
+	Decision  string `json:"decision"`
+	Rationale string `json:"rationale"`
+}
+
 type oooUpdateRequest struct {
 	ActorID        string `json:"actor_id"`
 	Enabled        bool   `json:"enabled"`

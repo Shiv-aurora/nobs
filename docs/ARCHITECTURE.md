@@ -17,17 +17,21 @@ flowchart TB
   WG --> EC[Evidence Critic: deterministic]
   PE --> EC
   EC --> MR[Meeting Resolution Agent: Gemini 3.5]
-  MR --> AU[Authority Gate: deterministic]
-  AU --> HC[Human checkpoint]
-  AU --> DONE[Complete without action]
-  HC --> CB[Approved typed command]
+  MR --> BG[Business Decision Gate: deterministic]
+  BG --> BHC[Business checkpoint: Sarah or valid Alex delegation]
+  BG --> CG[Calendar Action Gate: organizer only]
+  BHC -->|approved; same mission| CG
+  BG --> DONE[Complete without action]
+  CG --> CHC[Calendar checkpoint]
+  CHC --> CB[Approved typed command]
   CB --> CQ[Pub/Sub command ID]
   CQ --> EX[Private Action Executor]
   EX -->|If-Match| CAL[Google Calendar]
   CAL -->|post-write read| EX
   EX --> FS[(Firestore mission authority)]
   MC <--> FS
-  HC <--> FS
+  BHC <--> FS
+  CHC <--> FS
   REG[Google Agent Registry] --> MC
   SES[Vertex Sessions] <--> MC
   MEM[Memory Bank: preferences only] -.-> UI
@@ -36,11 +40,11 @@ flowchart TB
   EX --> OBS
 ```
 
-Employee, project, team, and policy delegates are logical organizational identities. Meeting Mission, Work Graph, Policy Evidence, and Meeting Resolution are executable agent components; Evidence Critic and Authority Gate are executable deterministic workflow nodes.
+Employee, project, team, and policy delegates are logical organizational identities. Meeting Mission, Work Graph, Policy Evidence, and Meeting Resolution are executable agent components; Evidence Critic, Business Decision Gate, and Calendar Action Gate are executable deterministic workflow nodes.
 
 ## What actually executes
 
-The meeting mission is a fixed graph, not a free-form swarm. The controller, Work Graph specialist, Policy Evidence specialist, and resolution synthesizer are typed Google ADK `LlmAgent` invocations on `gemini-3.5-flash`. The two specialists execute concurrently with independent reports and measured durations. Evidence Critic and Authority Gate are deterministic code because support validation and authority cannot be model decisions.
+The meeting mission is a fixed graph, not a free-form swarm. The controller, Work Graph specialist, Policy Evidence specialist, and resolution synthesizer are typed Google ADK `LlmAgent` invocations on `gemini-3.5-flash`. The two specialists execute concurrently with independent reports and measured durations. Evidence Critic and both authority gates are deterministic code because support validation, business authority, and Calendar consent cannot be model decisions.
 
 The Agent Registry contains four native service entries and Firestore stores each rich application manifest. The controller can route only to approved known specialist IDs. Agent Engine Sessions store ADK session events; Firestore, not Sessions, owns mission, checkpoint, command, and audit truth. Memory Bank stores only explicit non-authoritative preferences.
 
@@ -56,7 +60,8 @@ sequenceDiagram
   participant W as Work Graph
   participant Y as Policy Evidence
   participant R as Critic + Resolution
-  participant H as Human authority
+  participant B as Business authority
+  participant O as Meeting organizer
 
   E->>P: Prepare meeting
   P->>G: session-derived user + IAM + HMAC + trace
@@ -73,12 +78,15 @@ sequenceDiagram
   end
   F->>R: accepted claims only
   R-->>F: resolutions + recommendation
-  alt authority required
-    F-->>H: durable checkpoint
-    H->>G: approve or reject
-    G->>F: resolve the same mission transactionally
-  else no authority required
-    F->>F: complete mission
+  opt authority-bound agenda item
+    F-->>B: durable business checkpoint
+    B->>G: approve or reject
+    G->>F: resolve and resume the same mission
+  end
+  opt Calendar mutation recommended
+    F-->>O: distinct organizer checkpoint
+    O->>G: approve or reject
+    G->>F: persist organizer decision
   end
 ```
 
@@ -93,8 +101,9 @@ stateDiagram-v2
   running --> completed: no human action
   running --> failed: safe failure
   failed --> running: explicit resume
+  waiting_human --> waiting_human: business approve; create Calendar gate
   waiting_human --> completed: reject / approve demo recommendation
-  waiting_human --> queued_action: approve live command
+  waiting_human --> queued_action: organizer approves live command
   queued_action --> completed: executor verifies result
   queued_action --> failed: retry limit / uncertain verification
 ```
@@ -105,6 +114,7 @@ Completed step IDs and attempts are stable, so recovery skips them instead of fa
 
 ```mermaid
 sequenceDiagram
+  participant B as Business approver
   participant H as Organizer
   participant G as Gateway/runtime
   participant F as Firestore
@@ -112,8 +122,10 @@ sequenceDiagram
   participant X as Private executor
   participant C as Calendar
 
-  H->>G: approve recommendation + expected ETag
-  G->>F: resolve checkpoint; persist approved command
+  B->>G: approve authority-bound decision
+  G->>F: resolve business checkpoint; resume same mission
+  H->>G: separately approve Calendar action + expected ETag
+  G->>F: resolve Calendar checkpoint; persist approved command
   G->>Q: command ID only
   Q->>X: authenticated at-least-once push
   X->>F: transactionally claim lease

@@ -36,9 +36,9 @@ Show the poisoned vendor evidence security finding and absence from specialist c
 
 ## 1:50–2:15 — Resolution and authority
 
-Show resolved engineering/customer context, one authority-bound security item, and the 60 → 15 minute recommendation. Open the persisted pending checkpoint with the exact organizer.
+Show resolved engineering/customer context, one authority-bound security item, and the shortened recommendation. Expand Mission Inspector: the business checkpoint names valid acting approver Alex, while the separate not-started Calendar checkpoint names organizer Shivam.
 
-> “Gemini locates and synthesizes evidence. Deterministic policy decides that a human is required, persists the checkpoint, and pauses the same mission.”
+> “Gemini locates and synthesizes evidence. Deterministic policy decides who has business authority, persists that checkpoint, and pauses the same mission. Organizing the meeting does not grant that authority.”
 
 ## 2:15–2:40 — Approval and executor
 

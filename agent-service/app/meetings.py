@@ -34,6 +34,13 @@ class MeetingService:
         for meeting in self._demo_meetings():
             if meeting.id not in self.workspace.meetings:
                 self.workspace.meetings[meeting.id] = meeting
+        # Narrow fixture migration: an older persisted Atlas demo meeting may
+        # predate the explicit authority contract. Preserve all other state.
+        launch = self.workspace.meetings.get("meeting-atlas-launch-readiness")
+        security_item = next((item for item in launch.agenda if item.id == "launch-security"), None) if launch else None
+        if launch and security_item and not security_item.authority_type:
+            security_item.authority_type = "atlas_security_approval"
+            self.workspace.save_meeting(launch)
 
     def reset_demo(self) -> None:
         self.workspace.meetings.clear()
@@ -118,7 +125,12 @@ class MeetingService:
                 agenda=[
                     AgendaItem(id="launch-engineering", title="Engineering readiness", owner_user_id="daniel"),
                     AgendaItem(id="launch-customer", title="Northstar customer impact", owner_user_id="maya"),
-                    AgendaItem(id="launch-security", title="Security exception decision", owner_user_id="sarah"),
+                    AgendaItem(
+                        id="launch-security",
+                        title="Security exception decision",
+                        owner_user_id="sarah",
+                        authority_type="atlas_security_approval",
+                    ),
                 ],
                 preparation_eligibility="eligible",
                 preparation_reason="Cross-functional launch meeting with one authority-bound decision.",
@@ -147,15 +159,31 @@ class MeetingService:
 
     def list_for_user(self, user_id: str) -> list[Meeting]:
         return sorted(
-            [meeting for meeting in self.workspace.meetings.values() if user_id in meeting.attendee_user_ids or user_id == meeting.organizer_user_id],
+            [
+                meeting for meeting in self.workspace.meetings.values()
+                if user_id in meeting.attendee_user_ids
+                or user_id == meeting.organizer_user_id
+                or self._is_business_checkpoint_actor(meeting, user_id)
+            ],
             key=lambda meeting: meeting.start_at,
         )
 
     def get_for_user(self, meeting_id: str, user_id: str) -> Meeting | None:
         meeting = self.workspace.meetings.get(meeting_id)
-        if not meeting or (user_id not in meeting.attendee_user_ids and user_id != meeting.organizer_user_id):
+        if not meeting or (
+            user_id not in meeting.attendee_user_ids
+            and user_id != meeting.organizer_user_id
+            and not self._is_business_checkpoint_actor(meeting, user_id)
+        ):
             return None
         return meeting
+
+    def _is_business_checkpoint_actor(self, meeting: Meeting, user_id: str) -> bool:
+        run = self.workspace.meeting_runs.get(meeting.prep_run_id or "")
+        mission = self.workspace.missions.get(run.mission_id or "") if run else None
+        checkpoint = self.workspace.human_checkpoints.get(mission.business_checkpoint_id or "") if mission else None
+        return bool(checkpoint and user_id in checkpoint.authorized_actor_ids)
+
     def upsert_from_calendar_event(self, event: WorkEvent) -> Meeting | None:
         """Project a privacy-minimized Calendar event into preparation state."""
         payload = event.payload
@@ -191,19 +219,32 @@ class MeetingService:
         agenda_titles = [line.strip(" -*\t") for line in description.splitlines() if line.strip(" -*\t")][:6]
         if not agenda_titles:
             agenda_titles = ["Review current status and unresolved decisions"]
+        meeting_title = str(payload.get("title", "Untitled work meeting"))
+        is_atlas = "atlas" in f"{meeting_title} {description}".lower()
         new_etag = str(payload.get("etag", "")) or sha256(event.id.encode()).hexdigest()[:16]
         status = "stale" if existing and existing.prep_run_id and existing.etag != new_etag else (existing.preparation_status if existing else "not_started")
         meeting = Meeting(
             id=meeting_id,
             calendar_event_id=calendar_event_id,
-            title=str(payload.get("title", "Untitled work meeting")),
+            title=meeting_title,
             description=description,
             start_at=datetime.fromisoformat(str(payload["start_at"]).replace("Z", "+00:00")),
             end_at=datetime.fromisoformat(str(payload["end_at"]).replace("Z", "+00:00")),
             organizer_user_id=organizer_id,
             attendee_user_ids=attendee_ids,
             attendees=attendees,
-            agenda=[AgendaItem(id=f"calendar-agenda-{index}", title=title) for index, title in enumerate(agenda_titles, 1)],
+            agenda=[
+                AgendaItem(
+                    id=f"calendar-agenda-{index}",
+                    title=title,
+                    authority_type=(
+                        "atlas_security_approval"
+                        if is_atlas and "security" in title.lower() and any(term in title.lower() for term in ("decision", "exception", "approval"))
+                        else None
+                    ),
+                )
+                for index, title in enumerate(agenda_titles, 1)
+            ],
             preparation_eligibility=str(payload.get("preparation_eligibility", "ambiguous")),
             preparation_reason=str(payload.get("preparation_reason", "Calendar work meeting.")),
             preparation_status=status,
@@ -222,12 +263,19 @@ class MeetingService:
     def prepare(self, meeting: Meeting, actor_id: str, trigger: str = "manual") -> MeetingPrepRun:
         if meeting.preparation_eligibility == "skipped":
             raise ValueError("This meeting is intentionally excluded from agent preparation")
-        if meeting.prep_run_id:
-            existing = self.workspace.meeting_runs.get(meeting.prep_run_id)
-            if existing and existing.status == "completed" and existing.mission_id and meeting.preparation_status != "stale":
-                return existing
         if self.mission_runtime is None:
             raise RuntimeError("Meeting mission runtime is not configured")
+        if meeting.prep_run_id:
+            existing = self.workspace.meeting_runs.get(meeting.prep_run_id)
+            existing_mission = self.workspace.missions.get(existing.mission_id or "") if existing else None
+            if (
+                existing
+                and existing.status == "completed"
+                and existing_mission
+                and existing_mission.workflow_version == self.mission_runtime.WORKFLOW_VERSION
+                and meeting.preparation_status != "stale"
+            ):
+                return existing
 
         now = self.now_fn()
         mission = self.mission_runtime.start(meeting, actor_id, trigger)
@@ -268,9 +316,13 @@ class MeetingService:
         ):
             raise ValueError("The requested action does not match the mission recommendation")
         mission = self.workspace.missions[run.mission_id]
-        if not mission.checkpoint_id:
-            raise ValueError("This mission has no pending human checkpoint")
-        checkpoint = self.workspace.human_checkpoints[mission.checkpoint_id]
+        if mission.business_checkpoint_id:
+            business_checkpoint = self.workspace.human_checkpoints[mission.business_checkpoint_id]
+            if business_checkpoint.status != "approved":
+                raise ValueError("The authorized business decision must be approved before Calendar consent")
+        if not mission.calendar_checkpoint_id:
+            raise ValueError("This mission has not reached the Calendar action gate")
+        checkpoint = self.workspace.human_checkpoints[mission.calendar_checkpoint_id]
         resolved_mission = self.mission_runtime.resolve_checkpoint(
             checkpoint.id,
             MissionCheckpointResolution(

@@ -54,9 +54,11 @@ def test_meeting_missions_run_versioned_agents_and_reach_authority_gate(client):
         f"/v1/missions/{mission['id']}/steps", params={"user_id": "shivam"}
     ).json()
     assert [step["node_kind"] for step in steps] == [
-        "access_gate", "controller", "specialist", "specialist", "critic", "synthesizer", "authority_gate"
+        "access_gate", "controller", "specialist", "specialist", "critic", "synthesizer",
+        "business_decision_gate", "calendar_action_gate",
     ]
-    assert all(step["status"] == "completed" and step["duration_ms"] >= 0 for step in steps)
+    assert [step["status"] for step in steps[-2:]] == ["skipped", "running"]
+    assert all(step["status"] == "completed" and step["duration_ms"] >= 0 for step in steps[:-2])
 
     launch = client.post("/v1/meetings/meeting-atlas-launch-readiness/prepare", json={"actor_id": "shivam", "trigger": "manual"})
     assert launch.status_code == 200
@@ -344,6 +346,7 @@ def test_calendar_meeting_event_creates_private_google_projection(client):
     assert projected["source"] == "google_calendar"
     assert projected["etag"] == "etag-live-1"
     assert [item["title"] for item in projected["agenda"]] == ["Engineering readiness", "Security authority decision"]
+    assert projected["agenda"][1]["authority_type"] == "atlas_security_approval"
     assert client.get("/v1/meetings", params={"user_id": "helen"}).status_code == 200
     assert all(item["calendar_event_id"] != "atlas-live" for item in client.get("/v1/meetings", params={"user_id": "helen"}).json())
 

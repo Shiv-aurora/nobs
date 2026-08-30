@@ -31,6 +31,7 @@ from .mission_models import (
 )
 from .models import AgentTurn, AuditEvent, Meeting, MeetingBrief, MeetingPrepRun
 from .observability import current_trace_id, event, mission_span
+from .policy import PolicyEngine
 from .usage import ModelUsage, ModelUsageGuard, estimate_tokens
 from .workspace import Workspace
 
@@ -68,6 +69,8 @@ class MissionRuntime:
     WORK_AGENT = "agent:work-graph-specialist"
     POLICY_AGENT = "agent:policy-evidence-specialist"
     SYNTHESIZER = "agent:meeting-resolution-synthesizer"
+    WORKFLOW_VERSION = "1.1.0"
+    POLICY_VERSION = "1.1.0"
 
     def __init__(
         self,
@@ -80,6 +83,7 @@ class MissionRuntime:
         prompt_guard: PromptGuard,
         usage_guard: ModelUsageGuard,
         action_publisher: ActionPublisher,
+        policy: PolicyEngine,
         project_id: str = "",
         agent_engine_location: str = "",
         agent_engine_id: str = "",
@@ -92,6 +96,7 @@ class MissionRuntime:
         self.prompt_guard = prompt_guard
         self.usage_guard = usage_guard
         self.action_publisher = action_publisher
+        self.policy = policy
         self.project_id = project_id
         self.agent_engine_location = agent_engine_location
         self.agent_engine_id = agent_engine_id
@@ -106,6 +111,7 @@ class MissionRuntime:
                 item for item in self.workspace.missions.values()
                 if item.meeting_id == meeting.id
                 and item.meeting_etag == meeting.etag
+                and item.workflow_version == self.WORKFLOW_VERSION
                 and item.status not in {MissionStatus.FAILED}
             ),
             None,
@@ -115,6 +121,8 @@ class MissionRuntime:
         now = self.now_fn()
         mission = MissionRun(
             meeting_id=meeting.id,
+            workflow_version=self.WORKFLOW_VERSION,
+            policy_version=self.POLICY_VERSION,
             model_id=self.model_name if not self.demo_mode else "deterministic-test-program",
             trigger=trigger,
             started_by=actor_id,
@@ -162,6 +170,7 @@ class MissionRuntime:
             total_usage = self._add_usage(total_usage, usage)
 
             mission.current_stage = "parallel_specialists"
+            mission.quarantined_evidence_count = self._count_quarantined_evidence(mission.started_by)
             mission.updated_at = self.now_fn()
             self.workspace.save_mission_transition(mission)
             reports, usages = asyncio.run(self._parallel_specialists(mission, meeting))
@@ -170,7 +179,7 @@ class MissionRuntime:
                 total_usage = self._add_usage(total_usage, usage)
 
             mission.current_stage = "evidence_critic"
-            with mission_span("mission.evidence_critic", mission_id=mission.id, policy_version="1.0.0"):
+            with mission_span("mission.evidence_critic", mission_id=mission.id, policy_version=mission.policy_version):
                 mission.critic_report = self._critic(mission)
             self._record_policy_step(mission, "evidence-critic", 4)
 
@@ -181,14 +190,13 @@ class MissionRuntime:
             total_usage = self._add_usage(total_usage, usage)
 
             mission.current_stage = "authority_gate"
-            with mission_span("mission.authority_gate", mission_id=mission.id, policy_version="1.0.0"):
+            with mission_span("mission.authority_gate", mission_id=mission.id, policy_version=mission.policy_version):
                 self._authority_gate(mission, meeting)
             mission.updated_at = self.now_fn()
             if mission.status != MissionStatus.WAITING_HUMAN:
                 mission.status = MissionStatus.COMPLETED
                 mission.current_stage = "completed"
                 mission.completed_at = mission.updated_at
-            self._record_policy_step(mission, "authority-gate", 6)
             self.workspace.save_mission_transition(mission)
             if reservation:
                 self.usage_guard.finalize(reservation, total_usage)
@@ -426,6 +434,15 @@ class MissionRuntime:
             raise ValueError("Synthesizer did not return exactly one resolution per agenda item")
         if any(set(item.evidence_claim_ids) - claim_ids for item in resolutions):
             raise ValueError("Synthesizer cited an unvalidated claim")
+        agenda_by_id = {item.id: item for item in meeting.agenda}
+        for resolution in resolutions:
+            authority_type = agenda_by_id[resolution.agenda_item_id].authority_type
+            if authority_type:
+                # Authority classification is part of the deterministic agenda
+                # contract. The model may explain the item, but cannot erase or
+                # change the policy gate selected by the runtime.
+                resolution.authority_type = authority_type
+                resolution.status = "needs_human"
         mission.resolutions = resolutions
         mission.recommendation = recommendation
         self._complete_step(mission, step, started, ["mission.resolutions", "mission.recommendation"])
@@ -448,6 +465,7 @@ class MissionRuntime:
                         )
                     ),
                     evidence_claim_ids=[item.claim_id for item in relevant],
+                    authority_type=agenda.authority_type,
                 ))
             humans_required = sum(item.status == "needs_human" for item in resolutions)
             open_count = sum(item.status == "open" for item in resolutions)
@@ -473,6 +491,7 @@ class MissionRuntime:
                 instruction=(
                     "Resolve each supplied agenda ID using only accepted claims. Cite only supplied claim IDs. "
                     "Policy exceptions, approvals, restricted judgments, and Calendar changes must remain needs_human. "
+                    "Copy authority_type exactly when it is present on an agenda item. "
                     "Recommend cancel only if every item is resolved, shorten when only human judgments remain, otherwise keep."
                 ),
                 project_id=self.project_id,
@@ -492,7 +511,40 @@ class MissionRuntime:
     def _authority_gate(self, mission: MissionRun, meeting: Meeting) -> None:
         recommendation = mission.recommendation
         if not recommendation or recommendation.disposition == "keep":
+            self._set_gate_step(mission, "business-decision-gate", "business_decision_gate", 6, MissionStepStatus.SKIPPED)
+            self._set_gate_step(mission, "calendar-action-gate", "calendar_action_gate", 7, MissionStepStatus.SKIPPED)
             return
+        authority_bound = [item for item in mission.resolutions if item.authority_type]
+        if len(authority_bound) > 1:
+            raise ValueError("The focused meeting flow supports one authority-bound agenda item")
+        mission.proposed_commands = []
+        if authority_bound:
+            item = authority_bound[0]
+            authority = self.policy.resolve_authority(item.authority_type or "")
+            checkpoint = HumanCheckpoint(
+                mission_id=mission.id,
+                checkpoint_type="restricted_decision",
+                summary=f"{item.resolution} Authorized decision owner: {self._user_name(authority.assignee_id)}.",
+                authorized_actor_ids=[authority.assignee_id] if authority.assignee_id else [],
+                authority_type=item.authority_type,
+                command_ids=[],
+                created_at=self.now_fn(),
+            )
+            mission.business_checkpoint_id = checkpoint.id
+            mission.checkpoint_id = checkpoint.id
+            mission.status = MissionStatus.WAITING_HUMAN
+            mission.current_stage = "waiting_business_decision"
+            self.workspace.save_checkpoint(checkpoint)
+            self._set_gate_step(mission, "business-decision-gate", "business_decision_gate", 6, MissionStepStatus.RUNNING)
+            self._set_gate_step(mission, "calendar-action-gate", "calendar_action_gate", 7, MissionStepStatus.PENDING)
+            return
+        self._set_gate_step(mission, "business-decision-gate", "business_decision_gate", 6, MissionStepStatus.SKIPPED)
+        self._create_calendar_checkpoint(mission, meeting)
+
+    def _create_calendar_checkpoint(self, mission: MissionRun, meeting: Meeting) -> HumanCheckpoint:
+        recommendation = mission.recommendation
+        if not recommendation or recommendation.disposition == "keep":
+            raise ValueError("A Calendar checkpoint requires a mutating recommendation")
         checkpoint = HumanCheckpoint(
             mission_id=mission.id,
             checkpoint_type="calendar_write" if meeting.source == "google_calendar" else "meeting_disposition",
@@ -505,20 +557,28 @@ class MissionRuntime:
             command_ids=[],
             created_at=self.now_fn(),
         )
-        mission.proposed_commands = []
+        mission.calendar_checkpoint_id = checkpoint.id
         mission.checkpoint_id = checkpoint.id
         mission.status = MissionStatus.WAITING_HUMAN
-        mission.current_stage = "waiting_human"
+        mission.current_stage = "waiting_calendar_action"
         self.workspace.save_checkpoint(checkpoint)
+        self._set_gate_step(mission, "calendar-action-gate", "calendar_action_gate", 7, MissionStepStatus.RUNNING)
+        return checkpoint
 
     def resolve_checkpoint(self, checkpoint_id: str, resolution: MissionCheckpointResolution, meeting: Meeting) -> MissionRun:
         checkpoint = self.workspace.human_checkpoints[checkpoint_id]
         mission = self.workspace.missions[checkpoint.mission_id]
         if checkpoint.status != "pending":
-            if checkpoint.status == "approved":
+            if checkpoint.status == "approved" and checkpoint.checkpoint_type != "restricted_decision":
                 self._dispatch_approved(mission)
             return mission
-        if resolution.actor_id not in checkpoint.authorized_actor_ids:
+        if checkpoint.checkpoint_type == "restricted_decision":
+            if not checkpoint.authority_type or not self.policy.actor_can_resolve(resolution.actor_id, checkpoint.authority_type):
+                raise PermissionError("Actor is not the current authorized business decision owner")
+            # Rebind the persisted snapshot to the actor who is authoritative
+            # at resolution time; delegations can expire while a mission waits.
+            checkpoint.authorized_actor_ids = [resolution.actor_id]
+        elif resolution.actor_id not in checkpoint.authorized_actor_ids:
             raise PermissionError("Actor is not authorized for this checkpoint")
         if mission.meeting_etag != meeting.etag:
             raise RuntimeError("Meeting changed after the mission; refresh before approving")
@@ -526,24 +586,35 @@ class MissionRuntime:
         checkpoint.resolved_at = self.now_fn()
         checkpoint.resolved_by = resolution.actor_id
         checkpoint.rationale = resolution.rationale
-        if resolution.decision == "approved":
-            self._build_approved_commands(mission, meeting, checkpoint)
-        should_dispatch = resolution.decision == "approved" and bool(mission.proposed_commands)
-        mission.status = MissionStatus.QUEUED_ACTION if should_dispatch else MissionStatus.COMPLETED
-        mission.current_stage = "queued_action" if should_dispatch else "completed"
+        is_business_gate = checkpoint.checkpoint_type == "restricted_decision"
+        if is_business_gate:
+            self._finish_gate_step(mission, "business-decision-gate", checkpoint)
+            if resolution.decision == "approved":
+                self._create_calendar_checkpoint(mission, meeting)
+            else:
+                self._set_gate_step(mission, "calendar-action-gate", "calendar_action_gate", 7, MissionStepStatus.SKIPPED)
+                mission.status = MissionStatus.COMPLETED
+                mission.current_stage = "business_decision_rejected"
+        else:
+            self._finish_gate_step(mission, "calendar-action-gate", checkpoint)
+            if resolution.decision == "approved":
+                self._build_approved_commands(mission, meeting, checkpoint)
+            should_dispatch = resolution.decision == "approved" and bool(mission.proposed_commands)
+            mission.status = MissionStatus.QUEUED_ACTION if should_dispatch else MissionStatus.COMPLETED
+            mission.current_stage = "queued_action" if should_dispatch else "completed"
         mission.updated_at = self.now_fn()
-        mission.completed_at = None if should_dispatch else mission.updated_at
+        mission.completed_at = None if mission.status in {MissionStatus.WAITING_HUMAN, MissionStatus.QUEUED_ACTION} else mission.updated_at
         self.workspace.save_checkpoint(checkpoint)
         self.workspace.save_mission_transition(mission)
         self.workspace.append_audit(AuditEvent(
-            event_type="mission.checkpoint_resolved",
+            event_type="mission.business_decision_resolved" if is_business_gate else "mission.calendar_action_resolved",
             actor_id=resolution.actor_id,
             entity_ids=[mission.id, checkpoint.id, *checkpoint.command_ids],
             summary=f"Mission checkpoint {resolution.decision}; no external action executed in the gateway.",
             created_at=checkpoint.resolved_at,
             metadata={"rationale": resolution.rationale},
         ))
-        if should_dispatch:
+        if not is_business_gate and resolution.decision == "approved" and mission.proposed_commands:
             self._dispatch_approved(mission)
         return mission
 
@@ -554,13 +625,15 @@ class MissionRuntime:
         if not recommendation or recommendation.disposition == "keep" or not checkpoint.resolved_by or not checkpoint.resolved_at:
             return
         started = time.perf_counter()
-        step = self._start_step(mission, "command-builder", "command_builder", 7, None, "1.0.0")
+        step = self._start_step(mission, "command-builder", "command_builder", 8, None, "1.0.0")
         command_type = "calendar.cancel" if recommendation.disposition == "cancel" else "calendar.shorten"
         digest = hashlib.sha256(
             f"{mission.organization_id}:{meeting.id}:{meeting.etag}:{command_type}:{checkpoint.id}".encode()
         ).hexdigest()
+        business_checkpoint = self.workspace.human_checkpoints.get(mission.business_checkpoint_id or "")
+        business_approver = business_checkpoint.resolved_by if business_checkpoint else "not_required"
         policy_hash = hashlib.sha256(
-            f"{mission.policy_version}:{meeting.id}:{checkpoint.resolved_by}".encode()
+            f"{mission.policy_version}:{meeting.id}:{business_approver}:{checkpoint.resolved_by}".encode()
         ).hexdigest()
         with mission_span("command.create", mission_id=mission.id, command_type=command_type, policy_version=mission.policy_version):
             command = ProposedCommand(
@@ -574,7 +647,8 @@ class MissionRuntime:
                 mission_id=mission.id,
                 trace_id=mission.trace_id,
                 checkpoint_id=checkpoint.id,
-                approval_decision_id=checkpoint.id,
+                business_checkpoint_id=business_checkpoint.id if business_checkpoint else None,
+                approval_decision_id=business_checkpoint.id if business_checkpoint else checkpoint.id,
                 policy_snapshot_hash=policy_hash,
                 expires_at=checkpoint.resolved_at + timedelta(minutes=30),
                 requested_by=mission.started_by,
@@ -586,6 +660,52 @@ class MissionRuntime:
         self.workspace.save_command(command)
         self.workspace.save_checkpoint(checkpoint)
         self._complete_step(mission, step, started, [f"command:{command.id}"])
+
+    def _set_gate_step(
+        self,
+        mission: MissionRun,
+        node_id: str,
+        node_kind: str,
+        ordinal: int,
+        status: MissionStepStatus,
+    ) -> MissionStep:
+        step = next(
+            (item for item in self.workspace.mission_steps.values() if item.mission_id == mission.id and item.node_id == node_id),
+            None,
+        ) or MissionStep(
+            id=f"step-{mission.id}-{node_id}",
+            mission_id=mission.id,
+            ordinal=ordinal,
+            node_id=node_id,
+            node_kind=node_kind,
+            status=status,
+            agent_version="1.0.0",
+        )
+        step.status = status
+        if status == MissionStepStatus.RUNNING and not step.started_at:
+            step.started_at = self.now_fn()
+        if status == MissionStepStatus.SKIPPED:
+            step.started_at = step.started_at or self.now_fn()
+            step.completed_at = self.now_fn()
+            step.duration_ms = 0
+        self.workspace.save_mission_transition(mission, step)
+        return step
+
+    def _finish_gate_step(self, mission: MissionRun, node_id: str, checkpoint: HumanCheckpoint) -> None:
+        step = next(
+            item for item in self.workspace.mission_steps.values()
+            if item.mission_id == mission.id and item.node_id == node_id
+        )
+        step.status = MissionStepStatus.COMPLETED
+        step.completed_at = checkpoint.resolved_at or self.now_fn()
+        step.started_at = step.started_at or checkpoint.created_at
+        step.duration_ms = max(0.0, (step.completed_at - step.started_at).total_seconds() * 1000)
+        step.output_refs = [f"checkpoint:{checkpoint.id}:{checkpoint.status}"]
+        self.workspace.save_mission_transition(mission, step)
+
+    def _user_name(self, user_id: str | None) -> str:
+        user = self.workspace.users.get(user_id or "")
+        return user.name if user else "No active approver"
 
     def _dispatch_approved(self, mission: MissionRun) -> None:
         for command in mission.proposed_commands:
@@ -676,6 +796,139 @@ class MissionRuntime:
             completed_at=mission.updated_at,
         )
 
+    def inspect(self, mission_id: str, meeting: Meeting) -> dict[str, object]:
+        """Return a compact, factual projection of one durable mission."""
+        mission = self.workspace.missions[mission_id]
+        steps = sorted(
+            (item for item in self.workspace.mission_steps.values() if item.mission_id == mission.id),
+            key=lambda item: item.ordinal,
+        )
+        manifests = {
+            (item.id, item.version): item
+            for item in self.workspace.agent_manifests.values()
+        }
+        projected_steps: list[dict[str, object]] = []
+        labels = {
+            "access-gate": "Access Gate",
+            "controller": "Meeting Mission Controller",
+            self.WORK_AGENT: "Work Graph Specialist",
+            self.POLICY_AGENT: "Policy Evidence Specialist",
+            "evidence-critic": "Evidence Validator",
+            "synthesizer": "Meeting Resolution Agent",
+            "business-decision-gate": "Business Decision Gate",
+            "calendar-action-gate": "Calendar Action Gate",
+            "command-builder": "Command Builder",
+            "result-verifier": "Action Executor",
+        }
+        for step in steps:
+            manifest = manifests.get((step.agent_id, step.agent_version))
+            projected_steps.append({
+                "id": step.id,
+                "node_id": step.node_id,
+                "label": labels.get(step.node_id, step.node_id.replace("-", " ").title()),
+                "kind": step.node_kind,
+                "status": step.status.value,
+                "agent_id": step.agent_id,
+                "agent_version": step.agent_version,
+                "model_id": manifest.model if manifest else None,
+                "deterministic": not bool(manifest and manifest.model),
+                "duration_ms": step.duration_ms,
+                "attempt": step.attempt,
+            })
+        if not any(item.node_id == "result-verifier" for item in steps):
+            command = mission.proposed_commands[0] if mission.proposed_commands else None
+            projected_steps.append({
+                "id": f"step-{mission.id}-result-verifier",
+                "node_id": "result-verifier",
+                "label": "Action Executor",
+                "kind": "result_verifier",
+                "status": "running" if command and command.status in {"queued", "approved"} else "pending",
+                "agent_id": "service:noping-action-executor",
+                "agent_version": "1.0.0",
+                "model_id": None,
+                "deterministic": True,
+                "duration_ms": None,
+                "attempt": command.attempt_count if command else 0,
+            })
+        agents = []
+        seen_agents: set[tuple[str, str]] = set()
+        for step in steps:
+            if not step.agent_id or not step.agent_version or (step.agent_id, step.agent_version) in seen_agents:
+                continue
+            seen_agents.add((step.agent_id, step.agent_version))
+            manifest = manifests.get((step.agent_id, step.agent_version))
+            agents.append({
+                "id": step.agent_id,
+                "version": step.agent_version,
+                "name": manifest.name if manifest else step.agent_id,
+                "model_id": manifest.model if manifest else None,
+            })
+        agents.append({
+            "id": "service:noping-action-executor",
+            "version": "1.0.0",
+            "name": "Action Executor",
+            "model_id": None,
+        })
+        business = self.workspace.human_checkpoints.get(mission.business_checkpoint_id or "")
+        calendar = self.workspace.human_checkpoints.get(mission.calendar_checkpoint_id or "")
+        command = mission.proposed_commands[0] if mission.proposed_commands else None
+        resumed_steps = [item.node_id for item in steps if item.attempt > 1]
+        if business and business.status == "approved" and calendar and "calendar-action-gate" not in resumed_steps:
+            resumed_steps.append("calendar-action-gate")
+        return {
+            "mission_id": mission.id,
+            "status": mission.status.value,
+            "current_stage": mission.current_stage,
+            "workflow_version": mission.workflow_version,
+            "policy_version": mission.policy_version,
+            "model_id": mission.model_id,
+            "trace_id": mission.trace_id,
+            "agents": agents,
+            "steps": projected_steps,
+            "accepted_evidence_count": len(set(mission.critic_report.accepted_claim_ids if mission.critic_report else [])),
+            "quarantined_evidence_count": mission.quarantined_evidence_count,
+            "business_checkpoint": self._checkpoint_projection(business),
+            "calendar_checkpoint": self._checkpoint_projection(calendar, fallback_actor_id=meeting.organizer_user_id),
+            "command": ({
+                "id": command.id,
+                "state": command.status,
+                "type": command.command_type,
+                "executor_result": ({
+                    "applied_etag": command.applied_etag,
+                    "provider_response_hash": command.provider_response_hash,
+                    "error_code": command.error_code,
+                    "attempt_count": command.attempt_count,
+                } if command.status in {"succeeded", "failed", "stale"} else None),
+            } if command else None),
+            "resumed_steps": resumed_steps,
+            "skipped_steps": [item.node_id for item in steps if item.status == MissionStepStatus.SKIPPED],
+        }
+
+    def _checkpoint_projection(
+        self,
+        checkpoint: HumanCheckpoint | None,
+        *,
+        fallback_actor_id: str | None = None,
+    ) -> dict[str, object] | None:
+        if not checkpoint and not fallback_actor_id:
+            return None
+        actor_ids = checkpoint.authorized_actor_ids if checkpoint else [fallback_actor_id] if fallback_actor_id else []
+        return {
+            "id": checkpoint.id if checkpoint else None,
+            "type": checkpoint.checkpoint_type if checkpoint else "calendar_write",
+            "status": checkpoint.status if checkpoint else "not_started",
+            "authority_type": checkpoint.authority_type if checkpoint else None,
+            "authorized_people": [
+                {"id": actor_id, "name": self._user_name(actor_id)}
+                for actor_id in actor_ids
+            ],
+            "resolved_by": ({
+                "id": checkpoint.resolved_by,
+                "name": self._user_name(checkpoint.resolved_by),
+            } if checkpoint and checkpoint.resolved_by else None),
+            "resolved_at": checkpoint.resolved_at if checkpoint else None,
+        }
+
     def _source_map(self, meeting: Meeting, actor_id: str, agent_id: str) -> dict[str, dict[str, object]]:
         actor = self.workspace.users[actor_id]
         if agent_id == self.WORK_AGENT:
@@ -704,6 +957,17 @@ class MissionRuntime:
             }
             for policy in self.workspace.policies.values()
         }
+
+    def _count_quarantined_evidence(self, actor_id: str) -> int:
+        actor = self.workspace.users[actor_id]
+        count = 0
+        for evidence in self.workspace.evidence.values():
+            if not evidence.entity_ids or not self._can_read(actor, evidence):
+                continue
+            _, finding = self._scan(evidence)
+            if finding and finding.blocked:
+                count += 1
+        return count
 
     def _can_read(self, actor, evidence) -> bool:
         # The mission uses the same deterministic scope rules as query retrieval.

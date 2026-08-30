@@ -36,7 +36,7 @@
       "project_ids": ["atlas"],
       "availability": {
         "status": "out_of_office",
-        "until": "2026-08-28T09:00:00-04:00",
+        "until": "2026-09-02T18:00:00-04:00",
         "delegate_user_id": "alex"
       },
       "avatar": "SC",
@@ -172,7 +172,7 @@
       "to_user_id": "alex",
       "authority": "atlas_security_approval",
       "starts_at": "2026-08-27T00:00:00-04:00",
-      "ends_at": "2026-08-28T09:00:00-04:00",
+      "ends_at": "2026-09-02T18:00:00-04:00",
       "reason": "Sarah Chen is out of office."
     }
   ],
@@ -303,7 +303,7 @@
       "actor_user_id": "sarah",
       "entity_ids": ["atlas", "security"],
       "occurred_at": "2026-08-27T08:00:00-04:00",
-      "payload": {"until": "2026-08-28T09:00:00-04:00", "delegate_user_id": "alex"}
+      "payload": {"until": "2026-09-02T18:00:00-04:00", "delegate_user_id": "alex"}
     },
     {
       "id": "event-sec-184",

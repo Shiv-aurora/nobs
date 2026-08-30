@@ -1,14 +1,14 @@
 # Test and evaluation report
 
-Verified 2026-08-30 from tracked source through commit `4bee667`.
+Verified 2026-08-30 from the tracked source.
 
 ## Credential-free gate
 
 | Suite | Command | Result |
 |---|---|---|
-| governed agent runtime | `python -m pytest agent-service/tests` | **90 passed** |
+| governed agent runtime | `python -m pytest agent-service/tests` | **92 passed** |
 | budget guard | `(cd deploy/gcp/budget-guard && python -m pytest tests)` | **8 passed** |
-| action executor | `(cd executor-service && python -m pytest tests)` | **6 passed** |
+| action executor | `(cd executor-service && python -m pytest tests)` | **7 passed** |
 | Go plugin/runtime | `(cd plugin && go test ./...)` | **all packages passed** |
 | React contracts | `npm --prefix plugin/webapp run typecheck` | **passed** |
 | Python compilation | `python -m compileall ...` | **passed** |
@@ -21,11 +21,11 @@ Verified 2026-08-30 from tracked source through commit `4bee667`.
 | Scenario | Verified result |
 |---|---|
 | engineering sync | both versioned specialists execute; deterministic fixture program derives cancel recommendation from authorized source evidence; no demo command is created |
-| launch readiness | safe evidence resolves routine work; security/authority item remains; mission waits at a durable organizer checkpoint |
+| launch readiness | safe evidence resolves routine work; security item carries `authority_type`; mission waits for Sarah/valid acting Alex before a distinct organizer gate |
 | injected evidence | poisoned vendor source is absent from every specialist claim |
 | restricted compensation | restricted content does not enter mission claims; existing API tests deny access before synthesis |
 | resume | step IDs and attempt counts remain unchanged after resume; completed nodes do not rerun |
-| unauthorized checkpoint | non-organizer receives 403 and mission stays `waiting_human` |
+| separate authority gates | Maya and organizer Shivam receive 403 for the security decision; valid acting Alex advances the same mission; only organizer Shivam approves Calendar mutation; both events persist separately |
 | demo/live write separation | demo approval mutates nothing; a synthetic `google_calendar` source creates exactly one ETag-bound approved command |
 | duplicate command | succeeded delivery is an idempotent no-op |
 | lease contention | active lease prevents simultaneous execution |

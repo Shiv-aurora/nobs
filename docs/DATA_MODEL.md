@@ -8,7 +8,7 @@ Firestore owns distributed mission state under `organizations/{organization_id}`
 |---|---|---|
 | `missions` | mission status, model/workflow version, meeting/ETag, recommendation, trace | transitions persist with step updates |
 | `mission_steps` | deterministic node ID, kind, agent/version, attempt, times, refs, failure | completed step ID is not rerun on resume |
-| `human_checkpoints` | authorized actors, command IDs, decision, rationale, times | pending → approved/rejected once by authorized actor |
+| `human_checkpoints` | gate type, authority type, authorized actors, command IDs, decision, rationale, times | business and Calendar approvals are distinct pending → approved/rejected events |
 | `commands` | typed approved intent, idempotency key, ETag, lease, terminal result | executor claims transactionally |
 | `command_attempts` | immutable deterministic attempt ID and safe outcome metadata | duplicate create is an idempotent no-op |
 | `agent_manifests` | stable ID/version, schemas, scopes, tools, identity, health | routing selects approved active versions only |
@@ -22,7 +22,7 @@ Existing product collections for meetings, delegations, handoffs, sessions, OOO,
 
 ## Mission schema
 
-`MissionRun` includes stable mission ID, meeting ID/ETag, trigger, actor, status/current stage, typed plan, specialist reports, critic report, agenda resolutions, recommendation, proposed commands, checkpoint ID, trace ID, timestamps, and failure code.
+`MissionRun` includes stable mission ID, meeting ID/ETag, trigger, actor, status/current stage, typed plan, specialist reports, critic report, authority-typed agenda resolutions, recommendation, proposed commands, separate business/Calendar checkpoint IDs, evidence counts, trace ID, timestamps, and failure code.
 
 `MissionStep` includes stable step ID, ordinal, node ID/kind, agent ID/version where applicable, status, attempt, input/output references, timestamps, measured duration, and failure code. No hidden reasoning is stored.
 
@@ -30,7 +30,7 @@ Existing product collections for meetings, delegations, handoffs, sessions, OOO,
 
 ## Command schema
 
-`ProposedCommand` includes command/action type, target reference, expected ETag, bounded payload, status, deterministic idempotency key, mission/checkpoint/trace IDs, requester/approver and approval time, attempt/lease state, applied ETag, provider response hash, and failure code.
+`ProposedCommand` includes command/action type, target reference, expected ETag, bounded payload, status, deterministic idempotency key, mission/business-checkpoint/Calendar-checkpoint/trace IDs, requester/organizer and approval time, attempt/lease state, applied ETag, provider response hash, and failure code.
 
 Only live `google_calendar` projections may produce Calendar commands. Demo fixture records remain useful input data but are not external write targets.
 

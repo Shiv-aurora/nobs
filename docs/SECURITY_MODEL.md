@@ -4,7 +4,7 @@ NoBS makes organizational knowledge easier to reach without flattening identity,
 
 ## Control order
 
-`identity → tenant → requester role → entity scope → evidence authorization → policy → delegation → model execution → human approval → external action`
+`identity → tenant → requester role → entity scope → evidence authorization → policy → delegation → model execution → business authority → Calendar authority → external action`
 
 All controls through delegation are deterministic and occur before Gemini receives evidence. Models cannot grant access, choose an approving actor, waive a policy, resolve an authority checkpoint, or execute a command.
 
@@ -27,9 +27,9 @@ All controls through delegation are deterministic and occur before Gemini receiv
 
 ## Human authority and commands
 
-An authority-bound recommendation persists a checkpoint with the exact authorized actor. Resolution verifies actor and meeting ETag transactionally. Demo sources may record an approved recommendation but cannot produce a command. A live Calendar source produces one typed command containing target, expected ETag, payload, mission/checkpoint IDs, trace ID, approver, and deterministic idempotency key.
+An authority-bound agenda item persists a business checkpoint whose actor is resolved by the deterministic `PolicyEngine`; for the Atlas security flow that is Sarah or Alex only while Sarah's delegation is valid. The meeting organizer receives no business authority merely by organizing. Business approval resumes the same mission and creates a distinct organizer-only Calendar checkpoint. Demo sources may record both events but cannot produce a command. A live Calendar source produces one typed command containing target, expected ETag, payload, both checkpoint IDs, trace ID, organizer, and deterministic idempotency key.
 
-The executor reloads the command, verifies its approved state, claims a lease, uses Calendar `If-Match`, reads the result, and stores only a response hash and safe metadata. Duplicate/terminal/leased commands are no-ops. HTTP 412 becomes terminal `stale`.
+The executor reloads the command and both persisted approvals, verifies their distinct actors and command binding, claims a lease, uses Calendar `If-Match`, reads the result, and stores only a response hash and safe metadata. Duplicate/terminal/leased commands are no-ops. HTTP 412 becomes terminal `stale`.
 
 ## Identity matrix
 
@@ -55,7 +55,8 @@ Confirmed decision memory is authoritative only when scope, facts hash, policy v
 | replay/tampering | IAM + exact-body HMAC + timestamp window |
 | cross-tenant/evidence leak | deterministic scope and permission filtering before context |
 | prompt-injected connector content | quarantine + Model Armor + citation allowlist |
-| model self-approval | deterministic authority gate + durable actor-bound checkpoint |
+| organizer gains business authority | separate deterministic business and Calendar gates |
+| model self-approval | deterministic authority gates + durable actor-bound checkpoints |
 | direct model side effect | no write tool/credential; separate executor |
 | stale or duplicate action | ETag, idempotency key, lease, terminal states, postcondition read |
 | secret/log leakage | Secret Manager, structured redacted logs, body-free traces |

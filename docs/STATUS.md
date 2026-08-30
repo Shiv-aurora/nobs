@@ -26,13 +26,13 @@ All Cloud Run services in the verified baseline are private; no `allUsers` invoc
 
 - qualifying Gemini 3.5 defaults throughout code, Compose, Terraform, and examples;
 - `DelegateDirectory` separated from the versioned Executable Agent Registry;
-- typed ADK mission controller, real parallel Work Graph and Policy Evidence agents, deterministic critic/authority gate, and typed resolution agent;
+- typed ADK mission controller, real parallel Work Graph and Policy Evidence agents, deterministic critic/business/Calendar gates, and typed resolution agent;
 - no fixture-selected final meeting results, prewritten execution transcripts, or fixed fake timings;
 - Firestore mission, step, checkpoint, command, attempt, manifest, and counter persistence;
 - resume that skips completed deterministic step IDs;
 - Model Armor on every ADK prompt and response, plus permission-filtered/quarantined evidence;
 - explicit preference-only Memory Bank adapter that mission authorization never reads;
-- organizer checkpoint with demo/write isolation;
+- separate business-authority and organizer-only Calendar checkpoints with demo/write isolation;
 - separate idempotent Calendar executor with transactional leases, ETag preconditions, bounded retries, post-write verification, and hashed responses;
 - body-free structured logs and OpenTelemetry spans for mission nodes and executor actions;
 - plugin no longer executes Calendar writes directly.
@@ -58,7 +58,7 @@ A second proof ran through the deployed Mattermost UI and private Cloud Run gate
 
 ## Validation
 
-`./scripts/check.sh` passes: 90 agent-runtime tests, 8 budget-guard tests, 6 action-executor tests, all Go packages, strict TypeScript, Python compilation, shell/static checks, credential scan, and Git whitespace. Terraform 1.x with Google provider 8.0.0 validates successfully.
+`./scripts/check.sh` passes: 92 agent-runtime tests, 8 budget-guard tests, 7 action-executor tests, all Go packages, strict TypeScript, Python compilation, shell/static checks, credential scan, and Git whitespace. Terraform 1.x with Google provider 8.0.0 validates successfully.
 
 ## Deployment progress
 

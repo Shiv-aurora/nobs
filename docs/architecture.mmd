@@ -37,8 +37,10 @@ flowchart LR
     PE["Policy Evidence Agent<br/>ADK · Gemini 3.5"]
     EC["Evidence Critic<br/>deterministic"]
     MR["Meeting Resolution<br/>ADK · Gemini 3.5"]
-    AU["Authority Gate<br/>deterministic"]
-    HC["Human checkpoint<br/>pause + same-run resume"]
+    BG["Business Decision Gate<br/>PolicyEngine · deterministic"]
+    BC["Business checkpoint<br/>Sarah or valid acting Alex"]
+    CG["Calendar Action Gate<br/>organizer only"]
+    CC["Calendar checkpoint<br/>separate persisted event"]
     FS[("Firestore<br/>mission · steps · checkpoints<br/>commands · attempts · audit")]
     SES["Vertex Sessions<br/>ADK context"]
     MEM["Memory Bank<br/>preferences only · never authority"]
@@ -47,10 +49,14 @@ flowchart LR
     MC -->|"parallel"| PE
     WG --> EC
     PE --> EC
-    EC --> MR --> AU
-    AU -->|"human required"| HC
-    AU -->|"no action"| FS
-    HC <-->|"durable resolution"| FS
+    EC --> MR --> BG
+    BG -->|"authority required"| BC
+    BG -->|"no business gate"| CG
+    BC -->|"approved · same mission"| CG
+    BG -->|"no action"| FS
+    CG --> CC
+    BC <-->|"durable resolution"| FS
+    CC <-->|"durable resolution"| FS
     SES <-->|"ADK events"| MC
   end
 
@@ -70,12 +76,12 @@ flowchart LR
     EX --> OBS
   end
 
-  HC -->|"approved live source"| CB
+  CC -->|"approved live source"| CB
   MA --> MC
 
   class MC,WG,PE,MR exec
-  class ADM,AG,EC,AU,CB,RV deterministic
+  class ADM,AG,EC,BG,CG,CB,RV deterministic
   class FS,PG,OUT,WE,CQ,REG,SES,MEM state
   class EX,CAL write
-  class HC human
+  class BC,CC human
   class FUT future

@@ -8,7 +8,7 @@
 | model/tool failure | mission records safe failure; no fabricated answer | bounded operator/user resume after cause is fixed |
 | Model Armor unavailable | production synthesis fails closed | retry after guard availability returns |
 | unauthorized evidence | excluded before specialist context | report unresolved without data leakage |
-| unauthorized checkpoint actor | checkpoint stays pending | authorized organizer resolves it |
+| unauthorized checkpoint actor | checkpoint stays pending | current business approver or Calendar organizer resolves only their own gate |
 | meeting ETag changed before approval | approval returns conflict and meeting becomes stale | rerun against a fresh snapshot |
 | duplicate command delivery | terminal/leased command is a no-op | Pub/Sub redelivery is acknowledged safely |
 | executor interruption after claim | lease expires; attempt is bounded | redelivery reclaims only after lease expiry |

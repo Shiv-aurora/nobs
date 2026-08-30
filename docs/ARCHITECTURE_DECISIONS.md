@@ -6,7 +6,7 @@ These decisions define the deployed NoBS architecture. “Agent” means an exec
 
 Status: accepted.
 
-The Meeting Mission Controller creates a bounded plan and may route only to approved registry entries. Work Graph and Policy Evidence execute in parallel, then a deterministic critic, a resolution agent, and a deterministic authority gate run in fixed order. This gives the model enough freedom for open-ended evidence synthesis without allowing unbounded agent creation, recursive conversation, authorization, or side effects.
+The Meeting Mission Controller creates a bounded plan and may route only to approved registry entries. Work Graph and Policy Evidence execute in parallel, then a deterministic critic, a resolution agent, a deterministic business-decision gate, and a distinct organizer-only Calendar gate run in fixed order. This gives the model enough freedom for open-ended evidence synthesis without allowing unbounded agent creation, recursive conversation, authorization, or side effects.
 
 ## ADR-002 — Logical delegates are not deployed agents
 

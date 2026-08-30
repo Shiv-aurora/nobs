@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 from datetime import datetime, timedelta, timezone
 
@@ -11,7 +12,7 @@ from app.config import Settings
 from app.main import create_app
 from app.models import ActionCommand, ProviderResult
 from app.service import ActionExecutor
-from app.store import MemoryCommandStore
+from app.store import MemoryCommandStore, approval_state_is_valid
 
 
 NOW = datetime(2026, 8, 30, 12, 0, tzinfo=timezone.utc)
@@ -137,3 +138,37 @@ def test_expired_command_is_a_terminal_noop() -> None:
     assert result["reason"] == "expired"
     assert store.commands[item.id].error_code == "COMMAND_EXPIRED"
     assert calendar.calls == 0
+
+
+def test_executor_requires_separate_business_and_calendar_approvals() -> None:
+    item = command()
+    item.business_checkpoint_id = "checkpoint-business"
+    item.approval_decision_id = "checkpoint-business"
+    item.policy_snapshot_hash = hashlib.sha256(
+        "1.0.0:meeting-1:alex:shivam".encode()
+    ).hexdigest()
+    mission = {
+        "status": "queued_action",
+        "meeting_id": "meeting-1",
+        "policy_version": "1.0.0",
+        "business_checkpoint_id": "checkpoint-business",
+        "calendar_checkpoint_id": "checkpoint-1",
+    }
+    calendar_checkpoint = {
+        "status": "approved",
+        "checkpoint_type": "calendar_write",
+        "resolved_by": "shivam",
+        "authorized_actor_ids": ["shivam"],
+        "command_ids": [item.id],
+    }
+    business_checkpoint = {
+        "status": "approved",
+        "checkpoint_type": "restricted_decision",
+        "authority_type": "atlas_security_approval",
+        "resolved_by": "alex",
+        "authorized_actor_ids": ["alex"],
+    }
+
+    assert approval_state_is_valid(item, mission, calendar_checkpoint, business_checkpoint) is True
+    assert approval_state_is_valid(item, mission, calendar_checkpoint, {**business_checkpoint, "resolved_by": "shivam"}) is False
+    assert approval_state_is_valid(item, mission, {**calendar_checkpoint, "resolved_by": "alex"}, business_checkpoint) is False

@@ -18,9 +18,9 @@ Workplace chat made everyone reachable—and constantly interruptible. Context a
 
 NoBS keeps normal Mattermost channels, DMs, threads, files, sessions, permissions, and realtime delivery. For Less Ping, a model-free preflight resolves the responsible logical delegate scope, retrieves only permitted evidence, blocks poisoned sources, and asks one bounded Gemini synthesizer to answer in the native thread. Restricted questions stop before evidence or Gemini; `--direct` stays human-only.
 
-For Less Meeting, NoBS creates one durable mission. A Google ADK controller on Vertex AI `gemini-3.5-flash` assigns two actual specialist agents. Work Graph and Policy Evidence execute concurrently and emit typed, source-cited reports. A deterministic critic removes unsupported/inaccessible claims. A Gemini 3.5 resolution agent classifies each agenda item and recommends cancel, shorten, or keep. Deterministic policy then either completes the mission or persists an actor-bound human checkpoint.
+For Less Meeting, NoBS creates one durable mission. A Google ADK controller on Vertex AI `gemini-3.5-flash` assigns two actual specialist agents. Work Graph and Policy Evidence execute concurrently and emit typed, source-cited reports. A deterministic critic removes unsupported/inaccessible claims. A Gemini 3.5 resolution agent classifies each agenda item and recommends cancel, shorten, or keep. Deterministic policy then either completes the mission or persists a business checkpoint for Sarah/valid acting Alex followed by a separate organizer-only Calendar checkpoint.
 
-Models cannot self-authorize. Seeded demo meetings can never create external commands. For a real Calendar projection, organizer approval resumes the same mission and persists one ETag-bound typed command. Authenticated Pub/Sub sends only its ID to a separate private executor with no Gemini/query tools. The executor transactionally claims a lease, enforces idempotency and `If-Match`, applies the narrow write, reads the result, and records a hashed verified outcome.
+Models and meeting organizers cannot self-authorize a business decision. Seeded demo meetings can never create external commands. For a real Calendar projection, business approval resumes the same mission; separate organizer consent persists one ETag-bound typed command. Authenticated Pub/Sub sends only its ID to a separate private executor with no Gemini/query tools. The executor reloads both approvals, transactionally claims a lease, enforces idempotency and `If-Match`, applies the narrow write, reads the result, and records a hashed verified outcome.
 
 ## Why this is more than a chatbot
 
@@ -54,7 +54,7 @@ The useful enterprise-agent boundary is neither “one chatbot” nor “one ser
 
 ## Measured proof
 
-The source gate passes 87 agent-runtime, 8 budget-guard, and 6 executor tests plus Go, strict TypeScript, compilation, static validation, credential scanning, and Terraform validation. A real Vertex mission used four `gemini-3.5-flash` ADK calls with native Agent Registry discovery and Agent Engine Sessions. The two specialist calls overlapped (7,416.848 ms and 6,007.249 ms); no timings or conclusions came from a fixture execution transcript.
+The source gate passes 92 agent-runtime, 8 budget-guard, and 7 executor tests plus Go, strict TypeScript, compilation, static validation, credential scanning, and Terraform validation. A real Vertex mission used four `gemini-3.5-flash` ADK calls with native Agent Registry discovery and Agent Engine Sessions. The two specialist calls overlapped (7,416.848 ms and 6,007.249 ms); no timings or conclusions came from a fixture execution transcript.
 
 ## Open source
 

@@ -69,7 +69,87 @@ def test_resume_is_idempotent_after_every_node_is_persisted(client) -> None:
     ]
 
 
-def test_checkpoint_rejects_actor_without_meeting_authority(client) -> None:
+def test_business_and_calendar_authority_are_separate_persisted_gates(client, services) -> None:
+    meeting = services.workspace.meetings["meeting-atlas-launch-readiness"].model_copy(deep=True)
+    meeting.id = "meeting-google-test-launch"
+    meeting.calendar_event_id = "google-event-test-launch"
+    meeting.source = "google_calendar"
+    meeting.etag = "google-launch-etag-v1"
+    meeting.preparation_status = "not_started"
+    meeting.prep_run_id = None
+    services.workspace.save_meeting(meeting)
+
+    prepared = client.post(
+        f"/v1/meetings/{meeting.id}/prepare",
+        json={"actor_id": "shivam", "trigger": "manual"},
+    )
+    assert prepared.status_code == 200
+    mission_id = prepared.json()["mission_id"]
+    mission = client.get(f"/v1/missions/{mission_id}", params={"user_id": "shivam"}).json()
+    business_checkpoint_id = mission["business_checkpoint_id"]
+
+    assert mission["current_stage"] == "waiting_business_decision"
+    assert mission["calendar_checkpoint_id"] is None
+    assert next(item for item in mission["resolutions"] if item["agenda_item_id"] == "launch-security")["authority_type"] == "atlas_security_approval"
+    assert services.workspace.human_checkpoints[business_checkpoint_id].authorized_actor_ids == ["alex"]
+    alex_detail = client.get(f"/v1/meetings/{meeting.id}", params={"user_id": "alex"})
+    assert alex_detail.status_code == 200
+
+    for actor_id in ("maya", "shivam"):
+        denied = client.post(
+            f"/v1/checkpoints/{business_checkpoint_id}/resolve",
+            json={"actor_id": actor_id, "decision": "approved", "rationale": "I approve this business decision."},
+        )
+        assert denied.status_code == 403
+
+    approved_business = client.post(
+        f"/v1/checkpoints/{business_checkpoint_id}/resolve",
+        json={"actor_id": "alex", "decision": "approved", "rationale": "Valid acting Security Approver accepts the bounded exception."},
+    )
+    assert approved_business.status_code == 200
+    resumed = approved_business.json()
+    calendar_checkpoint_id = resumed["calendar_checkpoint_id"]
+    assert resumed["id"] == mission_id
+    assert resumed["status"] == "waiting_human"
+    assert resumed["current_stage"] == "waiting_calendar_action"
+    assert calendar_checkpoint_id != business_checkpoint_id
+    assert services.workspace.human_checkpoints[business_checkpoint_id].status == "approved"
+    assert services.workspace.human_checkpoints[business_checkpoint_id].resolved_by == "alex"
+    assert services.workspace.human_checkpoints[calendar_checkpoint_id].authorized_actor_ids == ["shivam"]
+    assert services.mission_runtime.inspect(mission_id, meeting)["resumed_steps"] == ["calendar-action-gate"]
+
+    for actor_id in ("maya", "alex"):
+        denied_calendar = client.post(
+            f"/v1/meetings/{meeting.id}/actions",
+            json={"actor_id": actor_id, "action": "shorten", "expected_etag": meeting.etag, "duration_minutes": 15},
+        )
+        assert denied_calendar.status_code == 403
+    denied_checkpoint = client.post(
+        f"/v1/checkpoints/{calendar_checkpoint_id}/resolve",
+        json={"actor_id": "alex", "decision": "approved", "rationale": "I approved the business decision, not the Calendar mutation."},
+    )
+    assert denied_checkpoint.status_code == 403
+
+    approved_calendar = client.post(
+        f"/v1/meetings/{meeting.id}/actions",
+        json={"actor_id": "shivam", "action": "shorten", "expected_etag": meeting.etag, "duration_minutes": 15},
+    )
+    assert approved_calendar.status_code == 200
+    queued = client.get(f"/v1/missions/{mission_id}", params={"user_id": "shivam"}).json()
+    assert queued["status"] == "queued_action"
+    assert services.workspace.human_checkpoints[calendar_checkpoint_id].status == "approved"
+    assert services.workspace.human_checkpoints[calendar_checkpoint_id].resolved_by == "shivam"
+    command = queued["proposed_commands"][0]
+    assert command["checkpoint_id"] == calendar_checkpoint_id
+    assert command["business_checkpoint_id"] == business_checkpoint_id
+    assert command["approval_decision_id"] == business_checkpoint_id
+    assert [event.event_type for event in services.workspace.audit if mission_id in event.entity_ids and event.event_type.startswith("mission.")][-2:] == [
+        "mission.business_decision_resolved",
+        "mission.calendar_action_resolved",
+    ]
+
+
+def test_checkpoint_rejects_actor_without_business_authority(client) -> None:
     run = prepare_launch(client)
     mission = client.get(f"/v1/missions/{run['mission_id']}", params={"user_id": "shivam"}).json()
 
@@ -81,6 +161,27 @@ def test_checkpoint_rejects_actor_without_meeting_authority(client) -> None:
     assert denied.status_code == 403
     unchanged = client.get(f"/v1/missions/{run['mission_id']}", params={"user_id": "shivam"}).json()
     assert unchanged["status"] == "waiting_human"
+
+
+def test_meeting_detail_exposes_compact_mission_inspector(client) -> None:
+    run = prepare_launch(client)
+    detail = client.get(
+        "/v1/meetings/meeting-atlas-launch-readiness",
+        params={"user_id": "shivam"},
+    ).json()
+    inspector = detail["mission_inspector"]
+
+    assert inspector["mission_id"] == run["mission_id"]
+    assert inspector["workflow_version"] == "1.1.0"
+    assert inspector["policy_version"] == "1.1.0"
+    assert inspector["trace_id"]
+    assert inspector["business_checkpoint"]["authorized_people"] == [{"id": "alex", "name": "Alex Morgan"}]
+    assert inspector["calendar_checkpoint"]["status"] == "not_started"
+    assert inspector["calendar_checkpoint"]["authorized_people"] == [{"id": "shivam", "name": "Shivam Arora"}]
+    assert inspector["accepted_evidence_count"] > 0
+    assert inspector["quarantined_evidence_count"] > 0
+    assert inspector["command"] is None
+    assert inspector["steps"][-1]["label"] == "Action Executor"
 
 
 def test_preference_memory_is_explicitly_non_authoritative(client) -> None:

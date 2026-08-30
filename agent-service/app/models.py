@@ -251,6 +251,7 @@ class AgendaItem(BaseModel):
     id: str
     title: str
     owner_user_id: str | None = None
+    authority_type: Literal["atlas_security_approval"] | None = None
     status: Literal["open", "resolved", "needs_human", "skipped"] = "open"
     resolution: str | None = None
     evidence_ids: list[str] = Field(default_factory=list)

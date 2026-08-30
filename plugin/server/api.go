@@ -39,6 +39,7 @@ func (p *Plugin) initRouter() *mux.Router {
 	api.HandleFunc("/meetings/{meetingID}", p.handleMeeting).Methods(http.MethodGet)
 	api.HandleFunc("/meetings/{meetingID}/prepare", p.handlePrepareMeeting).Methods(http.MethodPost)
 	api.HandleFunc("/meetings/{meetingID}/actions", p.handleMeetingAction).Methods(http.MethodPost)
+	api.HandleFunc("/checkpoints/{checkpointID}/resolve", p.handleCheckpointResolution).Methods(http.MethodPost)
 	api.HandleFunc("/meetings/{meetingID}/share", p.handleShareMeeting).Methods(http.MethodPost)
 	api.HandleFunc("/meetings/{meetingID}/delegations", p.handleCreateMeetingDelegation).Methods(http.MethodPost)
 	api.HandleFunc("/meetings/{meetingID}/attendance", p.handleMeetingAttendance).Methods(http.MethodPost)
@@ -400,6 +401,29 @@ func (p *Plugin) handleMeetingAction(w http.ResponseWriter, r *http.Request) {
 	// The plugin never writes Calendar. It records organizer approval through
 	// the gateway, which queues an idempotent command for the isolated executor.
 	p.proxy(w, r, http.MethodPost, "/v1/meetings/"+meetingID+"/actions", request)
+}
+
+func (p *Plugin) handleCheckpointResolution(w http.ResponseWriter, r *http.Request) {
+	var request checkpointResolutionRequest
+	if err := decodeJSON(r, &request); err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	actorKey, ok := p.actorKeyOrError(w, r)
+	if !ok {
+		return
+	}
+	request.ActorID = actorKey
+	if request.Decision != "approved" && request.Decision != "rejected" {
+		writeJSONError(w, http.StatusBadRequest, "Invalid checkpoint decision")
+		return
+	}
+	if len(strings.TrimSpace(request.Rationale)) < 2 {
+		writeJSONError(w, http.StatusBadRequest, "A rationale is required")
+		return
+	}
+	checkpointID := url.PathEscape(mux.Vars(r)["checkpointID"])
+	p.proxy(w, r, http.MethodPost, "/v1/checkpoints/"+checkpointID+"/resolve", request)
 }
 
 func (p *Plugin) handleOOO(w http.ResponseWriter, r *http.Request) {

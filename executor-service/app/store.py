@@ -38,6 +38,40 @@ def claim_command(command: ActionCommand, now: datetime, lease_seconds: int, max
     return ClaimedCommand(command=command, execute=True, reason="claimed")
 
 
+def approval_state_is_valid(
+    command: ActionCommand,
+    mission: dict,
+    calendar_checkpoint: dict,
+    business_checkpoint: dict,
+) -> bool:
+    business_approver = business_checkpoint.get("resolved_by") if command.business_checkpoint_id else "not_required"
+    expected_policy_hash = hashlib.sha256(
+        f"{mission.get('policy_version', '')}:{mission.get('meeting_id', '')}:{business_approver}:{command.approved_by}".encode()
+    ).hexdigest()
+    business_approval_valid = (
+        not command.business_checkpoint_id
+        or (
+            business_checkpoint.get("status") == "approved"
+            and business_checkpoint.get("checkpoint_type") == "restricted_decision"
+            and business_checkpoint.get("authority_type")
+            and business_checkpoint.get("resolved_by") in business_checkpoint.get("authorized_actor_ids", [])
+        )
+    )
+    return bool(
+        mission.get("status") == "queued_action"
+        and mission.get("calendar_checkpoint_id") == command.checkpoint_id
+        and mission.get("business_checkpoint_id") == command.business_checkpoint_id
+        and calendar_checkpoint.get("status") == "approved"
+        and calendar_checkpoint.get("checkpoint_type") == "calendar_write"
+        and calendar_checkpoint.get("resolved_by") == command.approved_by
+        and command.approved_by in calendar_checkpoint.get("authorized_actor_ids", [])
+        and command.id in calendar_checkpoint.get("command_ids", [])
+        and business_approval_valid
+        and command.approval_decision_id == (command.business_checkpoint_id or command.checkpoint_id)
+        and command.policy_snapshot_hash == expected_policy_hash
+    )
+
+
 class MemoryCommandStore(CommandStore):
     def __init__(self, commands: list[ActionCommand]):
         self.commands = {item.id: item for item in commands}
@@ -78,18 +112,11 @@ class FirestoreCommandStore(CommandStore):
             checkpoint_snapshot = self.root.collection("human_checkpoints").document(command.checkpoint_id).get(transaction=txn)
             mission = mission_snapshot.to_dict() if mission_snapshot.exists else {}
             checkpoint = checkpoint_snapshot.to_dict() if checkpoint_snapshot.exists else {}
-            expected_policy_hash = hashlib.sha256(
-                f"{mission.get('policy_version', '')}:{mission.get('meeting_id', '')}:{command.approved_by}".encode()
-            ).hexdigest()
-            approval_valid = (
-                mission.get("status") == "queued_action"
-                and checkpoint.get("status") == "approved"
-                and checkpoint.get("resolved_by") == command.approved_by
-                and command.approved_by in checkpoint.get("authorized_actor_ids", [])
-                and command.id in checkpoint.get("command_ids", [])
-                and command.approval_decision_id == command.checkpoint_id
-                and command.policy_snapshot_hash == expected_policy_hash
-            )
+            business_checkpoint = {}
+            if command.business_checkpoint_id:
+                business_snapshot = self.root.collection("human_checkpoints").document(command.business_checkpoint_id).get(transaction=txn)
+                business_checkpoint = business_snapshot.to_dict() if business_snapshot.exists else {}
+            approval_valid = approval_state_is_valid(command, mission, checkpoint, business_checkpoint)
             if not approval_valid:
                 command.status = "failed"
                 command.error_code = "INVALID_APPROVAL_STATE"
@@ -151,7 +178,7 @@ class FirestoreCommandStore(CommandStore):
                     result_step = {
                         "id": f"step-{command.mission_id}-result-verifier",
                         "mission_id": command.mission_id,
-                        "ordinal": 8,
+                        "ordinal": 9,
                         "node_id": "result-verifier",
                         "node_kind": "result_verifier",
                         "status": "completed",

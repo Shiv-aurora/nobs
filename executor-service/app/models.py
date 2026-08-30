@@ -18,6 +18,7 @@ class ActionCommand(BaseModel):
     mission_id: str
     trace_id: str = ""
     checkpoint_id: str
+    business_checkpoint_id: str | None = None
     approval_decision_id: str
     policy_snapshot_hash: str
     expires_at: datetime

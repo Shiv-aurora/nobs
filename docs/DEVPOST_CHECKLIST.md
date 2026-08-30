@@ -13,7 +13,7 @@
 ## Governance and reliability
 
 - [x] Firestore-authoritative mission/step/checkpoint/command schemas
-- [x] deterministic authority gate and actor-bound checkpoint
+- [x] distinct deterministic business and Calendar gates with actor-bound checkpoints
 - [x] resume skips completed step IDs
 - [x] demo data cannot create external commands
 - [x] executor duplicate, lease, retry, stale-ETag, and envelope tests

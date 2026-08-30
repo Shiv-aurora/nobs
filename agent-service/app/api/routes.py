@@ -164,13 +164,23 @@ def meeting(meeting_id: str, user_id: str = Query(...), services: Services = Dep
     if not result:
         raise HTTPException(status_code=404, detail="Meeting not found")
     run = services.workspace.meeting_runs.get(result.prep_run_id or "")
-    if run and not run.mission_id:
+    current_mission = services.workspace.missions.get(run.mission_id or "") if run else None
+    if run and (
+        not current_mission
+        or current_mission.workflow_version != services.mission_runtime.WORKFLOW_VERSION
+    ):
         # Legacy pre-mission projections remain in storage for audit history,
-        # but are never presented as current executable-agent results.
+        # but are never presented as current executable-agent results. A new
+        # workflow version must be prepared into a new mission explicitly.
         run = None
     delegation = services.meeting_delegations.for_meeting(meeting_id, user_id)
     handoff = services.meeting_delegations.handoff(delegation) if delegation else None
-    return {"meeting": result, "run": run, "delegation": delegation, "handoff": handoff}
+    inspector = (
+        services.mission_runtime.inspect(run.mission_id, result)
+        if run and run.mission_id and run.mission_id in services.workspace.missions
+        else None
+    )
+    return {"meeting": result, "run": run, "delegation": delegation, "handoff": handoff, "mission_inspector": inspector}
 
 
 @router.post("/v1/meetings/{meeting_id}/delegations")

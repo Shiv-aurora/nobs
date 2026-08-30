@@ -21,10 +21,12 @@ Mattermost session + signed request
                  ↓
  Meeting Resolution Agent (Gemini 3.5)
                  ↓
- deterministic Authority Gate
-          ↙ no action      human required ↘
-     complete          durable checkpoint
-                                ↓ approved live source
+ deterministic Business Decision Gate
+          ↙ no decision       authority required ↘
+ Calendar Action Gate       business checkpoint
+          ↘ organizer consent ↙
+                 typed command
+                                ↓ live source only
                   private idempotent Action Executor
 ```
 
@@ -37,8 +39,8 @@ See the [judge-focused architecture](docs/ARCHITECTURE.md), [agent catalog](docs
 - **Less Ping:** a normal channel question receives a permission-aware sourced reply without interrupting a coworker. Logical delegate resolution is deterministic; one Gemini synthesizer answers.
 - **Restricted-data refusal:** compensation requests are denied before private evidence or Gemini.
 - **Less Meeting:** a real bounded mission runs two specialist agents concurrently, validates evidence, and recommends cancel/shorten/keep.
-- **Human authority:** a launch security decision persists one organizer checkpoint and resumes the same mission.
-- **Action safety:** demo fixtures never generate external commands. A live Calendar source requires organizer approval, current ETag, a transactional lease, idempotency, and post-write verification in the separate executor.
+- **Separated authority:** a launch security decision persists a business checkpoint for Sarah or valid acting approver Alex; organizing the meeting does not grant that authority. The same mission then advances to a separate organizer-only Calendar checkpoint.
+- **Action safety:** demo fixtures never generate external commands. A live Calendar source requires both applicable business approval and organizer consent, current ETag, a transactional lease, idempotency, and post-write verification in the separate executor.
 - **Injection defense:** poisoned sources are quarantined before specialist context; Model Armor screens model input and output.
 - **Memory isolation:** confirmed decisions stay fact/policy/authority-bound in Firestore; preference Memory Bank cannot widen access or approve work.
 
@@ -62,7 +64,7 @@ docs/                           architecture, security, data, evaluation, deploy
 ./scripts/check.sh
 ```
 
-Verified result: **87** agent-runtime tests, **8** budget-guard tests, **6** executor tests, all Go packages, strict TypeScript, Python compilation, shell/static validation, credential scan, and Git whitespace passed. Terraform with Google provider 8.0.0 also validates. Details: [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md).
+Verified result: **92** agent-runtime tests, **8** budget-guard tests, **7** executor tests, all Go packages, strict TypeScript, Python compilation, shell/static validation, credential scan, and Git whitespace passed. Terraform with Google provider 8.0.0 also validates. Details: [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md).
 
 ## Local stack
 

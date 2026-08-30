@@ -109,6 +109,7 @@ class Services:
             prompt_guard=prompt_guard,
             usage_guard=self.usage_guard,
             action_publisher=self.action_publisher,
+            policy=self.policy,
             project_id=self.settings.google_cloud_project,
             agent_engine_location=self.settings.agent_engine_location,
             agent_engine_id=self.settings.agent_engine_id,

@@ -2,7 +2,7 @@ import React, {useEffect, useMemo, useState} from 'react';
 
 import {api, APIError} from '../api/client';
 import logo from '../assets/logo.png';
-import type {Meeting, MeetingDetail} from '../types/models';
+import type {Meeting, MeetingDetail, MissionInspector} from '../types/models';
 import {SendAgentModal} from './SendAgentModal';
 
 const GEMINI_ENTERPRISE_ICON = 'https://avatars.slack-edge.com/2025-09-17/9549827723233_9cb3f87dee7d9088b89b_512.png';
@@ -82,6 +82,82 @@ function AgentAvatar({name, kind, avatars}: {name: string; kind: string; avatars
 
 function turnTime(value: string): string {
     return new Intl.DateTimeFormat(undefined, {hour: 'numeric', minute: '2-digit'}).format(new Date(value));
+}
+
+function readable(value: string): string {
+    return value.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function measuredDuration(value?: number | null): string {
+    if (value === null || value === undefined) {
+        return 'not measured';
+    }
+    return value >= 1000 ? `${(value / 1000).toFixed(1)}s` : `${value.toFixed(value < 10 ? 1 : 0)}ms`;
+}
+
+function MissionInspectorPanel({inspector, currentUsername, working, onResolveBusiness}: {
+    inspector: MissionInspector;
+    currentUsername: string;
+    working: boolean;
+    onResolveBusiness: (decision: 'approved' | 'rejected') => Promise<void>;
+}): JSX.Element {
+    const [expanded, setExpanded] = useState(true);
+    const business = inspector.business_checkpoint;
+    const calendar = inspector.calendar_checkpoint;
+    const canResolveBusiness = business?.status === 'pending' && business.authorized_people.some((person) => person.id === currentUsername);
+    const statusIcon = (status: string) => status === 'completed' ? '✓' : status === 'skipped' ? '–' : status === 'running' ? '●' : status === 'failed' ? '!' : '○';
+
+    return <section className='nobs-surface nobs-mission-inspector'>
+        <button type='button' className='nobs-mission-inspector__toggle' aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>
+            <span><i className='icon-code-tags' aria-hidden='true'/><span><strong>Mission Inspector</strong><small>Persisted execution, policy, and approval facts</small></span></span>
+            <span><em className={`is-${inspector.status}`}>{readable(inspector.current_stage)}</em><i className={expanded ? 'icon-chevron-up' : 'icon-chevron-down'} aria-hidden='true'/></span>
+        </button>
+        {expanded && <div className='nobs-mission-inspector__body'>
+            <div className='nobs-mission-facts'>
+                <div><span>Mission</span><strong>{inspector.mission_id}</strong></div>
+                <div><span>Status</span><strong>{readable(inspector.status)}</strong></div>
+                <div><span>Model</span><strong>{inspector.model_id}</strong></div>
+                <div><span>Workflow / policy</span><strong>v{inspector.workflow_version} / v{inspector.policy_version}</strong></div>
+                <div><span>Trace</span><strong>{inspector.trace_id}</strong></div>
+                <div><span>Evidence</span><strong>{inspector.accepted_evidence_count} accepted · {inspector.quarantined_evidence_count} quarantined</strong></div>
+            </div>
+            <div className='nobs-mission-inspector__grid'>
+                <ol className='nobs-mission-steps'>
+                    {inspector.steps.map((step) => <li key={step.id} className={`is-${step.status}`}>
+                        <span>{statusIcon(step.status)}</span>
+                        <div><strong>{step.label}</strong><small>{step.agent_id ? `${step.agent_id}@${step.agent_version}` : 'policy runtime'}</small></div>
+                        <em>{step.deterministic ? 'deterministic' : step.model_id || inspector.model_id}{step.duration_ms !== null && step.duration_ms !== undefined ? ` · ${measuredDuration(step.duration_ms)}` : ''}</em>
+                    </li>)}
+                </ol>
+                <div className='nobs-mission-gates'>
+                    <article>
+                        <header><span>Business Decision Gate</span><em className={`is-${business?.status || 'not_started'}`}>{readable(business?.status || 'not_started')}</em></header>
+                        <strong>{business?.authorized_people.map((person) => person.name).join(', ') || 'No business authority required'}</strong>
+                        <p>{business?.authority_type || 'Skipped for this agenda'}{business?.id ? ` · ${business.id}` : ''}</p>
+                        {business?.resolved_by && <small>Resolved by {business.resolved_by.name}</small>}
+                        {canResolveBusiness && <div className='nobs-mission-gates__actions'><button type='button' className='nobs-secondary-button' disabled={working} onClick={() => void onResolveBusiness('rejected')}>Reject</button><button type='button' className='nobs-primary-button' disabled={working} onClick={() => void onResolveBusiness('approved')}>Approve decision</button></div>}
+                    </article>
+                    <article>
+                        <header><span>Calendar Action Gate</span><em className={`is-${calendar?.status || 'not_started'}`}>{readable(calendar?.status || 'not_started')}</em></header>
+                        <strong>{calendar?.authorized_people.map((person) => person.name).join(', ') || 'Organizer unavailable'}</strong>
+                        <p>Meeting organizer only{calendar?.id ? ` · ${calendar.id}` : ''}</p>
+                        {calendar?.resolved_by && <small>Resolved by {calendar.resolved_by.name}</small>}
+                    </article>
+                    <article>
+                        <header><span>Executor command</span><em className={`is-${inspector.command?.state || 'not_started'}`}>{readable(inspector.command?.state || 'not_started')}</em></header>
+                        <strong>{inspector.command?.id || 'No command created'}</strong>
+                        <p>{inspector.command?.type || 'Created only after both gates approve'}</p>
+                        {inspector.command?.executor_result && <small>Result: {inspector.command.executor_result.error_code || inspector.command.executor_result.applied_etag || 'verified'}</small>}
+                    </article>
+                    <div className='nobs-mission-footnote'>
+                        <span>{inspector.agents.length} executable agents</span>
+                        <span>{inspector.resumed_steps.length ? `Resumed: ${inspector.resumed_steps.join(', ')}` : 'No resumed steps'}</span>
+                        <span>{inspector.skipped_steps.length ? `Skipped: ${inspector.skipped_steps.join(', ')}` : 'No skipped steps'}</span>
+                    </div>
+                </div>
+            </div>
+        </div>}
+    </section>;
 }
 
 export function CalendarPage(): JSX.Element {
@@ -177,6 +253,27 @@ export function CalendarPage(): JSX.Element {
         }
     };
 
+    const resolveBusiness = async (decision: 'approved' | 'rejected') => {
+        const checkpointID = detail?.mission_inspector?.business_checkpoint?.id;
+        if (!detail || !checkpointID) {
+            return;
+        }
+        setWorking(true);
+        try {
+            await api.resolveCheckpoint(
+                checkpointID,
+                decision,
+                decision === 'approved' ? 'Authorized business approver accepted the bounded Atlas security decision.' : 'Authorized business approver rejected the bounded Atlas security decision.',
+            );
+            await refreshDetail(detail.meeting.id);
+            setError('');
+        } catch (caught) {
+            setError(caught instanceof APIError ? caught.message : 'The business decision could not be recorded.');
+        } finally {
+            setWorking(false);
+        }
+    };
+
     const share = async () => {
         if (!detail || !shareChannelID) {
             return;
@@ -242,6 +339,8 @@ export function CalendarPage(): JSX.Element {
         return meetings.filter((meeting) => meeting.id !== selected.id && meeting.attendees.some((attendee) => attendee.user_id === currentUsername && attendee.response_status !== 'declined') && new Date(meeting.start_at).getTime() < end && new Date(meeting.end_at).getTime() > start);
     }, [currentUsername, meetings, selected]);
     const attendancePlan = selected?.attendance_plans?.[currentUsername] || (detail?.delegation && !['ended', 'revoked'].includes(detail.delegation.status) ? 'agent' : 'attend');
+    const businessCheckpoint = detail?.mission_inspector?.business_checkpoint;
+    const calendarCheckpoint = detail?.mission_inspector?.calendar_checkpoint;
 
     return <main className={`nobs-calendar ${mobileDetail ? 'is-mobile-detail' : ''}`}>
         <header className='nobs-calendar__header'>
@@ -296,11 +395,12 @@ export function CalendarPage(): JSX.Element {
                             </section>}
                             {brief && <section className='nobs-surface nobs-disposition'>
                                 <span>Recommendation</span><strong>{brief.recommended_disposition === 'cancel' ? 'Cancel this meeting' : brief.recommended_disposition === 'shorten' ? 'Shorten to 15 minutes' : 'Keep this meeting'}</strong>
-                                <p>Calendar changes require the organizer's confirmation.</p>
-                                {selected.pending_action !== 'none' ? <div className='nobs-confirmed'>Approved · queued {selected.pending_action}</div> : selected.approved_recommendation !== 'none' ? <div className='nobs-confirmed'>Approved recommendation · demo data unchanged</div> : selected.confirmed_action === 'none' ? <button type='button' className='nobs-primary-button' disabled={working} onClick={() => void confirm(brief.recommended_disposition === 'cancel' ? 'cancel' : 'shorten')}>{brief.recommended_disposition === 'cancel' ? 'Approve cancellation' : 'Approve 15-minute agenda'}</button> : <div className='nobs-confirmed'>Applied · {selected.confirmed_action}</div>}
+                                <p>{businessCheckpoint?.status === 'pending' ? `Business authority is separate: waiting for ${businessCheckpoint.authorized_people.map((person) => person.name).join(', ')} first.` : 'Calendar changes require the meeting organizer’s separate confirmation.'}</p>
+                                {selected.pending_action !== 'none' ? <div className='nobs-confirmed'>Approved · queued {selected.pending_action}</div> : selected.approved_recommendation !== 'none' ? <div className='nobs-confirmed'>Approved recommendation · demo data unchanged</div> : selected.confirmed_action !== 'none' ? <div className='nobs-confirmed'>Applied · {selected.confirmed_action}</div> : brief.recommended_disposition === 'keep' ? <div className='nobs-gate-waiting'>No Calendar mutation recommended</div> : businessCheckpoint?.status === 'pending' ? <div className='nobs-gate-waiting'>Business decision pending</div> : calendarCheckpoint?.status === 'pending' && currentUsername === selected.organizer_user_id ? <button type='button' className='nobs-primary-button' disabled={working} onClick={() => void confirm(brief.recommended_disposition === 'cancel' ? 'cancel' : 'shorten')}>{brief.recommended_disposition === 'cancel' ? 'Approve cancellation' : 'Approve 15-minute agenda'}</button> : <div className='nobs-gate-waiting'>Organizer approval required · {calendarCheckpoint?.authorized_people[0]?.name || selected.organizer_user_id}</div>}
                             </section>}
                             {brief && <section className='nobs-surface nobs-share-card'><span>Share brief</span><select aria-label='Share meeting brief to' value={shareChannelID} onChange={(event) => setShareChannelID(event.target.value)}>{channels.filter((channel) => channel.type !== 'D').map((channel) => <option key={channel.id} value={channel.id}>{channel.display_name}</option>)}</select><button type='button' className='nobs-secondary-button' disabled={working || !shareChannelID} onClick={() => void share()}>Share to channel</button></section>}
                         </aside>
+                        {detail?.mission_inspector && <MissionInspectorPanel inspector={detail.mission_inspector} currentUsername={currentUsername} working={working} onResolveBusiness={resolveBusiness}/>}
                         {detail?.run && <section className='nobs-surface nobs-preparation'>
                             <div className='nobs-section-title'><div><strong>Mission execution</strong><span>Versioned executable agents prepared this evidence-backed brief</span></div><em>{detail.run.turns.length} executions · {new Set(detail.run.turns.map((turn) => turn.agent_name)).size} agents</em></div>
                             <div className='nobs-swarm-presence'>{Array.from(new Set(detail.run.turns.map((turn) => `${turn.agent_name}|${turn.agent_kind}`))).map((agent) => {

@@ -202,9 +202,63 @@ export interface AgendaItem {
     id: string;
     title: string;
     owner_user_id?: string | null;
+    authority_type?: 'atlas_security_approval' | null;
     status: 'open' | 'resolved' | 'needs_human' | 'skipped';
     resolution?: string | null;
     evidence_ids: string[];
+}
+
+export interface MissionInspectorPerson {
+    id: string;
+    name: string;
+}
+
+export interface MissionInspectorCheckpoint {
+    id?: string | null;
+    type: 'restricted_decision' | 'calendar_write' | 'meeting_disposition';
+    status: 'not_started' | 'pending' | 'approved' | 'rejected';
+    authority_type?: 'atlas_security_approval' | null;
+    authorized_people: MissionInspectorPerson[];
+    resolved_by?: MissionInspectorPerson | null;
+    resolved_at?: string | null;
+}
+
+export interface MissionInspectorStep {
+    id: string;
+    node_id: string;
+    label: string;
+    kind: string;
+    status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
+    agent_id?: string | null;
+    agent_version?: string | null;
+    model_id?: string | null;
+    deterministic: boolean;
+    duration_ms?: number | null;
+    attempt: number;
+}
+
+export interface MissionInspector {
+    mission_id: string;
+    status: string;
+    current_stage: string;
+    workflow_version: string;
+    policy_version: string;
+    model_id: string;
+    trace_id: string;
+    agents: Array<{id: string; version: string; name: string; model_id?: string | null}>;
+    steps: MissionInspectorStep[];
+    accepted_evidence_count: number;
+    quarantined_evidence_count: number;
+    business_checkpoint?: MissionInspectorCheckpoint | null;
+    calendar_checkpoint?: MissionInspectorCheckpoint | null;
+    command?: {
+        id: string;
+        state: string;
+        type: string;
+        executor_result?: {applied_etag?: string | null; provider_response_hash?: string | null; error_code?: string | null; attempt_count: number} | null;
+    } | null;
+    resumed_steps: string[];
+    skipped_steps: string[];
 }
 
 export interface AgentTurn {
@@ -342,4 +396,5 @@ export interface MeetingDetail {
     run?: MeetingPrepRun | null;
     delegation?: MeetingDelegation | null;
     handoff?: MeetingHandoff | null;
+    mission_inspector?: MissionInspector | null;
 }

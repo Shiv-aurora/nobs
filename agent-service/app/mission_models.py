@@ -84,6 +84,7 @@ class AgendaResolution(BaseModel):
     status: Literal["resolved", "needs_human", "open"]
     resolution: str
     evidence_claim_ids: list[str]
+    authority_type: Literal["atlas_security_approval"] | None = None
 
 
 class MissionRecommendation(BaseModel):
@@ -105,6 +106,7 @@ class ProposedCommand(BaseModel):
     mission_id: str
     trace_id: str
     checkpoint_id: str | None = None
+    business_checkpoint_id: str | None = None
     approval_decision_id: str | None = None
     policy_snapshot_hash: str
     expires_at: datetime
@@ -125,6 +127,7 @@ class HumanCheckpoint(BaseModel):
     status: Literal["pending", "approved", "rejected"] = "pending"
     summary: str
     authorized_actor_ids: list[str]
+    authority_type: Literal["atlas_security_approval"] | None = None
     command_ids: list[str]
     created_at: datetime
     resolved_at: datetime | None = None
@@ -137,7 +140,7 @@ class MissionStep(BaseModel):
     mission_id: str
     ordinal: int
     node_id: str
-    node_kind: Literal["access_gate", "controller", "specialist", "critic", "synthesizer", "authority_gate", "command_builder", "result_verifier"]
+    node_kind: Literal["access_gate", "controller", "specialist", "critic", "synthesizer", "authority_gate", "business_decision_gate", "calendar_action_gate", "command_builder", "result_verifier"]
     status: MissionStepStatus
     agent_id: str | None = None
     agent_version: str | None = None
@@ -169,7 +172,10 @@ class MissionRun(BaseModel):
     resolutions: list[AgendaResolution] = Field(default_factory=list)
     recommendation: MissionRecommendation | None = None
     proposed_commands: list[ProposedCommand] = Field(default_factory=list)
+    business_checkpoint_id: str | None = None
+    calendar_checkpoint_id: str | None = None
     checkpoint_id: str | None = None
+    quarantined_evidence_count: int = Field(default=0, ge=0)
     trace_id: str
     deadline_at: datetime
     retry_count: int = Field(default=0, ge=0)
