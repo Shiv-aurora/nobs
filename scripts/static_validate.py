@@ -137,9 +137,9 @@ def check_cost_and_security_contract() -> None:
         if forbidden in all_tf.lower():
             fail(f"forbidden production dependency found in Terraform: {forbidden}")
     required_limits = {
-        "NOPING_MAX_USER_PER_MINUTE": "3",
-        "NOPING_MAX_USER_PER_DAY": "20",
-        "NOPING_MAX_ORG_PER_DAY": "60",
+        "NOPING_MAX_USER_PER_MINUTE": "6",
+        "NOPING_MAX_USER_PER_DAY": "80",
+        "NOPING_MAX_ORG_PER_DAY": "200",
         "NOPING_MODEL_MAX_CALLS_PER_QUERY": "4",
         "NOPING_MODEL_MAX_CALLS_PER_DAY": "200",
         "NOPING_MODEL_MAX_INPUT_TOKENS_PER_DAY": "1000000",

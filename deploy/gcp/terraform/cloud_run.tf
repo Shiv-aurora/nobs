@@ -14,8 +14,10 @@ resource "google_cloud_run_v2_service" "agent" {
   }
 
   template {
-    service_account                  = google_service_account.agent.email
-    timeout                          = "120s"
+    service_account = google_service_account.agent.email
+    # Live audio sessions are long-lived WebSockets. Cloud Run still enforces
+    # this ceiling, so the client reconnects/resumes before the boundary.
+    timeout                          = "3600s"
     max_instance_request_concurrency = 4
     execution_environment            = "EXECUTION_ENVIRONMENT_GEN2"
     labels                           = local.common_labels
@@ -84,6 +86,34 @@ resource "google_cloud_run_v2_service" "agent" {
         value = var.gemini_model
       }
       env {
+        name  = "NOPING_LIVE_MODEL"
+        value = var.live_model
+      }
+      env {
+        name  = "NOPING_LIVE_LOCATION"
+        value = var.live_location
+      }
+      env {
+        name  = "NOPING_LIVE_MAX_CONCURRENT_SESSIONS"
+        value = "1"
+      }
+      env {
+        name  = "NOPING_LIVE_MAX_SESSION_MINUTES"
+        value = "15"
+      }
+      env {
+        name  = "NOPING_LIVE_MAX_ORG_MINUTES_PER_DAY"
+        value = "60"
+      }
+      env {
+        name  = "NOPING_LIVE_MAX_TOOL_CALLS_PER_SESSION"
+        value = "24"
+      }
+      env {
+        name  = "NOPING_LIVE_MAX_RECONNECT_ATTEMPTS"
+        value = "5"
+      }
+      env {
         name  = "NOPING_PUBSUB_PUSH_AUDIENCE"
         value = local.agent_service_audience
       }
@@ -109,23 +139,23 @@ resource "google_cloud_run_v2_service" "agent" {
       }
       env {
         name  = "NOPING_MAX_USER_PER_MINUTE"
-        value = "3"
+        value = "6"
       }
       env {
         name  = "NOPING_MAX_USER_PER_HOUR"
-        value = "20"
+        value = "40"
       }
       env {
         name  = "NOPING_MAX_USER_PER_DAY"
-        value = "20"
+        value = "80"
       }
       env {
         name  = "NOPING_MAX_ORG_PER_MINUTE"
-        value = "10"
+        value = "20"
       }
       env {
         name  = "NOPING_MAX_ORG_PER_DAY"
-        value = "60"
+        value = "200"
       }
       env {
         name  = "NOPING_MAX_CONCURRENT_RUNS"

@@ -10,7 +10,7 @@
 | agent service | `noping-agent-service` (private Cloud Run) |
 | budget guard | `noping-budget-guard` (private Cloud Run, armed) |
 | plugin | `com.noping.enterprise` version `0.3.0` |
-| model | `gemini-3.5-flash`, Vertex location `global` |
+| model | `gemini-2.5-flash`, Vertex location `global` |
 
 The Mattermost VM service account mints a Google OIDC token for the exact Cloud Run audience, then the plugin adds a timestamped HMAC request signature. Pub/Sub uses its own pinned push identity. Cloud Run does not allow unauthenticated invocation.
 
@@ -40,7 +40,7 @@ The repository carries `.budget-guard-armed` as an ignored local marker, so late
 - Replacing `/opt/noping` requires `docker compose --force-recreate` so containers receive the new bind mounts while named PostgreSQL/Mattermost volumes preserve data.
 - The plugin archive path is derived from `plugin.json`; this prevents an old versioned archive from being silently redeployed.
 - Cloud Run's edge did not forward the application's `/healthz` path in this deployment. Platform health still uses `/healthz`; signed plugin traffic uses the equivalent `/v1/health` alias.
-- Vertex `gemini-3.5-flash` uses location `global`, and thinking output is bounded so the answer fits inside the application token ceiling.
+- Vertex `gemini-2.5-flash` uses location `global`, and thinking output is bounded so the answer fits inside the application token ceiling.
 - Traces are exported directly over authenticated OTLP HTTP to Google Telemetry with a simple processor. This works with request-based Cloud Run CPU and avoids an always-on collector.
 - Google Calendar credentials remain optional at deployment time. When no authorized-user secret version exists, the connector announces and uses deterministic availability and meeting fixtures rather than failing or pretending a live read occurred.
 - Personal Gmail calendars cannot create Google's native `outOfOffice` event type. NoBS additionally supports a privacy-tagged normal event (`nopingAvailability=out_of_office`). Meeting sync reads title, agenda, time, organizer, mapped attendees, update token, and private NoBS overrides only.

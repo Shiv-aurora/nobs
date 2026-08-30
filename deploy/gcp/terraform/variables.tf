@@ -162,13 +162,25 @@ variable "model_armor_template_id" {
 variable "gemini_model" {
   type        = string
   description = "Gemini model used by Google ADK through Vertex AI."
-  default     = "gemini-3.5-flash"
+  default     = "gemini-2.5-flash"
 }
 
 variable "gemini_location" {
   type        = string
   description = "Vertex AI endpoint location for the configured Gemini model."
   default     = "global"
+}
+
+variable "live_model" {
+  type        = string
+  description = "Pinned Vertex AI Live native-audio model used by Send My Agent."
+  default     = "gemini-live-2.5-flash-native-audio"
+}
+
+variable "live_location" {
+  type        = string
+  description = "Vertex AI location used for the Live native-audio session."
+  default     = "us-central1"
 }
 
 variable "github_identity_map_json" {

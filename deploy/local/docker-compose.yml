@@ -25,21 +25,27 @@ services:
       context: ../..
       dockerfile: agent-service/Dockerfile
       args:
-        INSTALL_GOOGLE: "false"
+        INSTALL_GOOGLE: "true"
+    user: "${LOCAL_UID:-65532}:${LOCAL_GID:-65532}"
     restart: unless-stopped
     environment:
-      NOPING_DEMO_MODE: "true"
+      NOPING_DEMO_MODE: "${NOPING_AGENT_DEMO_MODE:-true}"
       NOPING_PUBLIC_DEMO_LOGIN: "true"
       NOPING_DEMO_LOGIN_USERNAME: "maya"
       NOPING_AI_ENABLED: "true"
+      GOOGLE_APPLICATION_CREDENTIALS: /var/run/secrets/google/application_default_credentials.json
+      GOOGLE_CLOUD_PROJECT: "${GOOGLE_CLOUD_PROJECT:-}"
+      GOOGLE_CLOUD_LOCATION: global
+      GOOGLE_GENAI_USE_VERTEXAI: "true"
+      NOPING_GEMINI_MODEL: gemini-2.5-flash
       NOPING_SERVICE_SIGNING_SECRET: ${NOPING_SERVICE_SIGNING_SECRET:?set NOPING_SERVICE_SIGNING_SECRET}
       NOPING_PERSISTENCE_BACKEND: memory
       NOPING_ORGANIZATION_ID: acme
-      NOPING_MAX_USER_PER_MINUTE: "3"
-      NOPING_MAX_USER_PER_HOUR: "20"
-      NOPING_MAX_USER_PER_DAY: "20"
-      NOPING_MAX_ORG_PER_MINUTE: "10"
-      NOPING_MAX_ORG_PER_DAY: "60"
+      NOPING_MAX_USER_PER_MINUTE: "6"
+      NOPING_MAX_USER_PER_HOUR: "40"
+      NOPING_MAX_USER_PER_DAY: "80"
+      NOPING_MAX_ORG_PER_MINUTE: "20"
+      NOPING_MAX_ORG_PER_DAY: "200"
       NOPING_MAX_CONCURRENT_RUNS: "2"
       NOPING_MODEL_MAX_CALLS_PER_QUERY: "4"
       NOPING_MODEL_MAX_INPUT_TOKENS_PER_QUERY: "24000"
@@ -49,6 +55,8 @@ services:
       NOPING_MODEL_MAX_OUTPUT_TOKENS_PER_DAY: "100000"
     expose:
       - "8080"
+    volumes:
+      - "${GOOGLE_APPLICATION_CREDENTIALS_HOST_PATH:-/dev/null}:/var/run/secrets/google/application_default_credentials.json:ro"
     logging:
       options:
         max-size: 10m
@@ -76,6 +84,7 @@ services:
       MM_SERVICESETTINGS_ENABLEDEVELOPER: "true"
       MM_TEAMSETTINGS_SITENAME: NoBS
       MM_TEAMSETTINGS_CUSTOMDESCRIPTIONTEXT: Fewer pings. Shorter meetings. More actual work.
+      MM_EMAILSETTINGS_ENABLEPREVIEWMODEBANNER: "false"
       MM_SQLSETTINGS_DRIVERNAME: postgres
       MM_SQLSETTINGS_DATASOURCE: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-mattermost}?sslmode=disable&connect_timeout=10
       MM_PLUGINSETTINGS_ENABLE: "true"
