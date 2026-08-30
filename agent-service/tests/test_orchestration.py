@@ -32,6 +32,25 @@ def test_personal_delegate_live_status_is_not_forced_back_to_atlas(services):
     assert "ev-relay-daniel" in [item.id for item in result.evidence]
 
 
+def test_personal_delegate_presence_uses_availability_instead_of_work_activity(services):
+    result = services.orchestrator.run(QueryRequest(
+        requester_id="maya",
+        delegate_for_user_id="daniel",
+        text="Where is Daniel?",
+    ))
+
+    assert result.intent.value == "live_status"
+    assert [step.delegate_id for step in result.route] == [
+        "delegate:user:daniel",
+        "delegate:calendar:availability",
+    ]
+    assert [item.id for item in result.evidence] == ["availability-daniel"]
+    assert "out of office" in result.answer.lower()
+    assert "physical-location" in result.answer.lower()
+    assert "PR #892" not in result.answer
+    assert result.people_interrupted == 0
+
+
 def test_factual_answer_routes_across_departments_without_interrupting(services):
     result = services.orchestrator.run(QueryRequest(requester_id="maya", text="Why has Atlas not shipped?"))
 

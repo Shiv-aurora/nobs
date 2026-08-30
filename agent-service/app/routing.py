@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import time
 
+from .intent import is_presence_query
 from .models import DelegationResolution, DelegationResolutionRequest, Intent, RouteStep
 from .workspace import Workspace
 
@@ -146,7 +147,31 @@ class OrganizationRouter:
 
     def build_route(self, requester_id: str, text: str, intent: Intent, delegate_for_user_id: str | None = None) -> list[RouteStep]:
         represented = self.workspace.users.get(delegate_for_user_id or "")
+        lowered = text.lower()
+        if not represented and is_presence_query(text):
+            named = [user for user in self.workspace.users.values() if user.id.lower() in lowered or user.name.lower() in lowered or user.name.split()[0].lower() in lowered]
+            represented = named[0] if len(named) == 1 else None
         route_started = time.perf_counter()
+        if represented and is_presence_query(text):
+            route = [
+                RouteStep(
+                    ordinal=1,
+                    delegate_id=f"delegate:user:{represented.id}",
+                    delegate_name=f"{represented.name} Delegate",
+                    reason=f"The question asks for {represented.name}'s current presence state.",
+                    outcome="The represented employee boundary was selected without interrupting them.",
+                    duration_ms=round((time.perf_counter() - route_started) * 1000, 3),
+                ),
+                RouteStep(
+                    ordinal=2,
+                    delegate_id="delegate:calendar:availability",
+                    delegate_name="Availability Delegate",
+                    reason="Calendar availability is authoritative for out-of-office status and recorded coverage.",
+                    outcome="Current availability was selected; physical location remains unavailable.",
+                    duration_ms=round((time.perf_counter() - route_started) * 1000, 3),
+                ),
+            ]
+            return route
         project = self.workspace.projects["atlas"]
         route = [RouteStep(
             ordinal=1,

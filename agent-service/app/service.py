@@ -52,7 +52,7 @@ class Services:
         self.workspace = Workspace(self.settings.workspace_path, state_store=self.state_store)
         self.policy = PolicyEngine(self.workspace, now_fn)
         self.scanner = ContentSecurityScanner()
-        self.retriever = EvidenceRetriever(self.workspace, self.policy, self.scanner)
+        self.retriever = EvidenceRetriever(self.workspace, self.policy, self.scanner, now_fn)
         self.router = OrganizationRouter(self.workspace)
         # The seeded narrative clock keeps fixture evidence and delegated
         # authority deterministic. Memory expiry is an operational safety

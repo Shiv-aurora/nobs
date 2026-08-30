@@ -7,6 +7,7 @@ from app.models import Intent
 def test_intent_classification():
     assert classify_intent("Why is Atlas delayed?") == Intent.FACTUAL
     assert classify_intent("Who is working on Atlas tonight?") == Intent.LIVE_STATUS
+    assert classify_intent("Where is Daniel?") == Intent.LIVE_STATUS
     assert classify_intent("What policy requires this?") == Intent.POLICY
     assert classify_intent("Can we bypass security review?") == Intent.DECISION
     assert classify_intent("What is Sarah's salary?") == Intent.RESTRICTED
