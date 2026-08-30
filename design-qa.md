@@ -10,7 +10,7 @@
 - Local routes: `http://localhost:8065/acme/channels/off-topic` and `http://localhost:8065/acme/nobs/calendar`.
 - Plugin bundle rebuilt and installed: `com.noping.enterprise` 0.3.0.
 - Mattermost configuration reports `EmailSettings.EnablePreviewModeBanner = false`.
-- Native API verification confirms eight seeded channels with 19–87 posts each and non-empty profile images for all seven human accounts.
+- Native API verification confirms twelve seeded channels, including four lifecycle-based project workrooms, and non-empty profile images for all seven human accounts.
 - Intended visual-verification viewport: 1195 × 993 CSS pixels.
 - Implementation screenshot path: unavailable because the Codex in-app browser runtime reported no available browser.
 - Browser-rendered dimensions/density: unavailable for the same reason.
@@ -55,6 +55,7 @@
 - Iteration 3: the annotated RHS showed generic product framing, four low-value tabs, and empty states consuming most of the panel. The implementation changed it to a dynamic employee-owned agent profile, removed the Security tab, added compact live context and boundaries, simplified Needs Me, and added an Impact view with time and interruptions saved. The rebuilt plugin passes automated checks; post-fix visual evidence remains blocked by the unavailable browser runtime.
 - Iteration 4: the annotated OOO control read visually as four O characters because an inactive status dot preceded the label. The dot was removed while preserving the native-sized `OOO` button, active label, and accessibility state. Daniel's native DM was populated with a Daniel-authored OOO handoff, Maya's ordinary work question, and an audited `Daniel's Agent` thread reply. Mattermost API verification confirms the reply represents Daniel Kim, consulted 3 delegates, interrupted 0 humans, and retained the OOO exchange as native searchable posts. The in-app browser still reports no available session, so the refreshed 1195 × 993 comparison remains blocked.
 - Iteration 5: the Daniel DM annotation showed the native green online check contradicting his OOO handoff. Daniel's fixture now ends every idempotent seed in Mattermost's native `offline` presence, and the native DM sidebar row receives a compact accessible `OOO` badge while its redundant presence glyph is hidden. Daniel's delegate profile also reports `OOO through Wednesday · agent covering`. The local Mattermost API confirms `status: offline`; rendered comparison remains blocked by the unavailable in-app browser connection.
+- Iteration 6: the latest annotation exposed two regressions and a weak project story. The OOO CSS now hides only the explicitly identified native presence glyph, preserving Daniel's uploaded profile image, and Workrooms uses the native folder icon instead of an unavailable class. The Workrooms destination now separates Pre-work from Real work and shows four non-Atlas projects: one approval-ready, one awaiting human review, one in review, and one completed. Each project has a seeded native multi-agent history. Gemini follow-ups receive a bounded recent-message packet for reference resolution, while the prompt contract still requires every factual claim to come from permission-approved evidence. The clean Mattermost client and plugin builds passed, and a real `gemini-2.5-flash` smoke test correctly expanded Project Relay from a “tell me more” follow-up. Rendered comparison is still blocked because browser runtime discovery returned no available browser despite the ambient app tab.
 
 **Implementation checklist**
 
@@ -74,6 +75,10 @@
 - [x] Remove the stray visual dot before the global OOO label.
 - [x] Add the Daniel OOO native-DM demo with a personal-agent response and zero human interruptions.
 - [x] Replace Daniel's misleading green presence check with an OOO sidebar badge and native offline state.
+- [x] Preserve Daniel's native profile image while suppressing only the contradictory availability glyph.
+- [x] Restore a native Workrooms icon in the primary sidebar.
+- [x] Add Pre-work and Real work lifecycle states with four realistic project workrooms.
+- [x] Ground Gemini follow-ups in bounded thread context and multi-project employee evidence.
 - [ ] Capture and compare the rendered 1195 × 993 states.
 
 final result: blocked
