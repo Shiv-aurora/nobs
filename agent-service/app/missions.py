@@ -6,6 +6,7 @@ import json
 import logging
 import time
 from datetime import datetime, timedelta
+from typing import Literal
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
@@ -38,10 +39,16 @@ from .workspace import Workspace
 logger = logging.getLogger(__name__)
 
 
+_SpecialistId = Literal[
+    "agent:work-graph-specialist",
+    "agent:policy-evidence-specialist",
+]
+
+
 class _PlanOutput(BaseModel):
     objective: str
-    agenda_routes: dict[str, list[str]]
-    specialist_ids: list[str]
+    agenda_routes: dict[str, list[_SpecialistId]]
+    specialist_ids: list[_SpecialistId]
     authority_required: bool
 
 
@@ -251,13 +258,18 @@ class MissionRuntime:
             )
             usage = ModelUsage(model_name="deterministic-test-program", calls=0)
         else:
+            specialist_manifests = [
+                self.registry.get(self.WORK_AGENT),
+                self.registry.get(self.POLICY_AGENT),
+            ]
             result = await StructuredADKAgent(
                 agent_id=manifest.id,
                 model_name=self.model_name,
                 output_schema=_PlanOutput,
                 prompt_guard=self.prompt_guard,
                 instruction=(
-                    "Plan a meeting-preparation mission. Route every agenda ID only to the executable agent IDs supplied. "
+                    "Plan a meeting-preparation mission. Route every agenda ID to one or both of the two specialist IDs supplied. "
+                    "The only valid specialist IDs are agent:work-graph-specialist and agent:policy-evidence-specialist. "
                     "Mark authority_required for cancellation, Calendar mutation, policy exception, approval, or restricted judgment. "
                     "Do not answer agenda items and do not invent agents."
                 ),
@@ -266,11 +278,20 @@ class MissionRuntime:
                 agent_engine_id=self.agent_engine_id,
             ).run({
                 "meeting": {"id": meeting.id, "title": meeting.title, "agenda": [item.model_dump(mode="json") for item in meeting.agenda]},
-                "executable_agents": [item.model_dump(mode="json") for item in self.registry.list()],
+                "executable_specialists": [item.model_dump(mode="json") for item in specialist_manifests],
             })
             plan = MissionPlan.model_validate(result.output.model_dump())
-            if set(plan.specialist_ids) - {self.WORK_AGENT, self.POLICY_AGENT}:
+            approved_specialists = {self.WORK_AGENT, self.POLICY_AGENT}
+            routed_specialists = {
+                agent_id
+                for routes in plan.agenda_routes.values()
+                for agent_id in routes
+            }
+            if set(plan.specialist_ids) - approved_specialists or routed_specialists - approved_specialists:
                 raise ValueError("Controller selected an unapproved specialist")
+            agenda_ids = {item.id for item in meeting.agenda}
+            if set(plan.agenda_routes) != agenda_ids or any(not routes for routes in plan.agenda_routes.values()):
+                raise ValueError("Controller did not route every agenda item")
             usage = result.usage
         return plan, usage
 

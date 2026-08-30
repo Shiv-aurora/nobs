@@ -1,5 +1,18 @@
 from __future__ import annotations
 
+from app.missions import _PlanOutput
+
+
+def test_controller_output_schema_only_allows_approved_specialist_ids() -> None:
+    schema = _PlanOutput.model_json_schema()
+    expected = [
+        "agent:work-graph-specialist",
+        "agent:policy-evidence-specialist",
+    ]
+
+    assert schema["properties"]["specialist_ids"]["items"]["enum"] == expected
+    assert schema["properties"]["agenda_routes"]["additionalProperties"]["items"]["enum"] == expected
+
 
 def prepare_launch(client):
     response = client.post(
