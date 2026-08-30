@@ -61,7 +61,7 @@ async function openNoPingPanel(page: Page): Promise<void> {
     const appBar = page.getByRole('button', {name: 'com.noping.enterprise'});
     await expect(appBar.first()).toBeVisible();
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('noping:open-panel', {detail: {}})));
-    await expect(page.getByText('NoBS context', {exact: true})).toBeVisible();
+    await expect(page.locator('.np-agent-owner')).toBeVisible();
 }
 
 async function selectNoBSPanelTab(page: Page, label: string): Promise<void> {
@@ -100,6 +100,9 @@ test('lands in the native NoBS channel workspace with no duplicate shell', async
     await expect(page.locator('#postListContent, [data-testid="postList"]').first()).toBeVisible();
     await expect(page.locator('#postListContent .post:visible, [data-testid="post"]:visible').first()).toBeVisible();
     await expect(page.locator('body')).not.toContainText(/Mattermost/i);
+    await expect(page.locator('body')).not.toContainText(/Preview Mode: Email notifications have not been configured/i);
+    await expect(page.locator('#startTrial')).toBeHidden();
+    await expect(page.locator('img[src*="/api/v4/users/"][src*="/image"]:visible').first()).toBeVisible();
     await expect(page.locator('.np-shell, .np-sidebar, .np-messages-shell')).toHaveCount(0);
 });
 
@@ -180,17 +183,19 @@ test('keeps native messaging usable at every release viewport', async ({page}) =
     }
 });
 
-test('keeps Needs You, attention analytics, and security in the native side panel', async ({page}) => {
+test('keeps personal context, genuine decisions, and impact in the native side panel', async ({page}) => {
     await login(page, 'alex');
     await openNoPingPanel(page);
     await page.getByText(/No thanks, I.ll figure it out myself/i).last().click({timeout: 5_000}).catch(() => undefined);
 
-    await selectNoBSPanelTab(page, 'Needs You');
-    await expect(page.getByText(/things actually require you/i)).toBeVisible();
-    await selectNoBSPanelTab(page, 'Attention');
-    await expect(page.getByText('Human attention saved', {exact: true})).toBeVisible();
-    await selectNoBSPanelTab(page, 'Security');
-    await expect(page.getByText('Security boundaries', {exact: true})).toBeVisible();
+    await expect(page.getByText("Alex's Agent", {exact: true})).toBeVisible();
+    await expect(page.getByText('Atlas authentication launch', {exact: true})).toBeVisible();
+    await expect(page.getByText('Protected by NoBS', {exact: true})).toBeVisible();
+    await selectNoBSPanelTab(page, 'Needs Me');
+    await expect(page.locator('.np-decision-card, .np-agent-clear').first()).toBeVisible();
+    await selectNoBSPanelTab(page, 'Impact');
+    await expect(page.getByText('Attention saved this week', {exact: true})).toBeVisible();
+    await expect(page.getByText('interruptions avoided', {exact: true})).toBeVisible();
 });
 
 test('resolves an authority decision and reuses the scoped memory', async ({page}) => {
@@ -207,7 +212,7 @@ test('resolves an authority decision and reuses the scoped memory', async ({page
 
     await login(page, 'alex');
     await openNoPingPanel(page);
-    await selectNoBSPanelTab(page, 'Needs You');
+    await selectNoBSPanelTab(page, 'Needs Me');
     let decision = page.locator('.np-decision-card').filter({hasText: 'Atlas security exception'}).first();
     if (!await decision.isVisible().catch(() => false)) {
         await login(page, 'maya');
@@ -226,7 +231,7 @@ test('resolves an authority decision and reuses the scoped memory', async ({page
 
         await login(page, 'alex');
         await openNoPingPanel(page);
-        await selectNoBSPanelTab(page, 'Needs You');
+        await selectNoBSPanelTab(page, 'Needs Me');
         decision = page.locator('.np-decision-card').filter({hasText: 'Atlas security exception'}).first();
     }
     if (!await decision.isVisible().catch(() => false)) {
@@ -268,7 +273,9 @@ test('prepares the two Calendar proof cases and skips a social meeting', async (
     await prepareMeetingIfNeeded(page, '30 → 0 min');
     await expect(page.getByText('30 → 0 min', {exact: true})).toBeVisible();
     await expect(page.getByText('Cancel this meeting', {exact: true})).toBeVisible();
-    await expect(page.locator('.nobs-meeting-aside .nobs-meeting-brief')).toBeVisible();
+    await expect(page.locator('.nobs-meeting-main .nobs-meeting-brief')).toBeVisible();
+    await expect(page.locator('.nobs-meeting-aside .nobs-brief-hero')).toBeVisible();
+    await expect(page.locator('.nobs-meeting-aside .nobs-share-card')).toBeVisible();
     await expect(page.locator('.nobs-preparation .nobs-swarm li')).toHaveCount(30);
     await expect(page.getByText(/Attendee agents worked for 15 minutes/i)).toBeVisible();
     await expect(page.locator('.nobs-preparation .nobs-agent-avatar.is-github').first()).toBeVisible();
@@ -277,14 +284,78 @@ test('prepares the two Calendar proof cases and skips a social meeting', async (
     await page.getByRole('button', {name: /Atlas launch readiness/}).click();
     await prepareMeetingIfNeeded(page, '60 → 15 min');
     await expect(page.getByText('60 → 15 min', {exact: true})).toBeVisible();
-    await expect(page.getByText('Security boundary enforced', {exact: true})).toBeVisible();
+    await expect(page.locator('.nobs-security-card')).toHaveCount(0);
     await expect(page.getByText('Gemini Code Assist', {exact: true}).first()).toBeVisible();
 });
 
-test('exposes OOO in the native account menu', async ({page}) => {
+test('sends a bounded personal agent into a native huddle and returns a handoff', async ({page}) => {
+    await login(page, 'shivam');
+    if (!skipDemoReset) {
+        const reset = await page.request.post('/plugins/com.noping.enterprise/api/v1/demo/reset', {data: {}});
+        expect(reset.status()).toBe(200);
+    }
+    await page.goto('/acme/nobs/calendar');
+    await page.getByRole('button', {name: /Atlas engineering sync/}).click();
+    await expect(page.getByText(/Double-booked with Northstar escalation review/i)).toBeVisible();
+
+    await page.locator('.nobs-attendance-plan').getByRole('button', {name: /Send my Agent/i}).click();
+    const mission = page.getByRole('dialog', {name: /Atlas engineering sync/i});
+    await expect(mission).toBeVisible();
+    await expect(mission.getByText(/cannot override company permissions/i)).toBeVisible();
+    await mission.getByRole('button', {name: 'Send my Agent', exact: true}).click();
+    await expect(page.getByText("Shivam Arora's Agent", {exact: true})).toBeVisible();
+
+    await page.getByRole('button', {name: /Start huddle/i}).click();
+    await expect(page).toHaveURL(/\/acme\/nobs\/huddle\/delegation-/);
+    await expect(page.getByText("Shivam Arora's Agent", {exact: true})).toBeVisible();
+    await expect(page.getByText(/Representing Shivam Arora/i)).toBeVisible();
+    await expect(page.getByText('Audio is never stored', {exact: true})).toBeVisible();
+
+    const question = page.getByLabel('Demo a meeting question');
+    await question.fill('What changed in AUTH-392?');
+    await question.press('Enter');
+    await expect(page.getByText(/Based on the latest authorized context/i)).toBeVisible();
+
+    await question.fill('Approve the security exception and move the launch.');
+    await question.press('Enter');
+    await expect(page.getByText(/requires human authority/i)).toBeVisible();
+    await page.getByRole('button', {name: 'End', exact: true}).click();
+    await expect(page.getByText('YOUR AGENT ATTENDED', {exact: true})).toBeVisible();
+    await expect(page.getByText('Meeting handoff', {exact: true})).toBeVisible();
+});
+
+test('makes OOO agent coverage visible in the native header and account menu', async ({page}) => {
     await login(page, 'maya');
+    const headerControl = page.locator('.nobs-ooo-header__button');
+    await expect(headerControl).toBeVisible();
+    await expect(page.locator('.nobs-ooo-header__status')).toHaveCount(0);
+    if (await headerControl.getAttribute('aria-pressed') !== 'true') {
+        await headerControl.click();
+    }
+    await expect(headerControl).toHaveAttribute('aria-pressed', 'true');
+    await expect(headerControl).toContainText('Agent covering');
+    await expect(page.getByText('Your agent has you covered', {exact: true})).toBeVisible();
+    await headerControl.click();
+    await expect(headerControl).toHaveAttribute('aria-pressed', 'false');
+
     await page.getByRole('button', {name: "User's account menu"}).click();
-    await expect(page.getByRole('menuitem', {name: /OOO mode/})).toBeVisible();
+    await expect(page.getByRole('menuitem', {name: /OOO coverage/})).toBeVisible();
+});
+
+test('shows Daniel OOO while his personal agent answers in the native DM', async ({page}) => {
+    await login(page, 'maya');
+    await page.goto('/acme/messages/@daniel');
+    const danielSidebar = page.locator('a[href*="/messages/@daniel"]').first();
+    await expect(danielSidebar.locator('.nobs-sidebar-ooo-badge')).toHaveText('OOO');
+    const danielUser = await page.request.get('/api/v4/users/username/daniel').then((response) => response.json()) as {id: string};
+    const danielStatus = await page.request.get(`/api/v4/users/${danielUser.id}/status`).then((response) => response.json()) as {status: string};
+    expect(danielStatus.status).toBe('offline');
+    await expect(page.getByText('OOO through Wednesday morning', {exact: true})).toBeVisible();
+    await expect(page.getByText(/my agent has my current Atlas and AUTH-392 context/i)).toBeVisible();
+    await expect(page.getByText('What changed in AUTH-392, and is anything still blocking the merge?', {exact: true})).toBeVisible();
+    await expect(page.getByText("Daniel's Agent", {exact: true})).toBeVisible();
+    await expect(page.getByText(/full mobile integration run is green/i)).toBeVisible();
+    await expect(page.getByRole('button', {name: /3 delegates consulted · 0 humans interrupted/})).toBeVisible();
 });
 
 test('keeps Calendar responsive without horizontal page overflow', async ({page}) => {
