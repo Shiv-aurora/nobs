@@ -114,6 +114,10 @@ output "budget_guard_service_name" {
   value = local.budget_guard_name
 }
 
+output "action_executor_service_name" {
+  value = local.action_executor_name
+}
+
 output "budget_updates_topic" {
   value = google_pubsub_topic.budget_updates.name
 }

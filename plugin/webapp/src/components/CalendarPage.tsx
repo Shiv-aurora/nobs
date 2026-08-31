@@ -2,7 +2,7 @@ import React, {useEffect, useMemo, useState} from 'react';
 
 import {api, APIError} from '../api/client';
 import logo from '../assets/logo.png';
-import type {Meeting, MeetingDetail, MissionInspector} from '../types/models';
+import type {LiveMeetingSession, Meeting, MeetingDelegation, MeetingDetail, MissionInspector} from '../types/models';
 import {SendAgentModal} from './SendAgentModal';
 
 const GEMINI_ENTERPRISE_ICON = 'https://avatars.slack-edge.com/2025-09-17/9549827723233_9cb3f87dee7d9088b89b_512.png';
@@ -104,6 +104,22 @@ function turnTime(value: string): string {
 
 function readable(value: string): string {
     return value.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function joinPresentation(session?: LiveMeetingSession | null): {label: string; tone: string; active: boolean} {
+    if (!session || session.provider !== 'google_meet') {
+        return {label: '', tone: '', active: false};
+    }
+    const presentations: Record<LiveMeetingSession['join_status'], {label: string; tone: string; active: boolean}> = {
+        not_started: {label: 'Ready to join Google Meet', tone: 'ready', active: false},
+        queued: {label: 'Bridge assigned · joining now', tone: 'joining', active: true},
+        joining: {label: 'Joining Google Meet…', tone: 'joining', active: true},
+        awaiting_admission: {label: 'Waiting for host admission', tone: 'waiting', active: true},
+        live: {label: 'Live in Google Meet', tone: 'live', active: true},
+        ended: {label: 'Google Meet session ended', tone: 'ended', active: false},
+        failed: {label: session.join_error || 'Google Meet join failed', tone: 'failed', active: false},
+    };
+    return presentations[session.join_status];
 }
 
 function measuredDuration(value?: number | null): string {
@@ -225,6 +241,18 @@ export function CalendarPage(): JSX.Element {
         }).catch((caught) => setError(caught instanceof APIError ? caught.message : 'Calendar is temporarily unavailable.')).finally(() => setLoading(false));
     }, []);
 
+    useEffect(() => {
+        const session = detail?.session;
+        if (!session || session.provider !== 'google_meet' || !joinPresentation(session).active) {
+            return undefined;
+        }
+        const meetingID = detail.meeting.id;
+        const timer = window.setInterval(() => {
+            void refreshDetail(meetingID).catch(() => undefined);
+        }, 1500);
+        return () => window.clearInterval(timer);
+    }, [detail?.meeting.id, detail?.session?.id, detail?.session?.join_status]);
+
     const selectMeeting = async (meetingID: string) => {
         setSelectedID(meetingID);
         setMobileDetail(true);
@@ -326,18 +354,22 @@ export function CalendarPage(): JSX.Element {
         }
     };
 
-    const startHuddle = async () => {
-        if (!detail?.delegation) {
-            return;
-        }
+    const launchDelegation = async (delegation: MeetingDelegation, meeting: Meeting) => {
         setWorking(true);
         try {
-            const started = await api.startMeetingDelegation(detail.delegation.id);
+            const started = await api.startMeetingDelegation(delegation.id);
+            if (started.session.provider === 'google_meet') {
+                await refreshList();
+                await refreshDetail(meeting.id);
+                setError('');
+                return;
+            }
             sessionStorage.setItem(`nobs-live-nonce:${started.delegation.id}`, started.session_nonce);
-            const teamName = window.location.pathname.split('/').filter(Boolean)[0] || 'acme';
-            window.location.assign(`/${teamName}/nobs/huddle/${encodeURIComponent(started.delegation.id)}`);
+            window.location.assign(`/${window.location.pathname.split('/').filter(Boolean)[0] || 'acme'}/nobs/huddle/${encodeURIComponent(started.delegation.id)}`);
         } catch (caught) {
-            setError(caught instanceof APIError ? caught.message : 'The secure agent huddle could not be started.');
+            setError(caught instanceof APIError ? caught.message : 'The live agent could not be started.');
+            throw caught;
+        } finally {
             setWorking(false);
         }
     };
@@ -359,6 +391,8 @@ export function CalendarPage(): JSX.Element {
         return meetings.filter((meeting) => meeting.id !== selected.id && meeting.attendees.some((attendee) => attendee.user_id === currentUsername && attendee.response_status !== 'declined') && new Date(meeting.start_at).getTime() < end && new Date(meeting.end_at).getTime() > start);
     }, [currentUsername, meetings, selected]);
     const attendancePlan = selected?.attendance_plans?.[currentUsername] || (detail?.delegation && !['ended', 'revoked'].includes(detail.delegation.status) ? 'agent' : 'attend');
+    const join = joinPresentation(detail?.session);
+    const liveMeetingID = join.active ? selected?.id : undefined;
     const businessCheckpoint = detail?.mission_inspector?.business_checkpoint;
     const calendarCheckpoint = detail?.mission_inspector?.calendar_checkpoint;
 
@@ -374,7 +408,7 @@ export function CalendarPage(): JSX.Element {
                 {loading ? <div className='nobs-calendar__loading'>Loading your calendar…</div> : Object.entries(grouped).map(([day, items]) => <section key={day} className='nobs-day-group'>
                     <h2>{day}</h2>
                     {items.map((meeting) => <button type='button' key={meeting.id} className={`nobs-meeting-row ${selectedID === meeting.id ? 'is-active' : ''}`} onClick={() => void selectMeeting(meeting.id)}>
-                        <time>{timeLabel(meeting.start_at)}</time>
+                        <time className={liveMeetingID === meeting.id ? 'is-live' : ''}>{liveMeetingID === meeting.id ? 'LIVE' : timeLabel(meeting.start_at)}</time>
                         <span><strong>{meeting.title}</strong><small>{durationLabel(meeting)} · {meeting.attendees.length} attendees</small></span>
                         <em className={`nobs-status nobs-status--${preparationPresentation(meeting).tone}`}>{preparationPresentation(meeting).label}</em>
                     </button>)}
@@ -384,14 +418,14 @@ export function CalendarPage(): JSX.Element {
                 {!selected || loading ? <div className='nobs-calendar__empty'><img src={logo} alt=''/><strong>Select a meeting</strong><span>NoBS will show what agents can resolve before humans join.</span></div> : <>
                     <button type='button' className='nobs-mobile-back' onClick={() => setMobileDetail(false)}>Back to agenda</button>
                     <header className='nobs-meeting-hero'>
-                        <div><span>{dateLabel(selected.start_at)} · {timeLabel(selected.start_at)}–{timeLabel(selected.end_at)}</span><h1>{selected.title}</h1><p>{selected.description}</p>{conflicts.length > 0 && <div className='nobs-conflict-badge'><i className='icon-alert-outline'/> Double-booked with {conflicts.map((meeting) => meeting.title).join(', ')}</div>}</div>
+                        <div><span className={join.active ? 'nobs-live-now' : ''}>{join.active ? '● Live now' : `${dateLabel(selected.start_at)} · ${timeLabel(selected.start_at)}–${timeLabel(selected.end_at)}`}</span><h1>{selected.title}</h1><p>{selected.description}</p>{conflicts.length > 0 && <div className='nobs-conflict-badge'><i className='icon-alert-outline'/> Double-booked with {conflicts.map((meeting) => meeting.title).join(', ')}</div>}</div>
                         <div className='nobs-meeting-hero__actions'>
                             {selected.preparation_eligibility === 'eligible' && !detail?.run && <button type='button' className='nobs-primary-button' disabled={working} onClick={() => void prepare()}>{working ? 'Agents preparing…' : 'Prepare meeting'}</button>}
                             {selected.preparation_eligibility === 'skipped' && <span className='nobs-human-badge'>Human meeting · agents skipped</span>}
                             {detail?.run && <span className='nobs-prepared-badge'>Prepared by {new Set(detail.run.turns.map((turn) => turn.agent_name)).size} agents</span>}
                         </div>
                     </header>
-                    {selected.preparation_eligibility !== 'skipped' && <section className='nobs-attendance-plan' aria-label='Your attendance plan'><div><strong>Your plan</strong><span>NoBS attendance does not impersonate your Calendar RSVP.</span></div><div className='nobs-attendance-plan__buttons'><button type='button' className={attendancePlan === 'attend' ? 'is-active' : ''} disabled={working} onClick={() => void setAttendance('attend')}><i className='icon-account-check-outline'/>Attend</button><button type='button' className={attendancePlan === 'agent' ? 'is-agent' : ''} disabled={working} onClick={() => setShowMission(true)}><img src={logo} alt=''/>Send my Agent</button><button type='button' className={attendancePlan === 'decline' ? 'is-active' : ''} disabled={working} onClick={() => void setAttendance('decline')}><i className='icon-close'/>Decline</button></div>{detail?.delegation && !['ended', 'revoked'].includes(detail.delegation.status) && <div className='nobs-agent-assigned'><span><img src={logo} alt=''/><strong>{detail.delegation.represented_user_name}'s Agent</strong><small>{detail.delegation.mission.mode} mode · explicitly representing you</small></span><button type='button' className='nobs-primary-button' disabled={working} onClick={() => void startHuddle()}><i className='icon-microphone-outline'/> Start huddle</button></div>}</section>}
+                    {selected.preparation_eligibility !== 'skipped' && <section className='nobs-attendance-plan' aria-label='Your attendance plan'><div><strong>Your plan</strong><span>NoBS attendance does not impersonate your Calendar RSVP.</span></div><div className='nobs-attendance-plan__buttons'><button type='button' className={attendancePlan === 'attend' ? 'is-active' : ''} disabled={working} onClick={() => void setAttendance('attend')}><i className='icon-account-check-outline'/>Attend</button><button type='button' className={attendancePlan === 'agent' ? 'is-agent' : ''} disabled={working || (selected.source === 'google_calendar' && !selected.conference_uri)} title={selected.source === 'google_calendar' && !selected.conference_uri ? 'Add Google Meet to this Calendar event first' : undefined} onClick={() => setShowMission(true)}><img src={logo} alt=''/>Send my Agent</button><button type='button' className={attendancePlan === 'decline' ? 'is-active' : ''} disabled={working} onClick={() => void setAttendance('decline')}><i className='icon-close'/>Decline</button></div>{selected.source === 'google_calendar' && !selected.conference_uri && <div className='nobs-meet-required'><i className='icon-video-outline'/> Add Google Meet to this event, then refresh.</div>}{detail?.delegation && !['ended', 'revoked'].includes(detail.delegation.status) && <div className={`nobs-agent-assigned is-${join.tone || 'ready'}`}><span><img src={logo} alt=''/><strong>{detail.delegation.represented_user_name}'s Agent</strong><small>{join.label || `${detail.delegation.mission.mode} mode · explicitly representing you`}</small></span>{detail.session?.provider === 'google_meet' && detail.session.join_status === 'failed' ? <button type='button' className='nobs-secondary-button' disabled={working} onClick={() => void launchDelegation(detail.delegation!, selected).catch(() => undefined)}>Retry join</button> : detail.session?.provider === 'google_meet' && selected.conference_uri ? <a className='nobs-meet-link' href={selected.conference_uri} target='_blank' rel='noreferrer'><i className='icon-open-in-new'/> Open Google Meet</a> : null}</div>}</section>}
                     <section className='nobs-attendee-strip' aria-label='Attendees'>{selected.attendees.map((attendee) => <article key={attendee.user_id}><span>{userAvatars[attendee.user_id] ? <img src={userAvatars[attendee.user_id]} alt=''/> : attendee.name.split(' ').map((part) => part[0]).join('')}</span><div><strong>{attendee.name}</strong><small>{attendee.role} · delegate ready</small></div></article>)}</section>
                     {detail?.handoff && <section className='nobs-calendar-handoff'><div><span className='nobs-eyebrow'>YOUR AGENT ATTENDED</span><strong>{detail.handoff.meeting_minutes_avoided} meeting minutes avoided</strong><p>{detail.handoff.summary || (detail.handoff.for_you.length ? `${detail.handoff.for_you.length} item${detail.handoff.for_you.length === 1 ? '' : 's'} require your judgment.` : 'Nothing from this meeting requires your judgment.')}</p></div><button type='button' className='nobs-secondary-button' onClick={() => {
                         const teamName = window.location.pathname.split('/').filter(Boolean)[0] || 'acme';
@@ -440,10 +474,9 @@ export function CalendarPage(): JSX.Element {
             meeting={selected}
             conflicts={conflicts}
             onClose={() => setShowMission(false)}
-            onSaved={async () => {
+            onSaved={async (delegation) => {
+                await launchDelegation(delegation, selected);
                 setShowMission(false);
-                await refreshList();
-                await refreshDetail(selected.id);
             }}
         />}
     </main>;

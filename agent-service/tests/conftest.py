@@ -20,6 +20,7 @@ def services() -> Services:
         demo_mode=True,
         ai_enabled=True,
         service_signing_secret="test-secret",
+        meet_bridge_token="test-meet-bridge-token",
         workspace_path=Path(__file__).resolve().parents[2] / "seed" / "demo_workspace.json",
         max_user_per_minute=50,
         max_user_per_hour=100,

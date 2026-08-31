@@ -9,16 +9,17 @@ Updated 2026-08-30 in project `noping-agentic-shiv-2026`, branch `main`.
 | active account | `shivamarora.sa05@gmail.com` |
 | billing / budget | billing enabled; project-filtered **NoPing $25 guardrail** retained with 25/50/75/90/100% thresholds |
 | collaboration | `noping-mattermost` `e2-small` VM at `35.202.201.122`; Mattermost/PostgreSQL/Caddy |
-| gateway | private Cloud Run `noping-agent-service`, revision `00016-bhd`, max 1 / concurrency 4 |
-| action executor | private Cloud Run `noping-action-executor`, revision `00001-8rb`, max 1 / concurrency 1 |
+| gateway | private Cloud Run `noping-agent-service`, revision `00018-4bs`, max 1 / concurrency 4 |
+| action executor | private Cloud Run `noping-action-executor`, revision `00002-4sq`, max 1 / concurrency 1 |
 | budget guard | private Cloud Run `noping-budget-guard`, revision `00008-992`; armed independently |
+| judge availability | production VM running continuously for the judging window; daily shutdown timer disabled in live metadata and Terraform default |
 | primary model | production and real probe: `gemini-3.5-flash` in Vertex AI `global` |
 | durable state | Firestore Native `(default)`, `us-central1` |
 | model safety | Model Armor template `noping-enterprise-guard`, `us-central1`, fail closed |
 | agent lifecycle | Agent Registry API enabled; four native service entries registered |
 | agent context | Agent Engine `1977754786799288320`, `us-central1`, for Sessions and preference Memory Bank |
 | events | work events plus DLQ; action commands plus DLQ and authenticated OIDC push |
-| images deployed | agent `4bee667` → `sha256:7f1a18d…`; executor `59aadc4` → `sha256:589980…`; Mattermost `22fe77e` → `sha256:4b818c…` |
+| images deployed | agent `submission-polish-20260830` → `sha256:e2e9b30…`; executor active `sha256:fd5d451…`; workspace `submission-polish-20260830` → `sha256:949c568…` |
 
 All Cloud Run services in the verified baseline are private; no `allUsers` invocation binding is permitted.
 
@@ -35,7 +36,8 @@ All Cloud Run services in the verified baseline are private; no `allUsers` invoc
 - separate business-authority and organizer-only Calendar checkpoints with demo/write isolation;
 - separate idempotent Calendar executor with transactional leases, ETag preconditions, bounded retries, post-write verification, and hashed responses;
 - body-free structured logs and OpenTelemetry spans for mission nodes and executor actions;
-- plugin no longer executes Calendar writes directly.
+- plugin no longer executes Calendar writes directly;
+- validated Google Meet conference ingestion, immediate live delegation, truthful provider-state polling, and a local single-session Chrome bridge with an ephemeral signed audio path.
 
 ## Real model/runtime proof
 
@@ -58,7 +60,7 @@ A second proof ran through the deployed Mattermost UI and private Cloud Run gate
 
 ## Validation
 
-`./scripts/check.sh` passes: 95 agent-runtime tests, 8 budget-guard tests, 7 action-executor tests, all Go packages, strict TypeScript, Python compilation, shell/static checks, credential scan, and Git whitespace. Terraform 1.x with Google provider 8.0.0 validates successfully.
+`./scripts/check.sh` passes: 97 agent-runtime tests, 8 budget-guard tests, 7 action-executor tests, all Go packages, strict TypeScript, Python compilation, shell/static checks, credential scan, and Git whitespace. Terraform 1.x with Google provider 8.0.0 validates successfully.
 
 ## Deployment progress
 
@@ -72,6 +74,9 @@ A second proof ran through the deployed Mattermost UI and private Cloud Run gate
 | executor SA and Calendar-secret grant | deployed; executor is the sole accessor on the Calendar secret |
 | command topic / DLQ / push | deployed; agent publishes, Pub/Sub OIDC invokes executor |
 | production browser mission proof | passed on `mission-4bc9ce53ece5` |
+| production polish proof | deployed Workrooms: 101 updates, 20–21 per real-work card, three previews per card, ten live-feed entries, no switcher/menu, zero visible upstream product strings |
 | final docs/diagram | reconciled with deployed revisions |
 
-No production data was deleted, no public Cloud Run service was created, the budget was not increased, and the budget guard was not removed. The existing **NoPing $25 guardrail** remains active.
+The Google Meet speaking bridge is source-complete and locally verified; it is intentionally a workstation-side hackathon helper and is not included in the deployed Cloud Run baseline above.
+
+No production data was deleted, no public Cloud Run service was created, the budget was not increased, and the budget guard was not removed. The existing **NoPing $25 guardrail** remains active while the judge-facing VM stays available.

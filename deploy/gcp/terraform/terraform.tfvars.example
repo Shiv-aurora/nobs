@@ -7,7 +7,8 @@ zone               = "us-central1-a"
 mattermost_machine_type = "e2-small"
 mattermost_disk_size_gb = 20
 mattermost_site_address = ":80"
-auto_shutdown_hour_utc  = 6
+# Judge-facing production must stay available. Set a UTC hour only during inactive development periods.
+auto_shutdown_hour_utc  = -1
 
 # Stage 1: leave false, apply infrastructure, seed secrets, and push images.
 deploy_agent_service = false

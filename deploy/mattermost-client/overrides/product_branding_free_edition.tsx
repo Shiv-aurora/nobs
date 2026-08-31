@@ -10,7 +10,7 @@ const NoBSBrand = styled.span`
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    color: #10152b;
+    color: rgba(255, 255, 255, .94);
     font-size: 18px;
     font-weight: 800;
     letter-spacing: -.04em;

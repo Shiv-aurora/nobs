@@ -8,6 +8,9 @@ flowchart TB
   UI <-->|HTTPS + WebSocket| MM[Mattermost + Go plugin]
   MM <--> PG[(PostgreSQL collaboration truth)]
   MM -->|IAM token + HMAC| GW[Private NoBS Gateway]
+  MB[Local Meet Bridge: dedicated Chrome participant] <-->|claim/status + live audio| GW
+  MB <-->|join as named participant| MEET[Google Meet]
+  GW <-->|ephemeral audio session| GL[Gemini Live]
   PS[Pub/Sub work events] -->|OIDC, async| GW
   GW --> AG[Access Gate + Model Armor]
   DD[Delegate Directory: logical identities] --> AG
@@ -41,6 +44,8 @@ flowchart TB
 ```
 
 Employee, project, team, and policy delegates are logical organizational identities. Meeting Mission, Work Graph, Policy Evidence, and Meeting Resolution are executable agent components; Evidence Critic, Business Decision Gate, and Calendar Action Gate are executable deterministic workflow nodes.
+
+“Send my Agent” is a separate, demo-scoped live-media path. A Calendar event's validated `meet.google.com` conference URI creates a queued live session immediately when the user confirms the mission. A local bridge claims that session, opens a dedicated visible Chrome profile as `NoBS Agent for <employee>`, and relays meeting audio to the existing signed live WebSocket backed by Gemini Live. It reports `joining`, `awaiting_admission`, `live`, `failed`, and `ended` back to durable application state; the UI never claims the agent joined before Meet admission succeeds. The bridge is neither Calendar authority nor business authority, and it receives no Calendar OAuth credential.
 
 ## What actually executes
 
@@ -151,6 +156,7 @@ Seeded demo Calendar rows are deliberately non-writeable. Approval records an ap
 | `noping-agent` | Firestore projections, Vertex AI, Model Armor, Agent Registry | mission/checkpoint/proposal state and one command topic | access Calendar OAuth secret or call Calendar writes |
 | `noping-pubsub-push` | none | mint OIDC for private push endpoints | business data, model, Calendar |
 | `noping-action-executor` | approved commands and one Calendar credential | narrow Calendar action and verified result | Gemini, query APIs, arbitrary tools, other secrets |
+| local Meet bridge | one claimed Meet URI and one ephemeral live-session nonce | join-status updates and the named browser participant's audio stream | Calendar credential, mission/checkpoint authority, arbitrary stored evidence |
 | `noping-budget-guard` | configured VM state | stop only the demo VM | business data, budgets, models, deletion |
 
 ## State ownership
@@ -175,6 +181,7 @@ Seeded demo Calendar rows are deliberately non-writeable. Approval records an ap
 | Model Armor unavailable | production synthesis fails closed |
 | source injection | scanner/Model Armor quarantines it before agent context |
 | agent/model error | mission fails safely; no prewritten fallback answer |
+| Meet login/admission or browser failure | explicit queued/joining/waiting/failed state; never claim the participant is live |
 | runtime restart | resume same mission and skip completed steps |
 | unauthorized approver | 403; checkpoint remains pending |
 | source ETag changed | reject approval/execution and require fresh preparation |
@@ -191,6 +198,7 @@ Seeded demo Calendar rows are deliberately non-writeable. Approval records an ap
 | Mattermost/PostgreSQL/Caddy | one `e2-small` VM | normal Mattermost HA + managed database |
 | agent gateway/runtime | Cloud Run min 0, max 1, concurrency 4 | raise cap; Firestore already owns state |
 | action executor | Cloud Run min 0, max 1, concurrency 1 | partition only when measured |
+| local Meet bridge | one workstation process and one visible Chrome session | keep demo-only until a supported bidirectional Meet media surface exists |
 | Firestore | native single-region database | managed autoscaling; retention/index review |
 | Pub/Sub | retained work/command topics with DLQs | native throughput scaling |
 | Gemini | four calls max per meeting mission | per-tenant admission/token budgets remain |

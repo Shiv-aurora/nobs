@@ -9,7 +9,7 @@ STORYLINES = json.loads((ROOT / "seed" / "judge_storylines.json").read_text())
 
 
 def test_every_judge_facing_conversation_has_a_substantial_storyline():
-    assert STORYLINES["version"] == "2026-08-30-judge-polish-v1"
+    assert STORYLINES["version"] == "2026-08-30-judge-polish-v2"
     assert set(STORYLINES["channel_updates"]) == {
         "town-square",
         "off-topic",
@@ -29,7 +29,9 @@ def test_every_judge_facing_conversation_has_a_substantial_storyline():
         "agent-workroom-northstar-onboarding",
         "agent-workroom-mobile-release-notes",
     }
-    assert all(len(updates) >= 6 for updates in STORYLINES["workroom_updates"].values())
+    assert all(len(updates) >= 14 for updates in STORYLINES["workroom_updates"].values())
+    assert all(len({update["author"] for update in updates}) >= 4 for updates in STORYLINES["workroom_updates"].values())
+    assert all(sum(len(update["message"]) for update in updates) >= 2_000 for updates in STORYLINES["workroom_updates"].values())
 
     assert set(STORYLINES["dm_exchanges"]) == {"shivam", "sarah", "alex", "daniel", "priya", "helen"}
     for exchange in STORYLINES["dm_exchanges"].values():

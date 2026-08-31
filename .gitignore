@@ -22,8 +22,15 @@ coverage.xml
 .idea/
 .vscode/
 
+# Private product planning and retired brand experiments
+/VISION.md
+/IMPLEMENTATION.md
+**/text-logo.png
+
 # Runtime data
 .runtime/
+.local/
+meet-bridge/.chrome-profile/
 *.db
 *.sqlite3
 

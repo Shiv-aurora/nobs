@@ -328,6 +328,8 @@ class Meeting(BaseModel):
     etag: str
     updated_at: datetime
     source: Literal["google_calendar", "demo"] = "demo"
+    conference_uri: str | None = None
+    conference_code: str | None = None
     confirmed_action: Literal["none", "cancelled", "shortened", "agenda_updated"] = "none"
     pending_action: Literal["none", "cancel", "shorten", "update_agenda"] = "none"
     approved_recommendation: Literal["none", "cancel", "shorten", "update_agenda"] = "none"
@@ -391,6 +393,18 @@ class MeetingDelegationAction(BaseModel):
     actor_id: str
 
 
+class MeetBridgeClaimRequest(BaseModel):
+    bridge_id: str = Field(min_length=3, max_length=100)
+
+
+class MeetBridgeStatusRequest(BaseModel):
+    bridge_id: str = Field(min_length=3, max_length=100)
+    status: Literal["joining", "awaiting_admission", "live", "ended", "failed"]
+    participant_id: str | None = Field(default=None, max_length=200)
+    participant_display_name: str | None = Field(default=None, max_length=200)
+    error: str | None = Field(default=None, max_length=1000)
+
+
 class MeetingDelegation(BaseModel):
     id: str = Field(default_factory=lambda: f"delegation-{uuid4().hex[:12]}")
     meeting_id: str
@@ -416,6 +430,15 @@ class LiveMeetingSession(BaseModel):
     id: str = Field(default_factory=lambda: f"live-{uuid4().hex[:12]}")
     delegation_id: str
     status: Literal["created", "connecting", "live", "paused", "reconnecting", "ended", "failed"] = "created"
+    provider: Literal["in_app", "google_meet"] = "in_app"
+    conference_uri: str | None = None
+    join_status: Literal["not_started", "queued", "joining", "awaiting_admission", "live", "ended", "failed"] = "not_started"
+    join_error: str | None = None
+    provider_participant_id: str | None = None
+    provider_display_name: str | None = None
+    join_updated_at: datetime | None = None
+    bridge_id: str | None = None
+    bridge_lease_expires_at: datetime | None = None
     session_nonce_hash: str
     resumption_handle: str | None = None
     resume_expires_at: datetime

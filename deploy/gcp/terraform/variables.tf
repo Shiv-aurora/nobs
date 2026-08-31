@@ -74,8 +74,8 @@ variable "mattermost_site_address" {
 
 variable "auto_shutdown_hour_utc" {
   type        = number
-  description = "Daily UTC hour when the Mattermost VM shuts itself down. Use -1 to disable."
-  default     = 6
+  description = "Optional daily UTC shutdown hour. Keep -1 for a judge-facing deployment; use an hour only during inactive development periods."
+  default     = -1
 
   validation {
     condition     = var.auto_shutdown_hour_utc == -1 || (var.auto_shutdown_hour_utc >= 0 && var.auto_shutdown_hour_utc <= 23)

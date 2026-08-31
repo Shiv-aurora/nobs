@@ -332,6 +332,8 @@ export interface Meeting {
     etag: string;
     updated_at: string;
     source: 'google_calendar' | 'demo';
+    conference_uri?: string | null;
+    conference_code?: string | null;
     confirmed_action: 'none' | 'cancelled' | 'shortened' | 'agenda_updated';
     pending_action: 'none' | 'cancel' | 'shorten' | 'update_agenda';
     approved_recommendation: 'none' | 'cancel' | 'shorten' | 'update_agenda';
@@ -367,6 +369,13 @@ export interface LiveMeetingSession {
     id: string;
     delegation_id: string;
     status: 'created' | 'connecting' | 'live' | 'paused' | 'reconnecting' | 'ended' | 'failed';
+    provider: 'in_app' | 'google_meet';
+    conference_uri?: string | null;
+    join_status: 'not_started' | 'queued' | 'joining' | 'awaiting_admission' | 'live' | 'ended' | 'failed';
+    join_error?: string | null;
+    provider_participant_id?: string | null;
+    provider_display_name?: string | null;
+    join_updated_at?: string | null;
     started_at?: string | null;
     ended_at?: string | null;
     input_audio_seconds: number;
@@ -395,6 +404,7 @@ export interface MeetingDetail {
     meeting: Meeting;
     run?: MeetingPrepRun | null;
     delegation?: MeetingDelegation | null;
+    session?: LiveMeetingSession | null;
     handoff?: MeetingHandoff | null;
     mission_inspector?: MissionInspector | null;
 }

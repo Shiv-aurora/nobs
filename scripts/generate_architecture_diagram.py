@@ -107,8 +107,8 @@ def arrow(points: list[tuple[int, int]], label: str = "") -> None:
         draw.text((tx - width / 2, ty), label, font=EDGE_LABEL, fill=MUTED)
 
 
-draw.text((54, 24), "NoBS · Governed Mission with Separate Business and Calendar Authority", font=TITLE, fill=INK)
-draw.text((55, 69), "Solid boxes are deployed/code-complete. Models synthesize evidence; deterministic gates own permissions, approvals, and effects.", font=SUBTITLE, fill=MUTED)
+draw.text((54, 24), "NoBS · Governed Agents, Separate Human Authority, Isolated Actions", font=TITLE, fill=INK)
+draw.text((55, 69), "Models synthesize bounded evidence; deterministic gates own permissions and approvals; write credentials stay outside the agent runtime.", font=SUBTITLE, fill=MUTED)
 
 panel(34, 108, 465, 935, "A · Experience + collaboration")
 panel(500, 108, 930, 935, "B · Private gateway · read-only")
@@ -120,11 +120,15 @@ box(108, 285, 390, 358, "NoBS React UI", "Mission Inspector · untrusted browser
 box(84, 410, 415, 482, "Mattermost + Caddy", "sessions · channels · realtime")
 box(68, 535, 272, 605, "NoBS Go plugin", "server-derived identity")
 box(292, 535, 440, 605, "PostgreSQL", "collaboration truth", fill=AMBER, edge=AMBER_EDGE)
+box(60, 650, 250, 722, "Meet Bridge", "Chrome · signed audio/status", fill=RED, edge=RED_EDGE)
+box(270, 650, 445, 722, "Google Meet", "named participant · admission", fill=RED, edge=RED_EDGE)
 box(84, 774, 416, 850, "$25 budget + independent guard", "may stop only the demo VM")
 arrow([(249, 240), (249, 285)])
 arrow([(249, 358), (249, 410)], "HTTPS · WebSocket")
 arrow([(190, 482), (190, 535)])
 arrow([(330, 482), (330, 535)])
+arrow([(250, 678), (270, 678)])
+arrow([(270, 696), (250, 696)])
 
 box(566, 170, 864, 240, "Pub/Sub work events", "OIDC · retry · dead-letter", fill=AMBER, edge=AMBER_EDGE)
 box(550, 295, 880, 370, "NoBS Gateway", "IAM · HMAC · replay · trace")
@@ -132,12 +136,15 @@ box(550, 420, 880, 492, "Admission", "rate · concurrency · calls · tokens", f
 box(526, 550, 700, 620, "Delegate Directory", "logical identities")
 box(720, 550, 904, 620, "Access Gate", "tenant · scope · evidence", fill=GREEN, edge=GREEN_EDGE)
 box(550, 700, 880, 780, "Model Armor", "every ADK input/output · fail closed")
+box(550, 825, 880, 895, "Gemini Live Representative", "2.5 Flash native audio · no authority", fill=BLUE, edge=BLUE_EDGE)
 arrow([(715, 240), (715, 295)])
 arrow([(715, 370), (715, 420)])
 arrow([(715, 492), (812, 492), (812, 550)])
 arrow([(700, 585), (720, 585)])
 arrow([(812, 620), (812, 700)])
 arrow([(272, 570), (480, 570), (480, 333), (550, 333)])
+arrow([(155, 650), (155, 632), (500, 632), (500, 350), (550, 350)])
+arrow([(880, 333), (920, 333), (920, 860), (880, 860)])
 
 box(1000, 160, 1164, 220, "Agent Registry", "4 services · v1", fill=AMBER, edge=AMBER_EDGE)
 box(1190, 160, 1360, 220, "Vertex Sessions", "ADK context", fill=AMBER, edge=AMBER_EDGE)
@@ -183,13 +190,13 @@ arrow([(1658, 688), (1658, 740)])
 box(430, 958, 790, 1025, "Memory Bank · preferences only", "never policy, evidence, authority, or approval", fill=AMBER, edge=AMBER_EDGE)
 box(815, 958, 1135, 1025, "Dedicated service accounts", "gateway ≠ executor ≠ budget guard")
 box(1160, 958, 1510, 1025, "OpenTelemetry · Cloud observability", "safe IDs, versions, attempts, timings, usage")
-draw.text((54, 1043), "Logical delegates define organizational scope. Executable agents perform bounded knowledge work. Deterministic nodes own access, evidence validation, business authority, Calendar consent, idempotency, and effects.", font=FOOTER, fill=MUTED)
+draw.text((54, 1043), "Logical delegates define scope. Executable agents do bounded knowledge work. Deterministic nodes own access, evidence, business authority, Calendar consent, idempotency, and effects; the Meet bridge has no authority.", font=FOOTER, fill=MUTED)
 
 OUT.mkdir(exist_ok=True)
 image.save(OUT / "architecture.png", optimize=True)
 (OUT / "architecture.svg").write_text('''<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
   <image href="architecture.png" width="1920" height="1080"/>
   <title>NoBS governed mission architecture</title>
-  <desc>NoBS uses a private read-only gateway, four bounded Gemini agent services, deterministic evidence validation, a business decision gate for Sarah or valid acting Alex, a separate organizer-only Calendar gate, Firestore mission authority, and an isolated least-privilege Calendar action executor.</desc>
+  <desc>NoBS uses a private gateway, four bounded Gemini 3.5 agent services, a Gemini Live representative connected through a disclosed local Google Meet bridge, deterministic evidence validation, a business decision gate for Sarah or valid acting Alex, a separate organizer-only Calendar gate, Firestore mission authority, and an isolated least-privilege Calendar action executor.</desc>
 </svg>''')
 print(OUT / "architecture.png")

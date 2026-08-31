@@ -20,7 +20,7 @@ function lines(value: string): string[] {
     return value.split('\n').map((item) => item.trim()).filter(Boolean);
 }
 
-export function SendAgentModal({meeting, conflicts, onClose, onSaved}: {meeting: Meeting; conflicts: Meeting[]; onClose: () => void; onSaved: (delegation: MeetingDelegation) => void}): JSX.Element {
+export function SendAgentModal({meeting, conflicts, onClose, onSaved}: {meeting: Meeting; conflicts: Meeting[]; onClose: () => void; onSaved: (delegation: MeetingDelegation) => void | Promise<void>}): JSX.Element {
     const [mode, setMode] = useState<MeetingAgentMode>('mission');
     const [tell, setTell] = useState('API v2 is ready for QA.');
     const [ask, setAsk] = useState('Is mobile integration still on track for Thursday?');
@@ -41,7 +41,7 @@ export function SendAgentModal({meeting, conflicts, onClose, onSaved}: {meeting:
                 capability_ids: capabilities,
                 escalation_rules: lines(escalate),
             }, meeting.etag);
-            onSaved(delegation);
+            await onSaved(delegation);
         } catch (caught) {
             setError(caught instanceof APIError ? caught.message : 'Your agent could not be assigned to this meeting.');
         } finally {
@@ -64,6 +64,7 @@ export function SendAgentModal({meeting, conflicts, onClose, onSaved}: {meeting:
                 {MODES.map((item) => <button key={item.id} type='button' role='radio' aria-checked={mode === item.id} className={mode === item.id ? 'is-active' : ''} onClick={() => setMode(item.id)}><strong>{item.label}</strong><span>{item.detail}</span></button>)}
             </div>
             <p className='nobs-mode-summary'><i className='icon-shield-outline'/> {selectedMode.detail}</p>
+            <p className='nobs-meet-launch-note'><i className='icon-video-outline'/> {meeting.conference_uri ? 'This starts now in Google Meet. The scheduled Calendar time will not delay the agent.' : 'This starts now in the secure NoBS huddle.'}</p>
 
             <div className='nobs-mission-grid'>
                 <label><strong>Tell them</strong><span>One update per line</span><textarea value={tell} onChange={(event) => setTell(event.target.value)} rows={3}/></label>
@@ -73,7 +74,7 @@ export function SendAgentModal({meeting, conflicts, onClose, onSaved}: {meeting:
             </div>
 
             {error && <div className='nobs-inline-error' role='alert'>{error}</div>}
-            <footer><button type='button' className='nobs-secondary-button' onClick={onClose}>Cancel</button><button type='button' className='nobs-primary-button' disabled={working || capabilities.length === 0} onClick={() => void submit()}>{working ? 'Assigning agent…' : 'Send my Agent'}</button></footer>
+            <footer><button type='button' className='nobs-secondary-button' onClick={onClose}>Cancel</button><button type='button' className='nobs-primary-button' disabled={working || capabilities.length === 0} onClick={() => void submit()}>{working ? (meeting.conference_uri ? 'Joining Google Meet…' : 'Starting agent…') : 'Send my Agent'}</button></footer>
         </section>
     </div>;
 }

@@ -28,7 +28,6 @@ RUN test -n "${REPRO_NONCE}"
 COPY deploy/mattermost-client/apply_branding.py /noping/apply_branding.py
 COPY deploy/mattermost-client/overrides /noping/overrides
 COPY plugin/webapp/src/assets/logo.png /noping/assets/logo.png
-COPY plugin/webapp/src/assets/text-logo.png /noping/assets/text-logo.png
 
 RUN python3 /noping/apply_branding.py --source /src --assets /noping/assets --overrides /noping/overrides
 WORKDIR /src/webapp

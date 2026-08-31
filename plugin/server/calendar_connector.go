@@ -46,6 +46,7 @@ type googleCalendarEvent struct {
 	EventType   string           `json:"eventType"`
 	Summary     string           `json:"summary"`
 	Description string           `json:"description"`
+	HangoutLink string           `json:"hangoutLink"`
 	Updated     time.Time        `json:"updated"`
 	Start       calendarDateTime `json:"start"`
 	End         calendarDateTime `json:"end"`
@@ -63,6 +64,14 @@ type googleCalendarEvent struct {
 	ExtendedProperties struct {
 		Private map[string]string `json:"private"`
 	} `json:"extendedProperties"`
+	ConferenceData struct {
+		ConferenceID string `json:"conferenceId"`
+		EntryPoints  []struct {
+			EntryPointType string `json:"entryPointType"`
+			URI            string `json:"uri"`
+			MeetingCode    string `json:"meetingCode"`
+		} `json:"entryPoints"`
+	} `json:"conferenceData"`
 }
 
 func (c *googleCalendarClient) upcomingMeetingEvents(ctx context.Context, now time.Time) ([]googleCalendarEvent, error) {
@@ -77,7 +86,7 @@ func (c *googleCalendarClient) upcomingMeetingEvents(ctx context.Context, now ti
 	query.Set("orderBy", "startTime")
 	query.Set("timeMin", now.Add(-time.Hour).UTC().Format(time.RFC3339))
 	query.Set("timeMax", now.Add(14*24*time.Hour).UTC().Format(time.RFC3339))
-	query.Set("fields", "items(id,etag,status,eventType,summary,description,updated,start,end,organizer/email,attendees(email,responseStatus,organizer),extendedProperties/private)")
+	query.Set("fields", "items(id,etag,status,eventType,summary,description,hangoutLink,conferenceData(conferenceId,entryPoints(entryPointType,uri,meetingCode)),updated,start,end,organizer/email,attendees(email,responseStatus,organizer),extendedProperties/private)")
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint+"?"+query.Encode(), nil)
 	if err != nil {
 		return nil, err
@@ -126,6 +135,14 @@ func meetingPreparationEligibility(event googleCalendarEvent) (string, string) {
 	return "ambiguous", "Meeting needs one lightweight eligibility classification before preparation."
 }
 
+func googleMeetURI(value string) string {
+	parsed, err := url.Parse(strings.TrimSpace(value))
+	if err != nil || parsed.Scheme != "https" || !strings.EqualFold(parsed.Hostname(), "meet.google.com") {
+		return ""
+	}
+	return parsed.String()
+}
+
 func normalizeMeetingEvent(source googleCalendarEvent, identities map[string]calendarIdentity) (workEvent, bool, error) {
 	if source.ID == "" || source.EventType != "default" {
 		return workEvent{}, false, nil
@@ -161,11 +178,26 @@ func normalizeMeetingEvent(source googleCalendarEvent, identities map[string]cal
 	if source.Status == "cancelled" {
 		eventType = "calendar.meeting.cancelled"
 	}
+	conferenceURI := googleMeetURI(source.HangoutLink)
+	conferenceCode := strings.TrimSpace(source.ConferenceData.ConferenceID)
+	for _, entryPoint := range source.ConferenceData.EntryPoints {
+		if entryPoint.EntryPointType != "video" {
+			continue
+		}
+		if uri := googleMeetURI(entryPoint.URI); uri != "" {
+			conferenceURI = uri
+		}
+		if code := strings.TrimSpace(entryPoint.MeetingCode); code != "" {
+			conferenceCode = code
+		}
+		break
+	}
 	payload := map[string]any{
 		"calendar_event_id": source.ID, "etag": source.ETag, "title": source.Summary,
 		"description": source.Description, "start_at": start.UTC().Format(time.RFC3339),
 		"end_at": end.UTC().Format(time.RFC3339), "organizer_user_id": organizer.UserID,
 		"attendees": attendees, "preparation_eligibility": eligibility, "preparation_reason": reason,
+		"conference_uri": conferenceURI, "conference_code": conferenceCode,
 	}
 	return workEvent{ID: "google_calendar:meeting:" + source.ID + ":" + source.Updated.UTC().Format(time.RFC3339Nano), Source: "google_calendar", EventType: eventType, ActorUserID: organizer.UserID, EntityIDs: entityIDs, OccurredAt: source.Updated, Payload: payload}, true, nil
 }

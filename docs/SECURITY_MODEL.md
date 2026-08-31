@@ -15,6 +15,7 @@ All controls through delegation are deterministic and occur before Gemini receiv
 3. **Gateway/mission runtime:** read-only enterprise-agent boundary. It applies replay, tenant, rate, concurrency, model-budget, evidence, policy, and Model Armor controls. It lacks the Calendar credential.
 4. **Firestore/Pub/Sub:** durable at-least-once control plane. Tenant-scoped transactions own mission/checkpoint/command state; push uses a pinned service account and audience.
 5. **Action executor:** isolated write boundary. It has no model/query tools and reads only the Calendar credential plus approved command state.
+6. **Local Meet bridge:** demo-only media boundary. It receives one validated Meet URI, one leased session, and one rotating live nonce. It has no Calendar credential, evidence-query role, business authority, or command approval capability.
 
 ## Evidence security
 
@@ -39,6 +40,7 @@ The executor reloads the command and both persisted approvals, verifies their di
 | agent runtime | Vertex AI, Model Armor, Agent Registry read, Firestore state, traces/logs, publish one command topic |
 | Pub/Sub push | mint OIDC for configured private endpoints |
 | action executor | Firestore, traces/logs, read one Calendar secret |
+| local Meet bridge | claim/status endpoints and one ephemeral live-session nonce; no cloud IAM role in the deployed baseline |
 | budget guard | logging plus custom `compute.instances.get/stop` for the configured VM |
 
 No runtime identity receives Owner or Editor. Cloud Run remains private; no `allUsers` binding is allowed.
@@ -60,4 +62,5 @@ Confirmed decision memory is authoritative only when scope, facts hash, policy v
 | direct model side effect | no write tool/credential; separate executor |
 | stale or duplicate action | ETag, idempotency key, lease, terminal states, postcondition read |
 | secret/log leakage | Secret Manager, structured redacted logs, body-free traces |
+| forged or stale Meet worker | separate bridge token, normal service signature, one-owner lease, rotating media nonce, validated `meet.google.com` host |
 | overspend | per-query/day admission, max instances, $25 budget, independent VM-stop guard |

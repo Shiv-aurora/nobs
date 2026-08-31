@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-30-judge-polish-v1",
+  "version": "2026-08-30-judge-polish-v2",
   "prepared_meeting_ids": [
     "meeting-atlas-engineering-sync",
     "meeting-northstar-escalation-review",
@@ -229,6 +229,41 @@
         "author": "priya",
         "marker": "judge-atlas-workroom-product-review",
         "message": "Product review: the brief is decision-ready. Keep the 15-minute recommendation provisional until Alex decides, then route Calendar consent to Shivam without rerunning completed evidence work."
+      },
+      {
+        "author": "github",
+        "marker": "judge-atlas-workroom-canary-recheck",
+        "message": "Canary recheck completed against the immutable build manifest: 2,416 iOS sessions remain clean, the refresh-loop alert is quiet, and the rollback artifact still matches the commit reviewed in AUTH-392. No new engineering blocker was introduced while the authority packet waited."
+      },
+      {
+        "author": "gemini-code-assist",
+        "marker": "judge-atlas-workroom-diff-audit",
+        "message": "Independent code-evidence audit finished. I traced each customer-safe reliability claim to the merged diff and test artifact, excluded implementation-only details, and confirmed that the pending merge action still belongs to Daniel rather than an agent."
+      },
+      {
+        "author": "maya",
+        "marker": "judge-atlas-workroom-customer-scenarios",
+        "message": "Customer scenario pass completed for approve, reject, and delayed-decision paths. Northstar messaging now states exactly what changes in each case, names the communication owner, and avoids promising a launch outcome before Alex records the risk decision."
+      },
+      {
+        "author": "gemini-enterprise",
+        "marker": "judge-atlas-workroom-policy-crosscheck",
+        "message": "Policy cross-check compared SEC-POL-12, the active delegation record, the customer exception scope, and the organizer role. The result is stable: Alex may decide this bounded exception while the delegation is valid; Shivam may act only on the later Calendar checkpoint."
+      },
+      {
+        "author": "atlas-agent",
+        "marker": "judge-atlas-workroom-resume-rehearsal",
+        "message": "Resume rehearsal passed using the persisted mission snapshot. Controller, both specialists, critic, and resolution step IDs were reused with unchanged attempts; only the business gate remains pending, so recovery will not manufacture another round of agent work."
+      },
+      {
+        "author": "master-agent",
+        "marker": "judge-atlas-workroom-contingency-pack",
+        "message": "Contingency pack is complete: approval resumes into organizer consent, rejection preserves the current meeting and customer fallback, and an expired delegation returns the decision to Sarah. Every branch names its owner, evidence revision, and next observable state."
+      },
+      {
+        "author": "priya",
+        "marker": "judge-atlas-workroom-final-review",
+        "message": "Final product review passed. The agents have exhausted the evidence work, exposed the one judgment they cannot own, preserved the 45-minute-per-attendee savings estimate, and left the mission visibly **in review** instead of pretending the launch decision is complete."
       }
     ],
     "agent-workroom-pricing-launch-faq": [
@@ -261,6 +296,46 @@
         "author": "master-agent",
         "marker": "judge-pricing-ready",
         "message": "**Ready for approval.** Pre-work is complete: outcome, evidence, owners, exclusions, and authority boundaries are explicit. Real work will begin only after Priya approves the brief."
+      },
+      {
+        "author": "gemini-enterprise",
+        "marker": "judge-pricing-freshness-sweep",
+        "message": "Freshness sweep revalidated the packaging table, enablement deck, Support macro inventory, and regional rollout memo. One superseded pricing slide was removed from the source map before it could influence customer wording."
+      },
+      {
+        "author": "maya",
+        "marker": "judge-pricing-support-scenarios",
+        "message": "Support scenario review exercised upgrade, downgrade, annual-credit, regional-waitlist, and negotiated-enterprise questions. Sixteen answers resolve safely; account-specific adjustments still route to the named account owner without exposing restricted terms."
+      },
+      {
+        "author": "priya",
+        "marker": "judge-pricing-availability-language",
+        "message": "Availability language review completed across the launch FAQ and enablement deck. Every answer now says `rolling availability from September 8`, distinguishes eligibility from activation, and avoids turning the first rollout date into a universal promise."
+      },
+      {
+        "author": "master-agent",
+        "marker": "judge-pricing-contradiction-gate",
+        "message": "Contradiction gate compared all 18 draft answers with approved product and Support sources. Two wording conflicts were resolved, two restricted examples remain quarantined, and the execution brief records why those answers cannot be generalized."
+      },
+      {
+        "author": "gemini-enterprise",
+        "marker": "judge-pricing-regional-matrix",
+        "message": "Regional matrix completed for US, Canada, UK, and EU launch paths. I mapped currency display, tax wording, and rollout dependencies without inventing localization approval or copying account-level discount data into the shared draft."
+      },
+      {
+        "author": "alex",
+        "marker": "judge-pricing-policy-boundary",
+        "message": "Policy review confirmed the FAQ can explain published packaging and standard credits, but cannot authorize exceptions or disclose negotiated terms. Those boundaries are now repeated in the decision tree and reviewer checklist."
+      },
+      {
+        "author": "maya",
+        "marker": "judge-pricing-reviewer-handoff",
+        "message": "Reviewer handoff is usable: each answer shows its source, confidence, customer-safe wording, exception owner, and last-verified date. Support can now review one coherent packet instead of reconciling six documents and three separate pings."
+      },
+      {
+        "author": "master-agent",
+        "marker": "judge-pricing-ready-final",
+        "message": "**Ready for approval · 24 pre-work checks complete.** Five agents resolved scope, sources, exclusions, regional language, owner routing, and rollback of the draft. Execution remains paused until Priya explicitly approves the bounded brief."
       }
     ],
     "agent-workroom-support-taxonomy": [
@@ -293,6 +368,46 @@
         "author": "master-agent",
         "marker": "judge-taxonomy-review-state",
         "message": "**Needs human review.** Agents completed 34 of 35 checks. Execution is paused before generating the final crosswalk; no reporting taxonomy has been changed."
+      },
+      {
+        "author": "gemini-enterprise",
+        "marker": "judge-taxonomy-sample-replay",
+        "message": "Sample replay classified 600 recent tickets through the proposed crosswalk. Stable intents retained their historical reporting IDs; the only meaningful disagreement remains the customer-facing availability label already routed to Maya."
+      },
+      {
+        "author": "master-agent",
+        "marker": "judge-taxonomy-dashboard-impact",
+        "message": "Dashboard impact scan is complete: 14 saved reports require no change, three label-only views receive automatic aliases, and two executive dashboards need a reviewer-visible title update. Underlying metrics remain comparable."
+      },
+      {
+        "author": "maya",
+        "marker": "judge-taxonomy-macro-review",
+        "message": "I reviewed the 11 affected Support macros. The new intent names improve agent routing, but customer copy should continue saying `service interruption` rather than exposing the internal availability taxonomy."
+      },
+      {
+        "author": "gemini-enterprise",
+        "marker": "judge-taxonomy-edge-cases",
+        "message": "Edge-case pass separated credential expiry, login failure, account lockout, and identity-provider outage. Each maps to a distinct escalation path while still rolling up to the same historical authentication family for trend reporting."
+      },
+      {
+        "author": "master-agent",
+        "marker": "judge-taxonomy-rollback-rehearsal",
+        "message": "Rollback rehearsal generated the reverse crosswalk and restored every sampled ticket to its original tag without loss. The plan records migration batch IDs, verification queries, and the stop condition if reporting totals diverge."
+      },
+      {
+        "author": "alex",
+        "marker": "judge-taxonomy-access-check",
+        "message": "Access review confirmed the agents used permission-approved ticket summaries only. Customer identities, private account notes, and restricted escalation attachments never entered clustering, validation, or the reviewer packet."
+      },
+      {
+        "author": "maya",
+        "marker": "judge-taxonomy-final-choice",
+        "message": "The remaining choice is now genuinely small: `Service availability` versus `Availability` in three customer-visible surfaces. All reporting IDs, macro changes, migration batches, and rollback evidence are already settled."
+      },
+      {
+        "author": "master-agent",
+        "marker": "judge-taxonomy-review-final",
+        "message": "**Needs human review · 47 of 48 checks complete.** Four agents finished discovery, clustering, history preservation, macro impact, access validation, and rollback rehearsal. No taxonomy mutation will occur before Maya records the final display-name decision."
       }
     ],
     "agent-workroom-northstar-onboarding": [
@@ -325,6 +440,46 @@
         "author": "master-agent",
         "marker": "judge-northstar-review-state",
         "message": "**In review · 11/12 checks complete.** Maya's Agent is validating the final executive-view date against the latest customer commitment; all execution agents are otherwise done."
+      },
+      {
+        "author": "maya",
+        "marker": "judge-northstar-commitment-diff",
+        "message": "Commitment diff compared the signed order form, latest steering notes, and Support escalation summary. SSO day one and finance export day three are confirmed; the executive-view date remains deliberately labeled proposed until the owner signs off."
+      },
+      {
+        "author": "gemini-enterprise",
+        "marker": "judge-northstar-evidence-manifest",
+        "message": "Evidence manifest now contains 22 accepted references with owner, audience, freshness, and permission metadata. Two obsolete onboarding drafts were excluded, and restricted commercial terms remain outside the shared customer pack."
+      },
+      {
+        "author": "alex",
+        "marker": "judge-northstar-retention-closure",
+        "message": "Retention addendum review is complete. The checklist separates evidence already approved under the standard control set from the one Northstar-specific acknowledgment the customer administrator must record."
+      },
+      {
+        "author": "daniel",
+        "marker": "judge-northstar-sandbox-validation",
+        "message": "Implementation sandbox validation passed for SSO metadata exchange, finance sample export, and rollback to the pre-enable configuration. No production tenant or customer credential was touched during the rehearsal."
+      },
+      {
+        "author": "priya",
+        "marker": "judge-northstar-language-pass",
+        "message": "Product language pass replaced every premature `launch` claim with the approved controlled-enablement stages. Owner, entry criteria, exit criteria, customer proof, and rollback responsibility are now visible for each day."
+      },
+      {
+        "author": "master-agent",
+        "marker": "judge-northstar-steering-pack",
+        "message": "Steering pack assembled from the day-by-day plan, security acknowledgment, sandbox results, customer communications, and escalation tree. The executive page links to evidence instead of copying private implementation notes."
+      },
+      {
+        "author": "maya",
+        "marker": "judge-northstar-customer-drill",
+        "message": "Customer communication drill covered on-track, one-day delay, rollback, and security-review scenarios. Each response names the next owner and evidence source, so Support does not need to reconstruct the story during the steering call."
+      },
+      {
+        "author": "master-agent",
+        "marker": "judge-northstar-review-final",
+        "message": "**In review · 23 of 24 checks complete.** Six agents finished dependency validation, security, sandbox rehearsal, language control, customer scenarios, and the steering pack. Only Priya's explicit executive-view date approval remains."
       }
     ],
     "agent-workroom-mobile-release-notes": [
@@ -357,6 +512,46 @@
         "author": "master-agent",
         "marker": "judge-release-closed",
         "message": "**Completed and verified.** Five agents coordinated 14 source changes into nine customer-facing notes, with two human reviews, zero unsupported claims, and a complete audit trail."
+      },
+      {
+        "author": "github",
+        "marker": "judge-release-commit-matrix",
+        "message": "Commit matrix revalidated all 14 release-window changes against tags, merge commits, CI artifacts, and shipped mobile builds. Nine remain customer-visible, three remain internal reliability work, and two dependency-only updates stay excluded."
+      },
+      {
+        "author": "gemini-code-assist",
+        "marker": "judge-release-claim-trace",
+        "message": "Claim trace completed for every sentence in the public notes. Each reliability statement maps to a merged diff plus passing evidence; implementation details, source snippets, and internal issue classifications remain absent."
+      },
+      {
+        "author": "maya",
+        "marker": "judge-release-macro-validation",
+        "message": "Support macro validation passed across upgrade recovery, known limitations, and escalation routing. The public copy is concise, while the internal handoff preserves affected cohorts and troubleshooting evidence."
+      },
+      {
+        "author": "daniel",
+        "marker": "judge-release-device-matrix",
+        "message": "Device matrix review covered supported iOS versions, offline recovery, token refresh, and the pre-4.8 limitation. The wording matches shipped behavior and does not imply an Android change that was outside this release."
+      },
+      {
+        "author": "gemini-enterprise",
+        "marker": "judge-release-audience-check",
+        "message": "Audience check compared public, Support, and engineering versions. Customer-safe outcomes appear publicly; troubleshooting detail stays internal; restricted logs and account identifiers remain only in their source systems."
+      },
+      {
+        "author": "priya",
+        "marker": "judge-release-product-signoff",
+        "message": "Product sign-off confirmed the ordering, headline, availability language, and limitation placement. The notes communicate user value first while preserving direct evidence links for internal reviewers."
+      },
+      {
+        "author": "master-agent",
+        "marker": "judge-release-delivery-verification",
+        "message": "Delivery verification confirmed the internal page, public notes, Support handoff, evidence manifest, and reviewer decisions all carry the same release identifier. No destination contains an unsupported or stale claim."
+      },
+      {
+        "author": "master-agent",
+        "marker": "judge-release-closed-final",
+        "message": "**Completed · post-delivery audit passed.** Five agents processed 14 changes through evidence mapping, privacy review, audience-specific drafting, human sign-off, publication, and final destination verification—nine useful notes, zero unsupported claims."
       }
     ]
   },

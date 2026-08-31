@@ -151,6 +151,33 @@ func TestNormalizeMeetingEventUsesMappedAttendeesAndDeterministicEligibility(t *
 	}
 }
 
+func TestNormalizeMeetingEventIncludesOnlyGoogleMeetVideoEntryPoint(t *testing.T) {
+	now := time.Date(2026, 8, 29, 13, 0, 0, 0, time.UTC)
+	source := googleCalendarEvent{ID: "live-demo", ETag: "etag-live", Status: "confirmed", EventType: "default", Summary: "Atlas live review", Updated: now, Start: calendarDateTime{DateTime: now.Format(time.RFC3339)}, End: calendarDateTime{DateTime: now.Add(30 * time.Minute).Format(time.RFC3339)}}
+	source.Organizer.Email = "shivam@example.com"
+	source.HangoutLink = "https://meet.google.com/abc-defg-hij"
+	source.ConferenceData.ConferenceID = "abc-defg-hij"
+	source.ConferenceData.EntryPoints = append(source.ConferenceData.EntryPoints, struct {
+		EntryPointType string `json:"entryPointType"`
+		URI            string `json:"uri"`
+		MeetingCode    string `json:"meetingCode"`
+	}{EntryPointType: "video", URI: "https://meet.google.com/abc-defg-hij", MeetingCode: "abc-defg-hij"})
+	event, accepted, err := normalizeMeetingEvent(source, map[string]calendarIdentity{"shivam@example.com": {UserID: "shivam"}})
+	if err != nil || !accepted {
+		t.Fatalf("accepted=%v err=%v", accepted, err)
+	}
+	if event.Payload["conference_uri"] != "https://meet.google.com/abc-defg-hij" || event.Payload["conference_code"] != "abc-defg-hij" {
+		t.Fatalf("unexpected conference payload: %#v", event.Payload)
+	}
+
+	source.HangoutLink = "https://evil.example/steal"
+	source.ConferenceData.EntryPoints[0].URI = "javascript:alert(1)"
+	event, accepted, err = normalizeMeetingEvent(source, map[string]calendarIdentity{"shivam@example.com": {UserID: "shivam"}})
+	if err != nil || !accepted || event.Payload["conference_uri"] != "" {
+		t.Fatalf("non-Meet URL must be rejected: accepted=%v err=%v payload=%#v", accepted, err, event.Payload)
+	}
+}
+
 func TestConfirmedCalendarWriteUsesIfMatch(t *testing.T) {
 	transport := publisherRoundTripFunc(func(request *http.Request) (*http.Response, error) {
 		if request.Method != http.MethodPatch || request.Header.Get("If-Match") != "etag-1" {

@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
   <image href="architecture.png" width="1920" height="1080"/>
   <title>NoBS governed mission architecture</title>
-  <desc>NoBS uses a private read-only gateway, four bounded Gemini agent services, deterministic evidence validation, a business decision gate for Sarah or valid acting Alex, a separate organizer-only Calendar gate, Firestore mission authority, and an isolated least-privilege Calendar action executor.</desc>
+  <desc>NoBS uses a private gateway, four bounded Gemini 3.5 agent services, a Gemini Live representative connected through a disclosed local Google Meet bridge, deterministic evidence validation, a business decision gate for Sarah or valid acting Alex, a separate organizer-only Calendar gate, Firestore mission authority, and an isolated least-privilege Calendar action executor.</desc>
 </svg>

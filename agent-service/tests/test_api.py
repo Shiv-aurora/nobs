@@ -344,6 +344,8 @@ def test_calendar_meeting_event_creates_private_google_projection(client):
             ],
             "preparation_eligibility": "eligible",
             "preparation_reason": "Work meeting matched deterministic preparation rules.",
+            "conference_uri": "https://meet.google.com/abc-defg-hij",
+            "conference_code": "abc-defg-hij",
         },
     }
     assert client.post("/v1/events", json=event).json()["accepted"] is True
@@ -351,6 +353,8 @@ def test_calendar_meeting_event_creates_private_google_projection(client):
     projected = next(item for item in meetings if item["calendar_event_id"] == "atlas-live")
     assert projected["source"] == "google_calendar"
     assert projected["etag"] == "etag-live-1"
+    assert projected["conference_uri"] == "https://meet.google.com/abc-defg-hij"
+    assert projected["conference_code"] == "abc-defg-hij"
     assert [item["title"] for item in projected["agenda"]] == ["Engineering readiness", "Security authority decision"]
     assert projected["agenda"][1]["authority_type"] == "atlas_security_approval"
     assert client.get("/v1/meetings", params={"user_id": "helen"}).status_code == 200

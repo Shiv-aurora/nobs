@@ -6,7 +6,7 @@ Verified 2026-08-30 from the tracked source.
 
 | Suite | Command | Result |
 |---|---|---|
-| governed agent runtime | `python -m pytest agent-service/tests` | **95 passed** |
+| governed agent runtime | `python -m pytest agent-service/tests` | **97 passed** |
 | budget guard | `(cd deploy/gcp/budget-guard && python -m pytest tests)` | **8 passed** |
 | action executor | `(cd executor-service && python -m pytest tests)` | **7 passed** |
 | Go plugin/runtime | `(cd plugin && go test ./...)` | **all packages passed** |
@@ -37,6 +37,9 @@ Verified 2026-08-30 from the tracked source.
 | bounded specialist output | structured schema caps claims/findings/unknowns and fits the existing 2,400-token mission reservation |
 | API error boundary | raw model validation output is not returned to the browser |
 | judge seed quality | every public channel, workroom, and teammate DM has a substantial, versioned storyline; ten meetings exist and three authentic mission runs are prepared during idempotent seeding |
+| Google Meet ingestion | only HTTPS `meet.google.com` conference entry points are projected; lookalike hosts and unsafe schemes are rejected |
+| immediate live delegation | assignment starts from the current click rather than the Calendar time; the meeting projection exposes the current non-secret session state |
+| Meet bridge lease and status | one bridge claims one queued job with a rotating nonce; stale workers cannot update another lease; admission/live/end events persist separately and handoff creation is idempotent |
 
 ## Live Google proof
 
@@ -44,4 +47,4 @@ A real four-call ADK mission completed on Vertex AI `gemini-3.5-flash`, with Mod
 
 ## Production evidence
 
-The final private Cloud Run revisions passed startup health, the deployed Mattermost routes return 200, Firestore contains the successful mission and seven durable steps, Cloud Logging correlates its trace and four real model calls, and the browser walkthrough reached a human checkpoint. The executor IAM, single-secret grant, command topic/DLQ, OIDC push subscription, and absence of public invokers were audited directly. No external Calendar mutation was performed merely to manufacture a test result; action proof still requires an organizer-approved dedicated Google Calendar demo event.
+The final private Cloud Run revisions passed startup health, the deployed workspace routes return 200, Firestore contains the successful mission and seven durable steps, Cloud Logging correlates its trace and four real model calls, and the browser walkthrough reached a human checkpoint. The executor IAM, single-secret grant, command topic/DLQ, OIDC push subscription, and absence of public invokers were audited directly. The submission-polish deployment also passed browser verification with 101 auditable Workroom updates, no product-switch menu, and no visible upstream product name. No external Calendar mutation was performed merely to manufacture a test result; action proof still requires an organizer-approved dedicated Google Calendar demo event.

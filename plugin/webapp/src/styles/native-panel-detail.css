@@ -2,6 +2,35 @@
     display: contents;
 }
 
+/*
+ * The host RHS clips overflow. Keep the NoBS shell pinned to the available
+ * height and give its active view the scroll container so browser zoom never
+ * strands controls below the fold.
+ */
+.np-native-panel {
+    display: flex;
+    height: 100%;
+    min-height: 0;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.np-agent-owner,
+.np-native-tabs,
+.np-native-panel > .np-panel-error {
+    flex: 0 0 auto;
+}
+
+.np-native-panel__body {
+    min-height: 0;
+    flex: 1 1 auto;
+    align-content: start;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+}
+
 .post__header:has(.np-post-agent-meta) > .col__name {
     display: none;
 }

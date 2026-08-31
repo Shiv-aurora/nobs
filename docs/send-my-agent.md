@@ -2,7 +2,8 @@
 
 Send My Agent is a native NoBS Calendar workflow. It keeps Mattermost as the
 collaboration shell and extends the existing NoBS plugin and private agent
-service; it does not introduce a second application or always-on service.
+service. Google Meet attendance adds one opt-in, single-session bridge worker,
+not a second user-facing application or a generally scaled service.
 
 ## Runtime path
 
@@ -12,18 +13,24 @@ service; it does not introduce a second application or always-on service.
 2. The mission editor accepts `tell`, `ask`, registered capability IDs, and
    escalation conditions. Server-owned policy escalations are always added and
    free text cannot grant authority.
-3. Before the huddle starts, the service revalidates the Calendar ETag and
+3. Before the live session starts, the service revalidates the Calendar ETag and
    participant snapshot. The plugin issues a short-lived session nonce.
-4. The browser streams 16-bit mono 16 kHz PCM in 30 ms frames to the same-origin
-   plugin WebSocket. The plugin binds the represented employee, meeting,
-   delegation, and nonce to a private OIDC/HMAC WebSocket connection.
-5. In production, the existing Cloud Run service uses ADK `Runner.run_live()`
+4. For an event with a validated Google Meet video entry point, the click queues
+   an immediate join independently of the scheduled Calendar window. A
+   separately authenticated single-worker bridge leases the join, opens Meet as
+   `NoBS Agent for <employee>`, and reports joining, admission, live, ended, or
+   failed state. Events without a Meet entry point retain the in-app huddle.
+5. The bridge or in-app browser streams 16-bit mono 16 kHz PCM to the same Live
+   WebSocket. The service returns 24 kHz PCM to the bridge's synthetic Meet
+   microphone. The represented employee, meeting, delegation, and rotating
+   nonce stay bound to the connection.
+6. In production, the existing Cloud Run service uses ADK `Runner.run_live()`
    with the configured Vertex Live model. The local demo adapter exercises the
    same control, policy, tool, interruption, reconnect, and handoff contracts
    without incurring model spend.
-6. Only structured outcomes, counters, resumption state, and audit references
+7. Only structured outcomes, counters, resumption state, and audit references
    are durable. Raw audio and full transcripts are never persisted.
-7. At an explicit end, production reserves one call against the existing text
+8. At an explicit end, production reserves one call against the existing text
    model budget for a concise handoff summary. The deterministic Told, Asked,
    Answers, Decisions, and For You fields remain authoritative if synthesis is
    blocked or fails; the local demo makes no handoff model call.
@@ -50,3 +57,9 @@ handoff escalation.
 
 The Live model ID and location are configuration, while `google-adk==2.8.0` and
 `google-genai==2.20.0` are pinned for reproducible production builds.
+
+The Meet bridge is deliberately not the Calendar action executor. It receives a
+single validated conference URI and short-lived media nonce, never the Calendar
+credential or business-approval authority. Google Meet's web DOM remains an
+external integration surface, so a selector change fails visibly instead of
+claiming the agent attended.

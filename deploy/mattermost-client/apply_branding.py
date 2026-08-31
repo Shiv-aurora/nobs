@@ -49,7 +49,6 @@ def main() -> None:
     images = channels / "src" / "images" / "noping"
     images.mkdir(parents=True, exist_ok=True)
     shutil.copy2(args.assets / "logo.png", images / "logo.png")
-    shutil.copy2(args.assets / "text-logo.png", images / "text-logo.png")
 
     root = channels / "src" / "root.html"
     root_text = require_text(root, "<title>Mattermost</title>")
@@ -143,6 +142,8 @@ def main() -> None:
 
     branding = channels / "src" / "components" / "global_header" / "left_controls" / "product_menu" / "product_branding_team_edition" / "product_branding_free_edition.tsx"
     branding.write_text((args.overrides / "product_branding_free_edition.tsx").read_text())
+    product_menu = channels / "src" / "components" / "global_header" / "left_controls" / "product_menu" / "product_menu.tsx"
+    product_menu.write_text((args.overrides / "product_menu.tsx").read_text())
 
     loading_dir = channels / "src" / "components" / "initial_loading_screen"
     (loading_dir / "initial_loading_screen_template.html").write_text((args.overrides / "initial_loading_screen_template.html").read_text())
@@ -353,7 +354,7 @@ def main() -> None:
         "upstream_commit": EXPECTED_COMMIT,
         "assets": {
             name: hashlib.sha256((args.assets / name).read_bytes()).hexdigest()
-            for name in ("logo.png", "text-logo.png")
+            for name in ("logo.png",)
         },
     }
     (source / "webapp" / "noping-overlay.json").write_text(json.dumps(manifest, indent=2) + "\n")

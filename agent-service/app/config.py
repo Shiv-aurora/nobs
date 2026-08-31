@@ -29,6 +29,7 @@ class Settings:
     live_max_org_minutes_per_day: int = 60
     live_max_tool_calls_per_session: int = 24
     live_max_reconnect_attempts: int = 5
+    meet_bridge_token: str = ""
     model_max_calls_per_query: int = 4
     model_max_input_tokens_per_query: int = 24_000
     model_max_output_tokens_per_query: int = 2_400
@@ -80,6 +81,7 @@ class Settings:
             live_max_org_minutes_per_day=int(os.getenv("NOPING_LIVE_MAX_ORG_MINUTES_PER_DAY", "60")),
             live_max_tool_calls_per_session=int(os.getenv("NOPING_LIVE_MAX_TOOL_CALLS_PER_SESSION", "24")),
             live_max_reconnect_attempts=int(os.getenv("NOPING_LIVE_MAX_RECONNECT_ATTEMPTS", "5")),
+            meet_bridge_token=os.getenv("NOPING_MEET_BRIDGE_TOKEN", ""),
             model_max_calls_per_query=int(os.getenv("NOPING_MODEL_MAX_CALLS_PER_QUERY", "4")),
             model_max_input_tokens_per_query=int(os.getenv("NOPING_MODEL_MAX_INPUT_TOKENS_PER_QUERY", "24000")),
             model_max_output_tokens_per_query=int(os.getenv("NOPING_MODEL_MAX_OUTPUT_TOKENS_PER_QUERY", "2400")),

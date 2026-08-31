@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 import json
+import secrets
 from queue import Queue
 from threading import Thread
 
@@ -21,6 +22,8 @@ from ..models import (
     MeetingDelegationAction,
     MeetingDelegationCreate,
     MeetingDelegationUpdate,
+    MeetBridgeClaimRequest,
+    MeetBridgeStatusRequest,
     MeetingPreparationRequest,
     OOOQueueItem,
     OOOQueueCreate,
@@ -180,7 +183,8 @@ def meeting(meeting_id: str, user_id: str = Query(...), services: Services = Dep
         if run and run.mission_id and run.mission_id in services.workspace.missions
         else None
     )
-    return {"meeting": result, "run": run, "delegation": delegation, "handoff": handoff, "mission_inspector": inspector}
+    session = services.meeting_delegations.session_for(delegation.id) if delegation else None
+    return {"meeting": result, "run": run, "delegation": delegation, "session": session, "handoff": handoff, "mission_inspector": inspector}
 
 
 @router.post("/v1/meetings/{meeting_id}/delegations")
@@ -262,6 +266,41 @@ def start_meeting_delegation(delegation_id: str, payload: MeetingDelegationActio
     finally:
         services.rate_limiter.release()
     return {"delegation": delegation, "session": session, "session_nonce": nonce}
+
+
+def _verify_meet_bridge(request: Request, services: Services) -> None:
+    supplied = request.headers.get("X-NoPing-Bridge-Token", "")
+    expected = services.settings.meet_bridge_token
+    if not expected or not secrets.compare_digest(supplied, expected):
+        raise HTTPException(status_code=403, detail="Invalid Meet bridge identity")
+
+
+@router.post("/v1/meeting-bridge/jobs/claim")
+def claim_meeting_bridge_job(payload: MeetBridgeClaimRequest, request: Request, response: Response, services: Services = Depends(get_services)):
+    _verify_meet_bridge(request, services)
+    job = services.meeting_delegations.claim_bridge_job(payload.bridge_id)
+    if not job:
+        response.status_code = status.HTTP_204_NO_CONTENT
+        return None
+    return job
+
+
+@router.post("/v1/meeting-bridge/sessions/{session_id}/status")
+def update_meeting_bridge_status(session_id: str, payload: MeetBridgeStatusRequest, request: Request, services: Services = Depends(get_services)):
+    _verify_meet_bridge(request, services)
+    try:
+        return services.meeting_delegations.update_bridge_status(
+            session_id,
+            bridge_id=payload.bridge_id,
+            status=payload.status,
+            participant_id=payload.participant_id,
+            participant_display_name=payload.participant_display_name,
+            error=payload.error,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
 
 
 @router.post("/v1/meeting-delegations/{delegation_id}/end")

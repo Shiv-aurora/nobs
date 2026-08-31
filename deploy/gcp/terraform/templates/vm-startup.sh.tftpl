@@ -58,6 +58,10 @@ Unit=noping-daily-shutdown.service
 WantedBy=timers.target
 UNIT
 systemctl enable --now noping-daily-shutdown.timer
+%{ else ~}
+systemctl disable --now noping-daily-shutdown.timer >/dev/null 2>&1 || true
+rm -f /etc/systemd/system/noping-daily-shutdown.timer
+rm -f /etc/systemd/system/noping-daily-shutdown.service
 %{ endif ~}
 
 systemctl daemon-reload

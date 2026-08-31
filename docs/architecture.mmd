@@ -29,6 +29,18 @@ flowchart LR
   end
 
   PL -->|"sync signed request<br/>+ trace context"| GW
+  subgraph E["E · Live Google Meet delegation · demo bridge"]
+    direction TB
+    MB["Local Meet Bridge<br/>dedicated visible Chrome profile"]
+    GM["Google Meet<br/>named participant + host admission"]
+    GL["Gemini Live<br/>ephemeral bidirectional audio"]
+    LS["Live session state<br/>queued · joining · waiting · live · ended"]
+    MB <-->|"participant audio"| GM
+    MB <-->|"signed WebSocket audio"| GL
+    MB -->|"claim + status"| LS
+  end
+  GW <-->|"bridge claim/status<br/>ephemeral nonce"| MB
+  GW <-->|"live adapter"| GL
   subgraph C["C · Durable governed mission"]
     direction TB
     REG["Agent Registry<br/>4 versioned services"]
@@ -79,9 +91,9 @@ flowchart LR
   CC -->|"approved live source"| CB
   MA --> MC
 
-  class MC,WG,PE,MR exec
+  class MC,WG,PE,MR,GL exec
   class ADM,AG,EC,BG,CG,CB,RV deterministic
-  class FS,PG,OUT,WE,CQ,REG,SES,MEM state
-  class EX,CAL write
+  class FS,PG,OUT,WE,CQ,REG,SES,MEM,LS state
+  class EX,CAL,MB,GM write
   class BC,CC human
   class FUT future

@@ -10,9 +10,9 @@ Updated 2026-08-30. This file contains identifiers and hashes only; no tokens, c
 | active deploy account | `shivamarora.sa05@gmail.com` |
 | region | `us-central1` (`global` for Gemini/Agent Registry where required) |
 | repository | `us-central1-docker.pkg.dev/noping-agentic-shiv-2026/noping-containers` |
-| agent image | `agent-service:4bee667` → `sha256:7f1a18d2963d3c10a5346ad544fa390e8950025577407af46fa6d4e9021032c7` |
-| executor image | `action-executor:59aadc4` → `sha256:58998091fe6c739c66d1e43045daf4b8552e59c3b1f6631c3d681f07b5556ed4` |
-| Mattermost image | `noping-mattermost:22fe77e` → `sha256:4b818c621df9be37ba86e1d123e68e7883af9a467a1b5248560170e37ab3af9f` |
+| agent image | `agent-service:submission-polish-20260830` → `sha256:e2e9b30ce8f2c460763bd4a9e36cf0f22f73586be9075ef1a2e12a50236842fe` |
+| executor image | active immutable digest `sha256:fd5d451af0f1a5e4b5e449f96ba189ed21b42884c9fd824160ad0e68c5002b15` |
+| workspace image | `noping-mattermost:submission-polish-20260830` → `sha256:949c568a5f291b4a281648791434e2abc449654fa55eac4dfb72d4c8bc947bcf` |
 
 ## Google agent platform
 
@@ -29,10 +29,11 @@ Updated 2026-08-30. This file contains identifiers and hashes only; no tokens, c
 
 | Service | Private revision / bound |
 |---|---|
-| `noping-agent-service` | `noping-agent-service-00016-bhd`; max 1, concurrency 4, private |
-| `noping-action-executor` | `noping-action-executor-00001-8rb`; max 1, concurrency 1, private |
+| `noping-agent-service` | `noping-agent-service-00018-4bs`; max 1, concurrency 4, private, 100% traffic |
+| `noping-action-executor` | `noping-action-executor-00002-4sq`; max 1, concurrency 1, private |
 | `noping-budget-guard` | `noping-budget-guard-00008-992`; max 1, concurrency 1 |
-| `noping-mattermost` VM | `e2-small`, static IP `35.202.201.122`, healthy image `nobs-release:22fe77e` |
+| `noping-mattermost` VM | `e2-small`, static IP `35.202.201.122`, healthy image `nobs-release:submission-polish-20260830` |
+| judging uptime | daily shutdown timer removed and disabled in instance startup metadata; separate 90% budget guard retained |
 | Firestore | Native `(default)`, `us-central1` |
 | Pub/Sub | work events + DLQ; action commands + DLQ; budget updates |
 
@@ -52,3 +53,7 @@ The signed-in deployed UI started `mission-4bc9ce53ece5` on revision `00016-bhd`
 All four native Agent Registry services now use their versioned `/v1/executable-agents/<service-id>` endpoints. The `NoPing $25 guardrail` remains USD 25 with 25/50/75/90/100% thresholds, and `noping-budget-guard-00008-992` remains ready.
 
 No external Calendar mutation was performed merely to manufacture evidence. No `allUsers` access, budget increase, budget-guard removal, data deletion, or credential output occurred.
+
+## Submission-polish browser proof
+
+The deployed Workrooms route returned `Workrooms - NoBS` and showed 101 auditable updates. Each real-work card showed 20–21 updates and three recent activity previews; the live activity rail showed ten entries. DOM verification found the static NoBS wordmark, no product-switch button or menu, and zero visible `Mattermost` strings. The idempotent production seed completed against the HTTPS endpoint using a trusted CA bundle.

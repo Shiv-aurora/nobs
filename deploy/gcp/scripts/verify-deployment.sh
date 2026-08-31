@@ -9,11 +9,12 @@ INSTANCE="$(tf_output mattermost_instance_name)"
 MATTERMOST_URL="$(tf_output mattermost_url)"
 AGENT_SERVICE="${NOPING_AGENT_SERVICE_NAME:-$(tf_output agent_service_name)}"
 BUDGET_GUARD="${NOPING_BUDGET_GUARD_NAME:-$(tf_output budget_guard_service_name)}"
+ACTION_EXECUTOR="${NOPING_ACTION_EXECUTOR_NAME:-$(tf_output action_executor_service_name)}"
 
 VM_TYPE="$(gcloud compute instances describe "${INSTANCE}" --project="${PROJECT_ID}" --zone="${ZONE}" --format='value(machineType.basename())')"
 [[ "${VM_TYPE}" == "e2-small" || "${VM_TYPE}" == "e2-medium" ]] || { echo "Unexpected VM type: ${VM_TYPE}" >&2; exit 1; }
 
-for service in "${AGENT_SERVICE}" "${BUDGET_GUARD}"; do
+for service in "${AGENT_SERVICE}" "${BUDGET_GUARD}" "${ACTION_EXECUTOR}"; do
   DESCRIPTION="$(gcloud run services describe "${service}" --project="${PROJECT_ID}" --region="${REGION}" --format=json)"
   POLICY="$(gcloud run services get-iam-policy "${service}" --project="${PROJECT_ID}" --region="${REGION}" --format=json)"
   python - "${DESCRIPTION}" "${POLICY}" "${service}" <<'PY'

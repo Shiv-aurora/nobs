@@ -110,6 +110,78 @@ def test_live_session_identifies_agent_refuses_private_data_and_builds_handoff(c
     assert "transcript" not in serialized
 
 
+def test_google_meet_session_is_on_demand_and_claimed_by_one_bridge(client, services):
+    meeting = services.workspace.meetings[MEETING_ID]
+    meeting.conference_uri = "https://meet.google.com/abc-defg-hij"
+    meeting.conference_code = "abc-defg-hij"
+    # Prove the on-demand session is independent of the Calendar's scheduled window.
+    meeting.end_at = services.meeting_delegations.now_fn() - timedelta(days=1)
+
+    delegation_id = _create(client).json()["id"]
+    delegation = services.meeting_delegations.get(delegation_id, "shivam")
+    assert delegation.expires_at > services.meeting_delegations.now_fn()
+    started = client.post(
+        f"/v1/meeting-delegations/{delegation_id}/start", json={"actor_id": "shivam"}
+    )
+    assert started.status_code == 200
+    session = started.json()["session"]
+    assert session["provider"] == "google_meet"
+    assert session["join_status"] == "queued"
+
+    unauthorized = client.post("/v1/meeting-bridge/jobs/claim", json={"bridge_id": "bridge-demo"})
+    assert unauthorized.status_code == 403
+    claimed = client.post(
+        "/v1/meeting-bridge/jobs/claim",
+        headers={"X-NoPing-Bridge-Token": services.settings.meet_bridge_token},
+        json={"bridge_id": "bridge-demo"},
+    )
+    assert claimed.status_code == 200
+    job = claimed.json()
+    assert job["conference_uri"] == meeting.conference_uri
+    assert job["participant_display_name"] == "NoBS Agent for Shivam Arora"
+    assert job["session_nonce"] != started.json()["session_nonce"]
+
+    empty = client.post(
+        "/v1/meeting-bridge/jobs/claim",
+        headers={"X-NoPing-Bridge-Token": services.settings.meet_bridge_token},
+        json={"bridge_id": "other-bridge"},
+    )
+    assert empty.status_code == 204
+
+    waiting = client.post(
+        f"/v1/meeting-bridge/sessions/{job['session_id']}/status",
+        headers={"X-NoPing-Bridge-Token": services.settings.meet_bridge_token},
+        json={"bridge_id": "bridge-demo", "status": "awaiting_admission"},
+    )
+    assert waiting.status_code == 200
+    assert waiting.json()["join_status"] == "awaiting_admission"
+
+    live = client.post(
+        f"/v1/meeting-bridge/sessions/{job['session_id']}/status",
+        headers={"X-NoPing-Bridge-Token": services.settings.meet_bridge_token},
+        json={
+            "bridge_id": "bridge-demo",
+            "status": "live",
+            "participant_id": "meet-participant-1",
+            "participant_display_name": "NoBS Agent for Shivam Arora",
+        },
+    )
+    assert live.status_code == 200
+    assert live.json()["provider_participant_id"] == "meet-participant-1"
+    detail = client.get(f"/v1/meetings/{MEETING_ID}", params={"user_id": "shivam"}).json()
+    assert detail["session"]["join_status"] == "live"
+
+    ended = client.post(
+        f"/v1/meeting-bridge/sessions/{job['session_id']}/status",
+        headers={"X-NoPing-Bridge-Token": services.settings.meet_bridge_token},
+        json={"bridge_id": "bridge-demo", "status": "ended"},
+    )
+    assert ended.status_code == 200
+    detail = client.get(f"/v1/meetings/{MEETING_ID}", params={"user_id": "shivam"}).json()
+    assert detail["delegation"]["status"] == "ended"
+    assert detail["handoff"]["delegation_id"] == delegation_id
+
+
 def test_session_is_single_concurrency_and_nonce_is_scoped(client):
     first = _create(client)
     first_id = first.json()["id"]

@@ -387,9 +387,12 @@ class MeetingService:
             etag=new_etag,
             updated_at=event.occurred_at,
             source="google_calendar",
+            conference_uri=str(payload.get("conference_uri", "")).strip() or None,
+            conference_code=str(payload.get("conference_code", "")).strip() or None,
             confirmed_action=existing.confirmed_action if existing else "none",
             pending_action=existing.pending_action if existing else "none",
             approved_recommendation=existing.approved_recommendation if existing else "none",
+            attendance_plans=existing.attendance_plans if existing else {},
         )
         self.workspace.save_meeting(meeting)
         return meeting

@@ -177,8 +177,6 @@ def check_markdown_links() -> None:
 def check_required_files() -> None:
     required = [
         "README.md",
-        "VISION.md",
-        "IMPLEMENTATION.md",
         "docs/ARCHITECTURE.md",
         "docs/SECURITY_MODEL.md",
         "docs/COST_MODEL.md",
@@ -207,13 +205,15 @@ def check_noping_shell_contract() -> None:
     caddy = (ROOT / "deploy/gcp/vm/Caddyfile").read_text()
     required_brand_markers = (
         '"logo.png"',
-        '"text-logo.png"',
         '"header.tsx"',
+        '"product_menu.tsx"',
         "this.openInBrowser();",
     )
     for marker in required_brand_markers:
         if marker not in overlay:
             fail(f"NoPing native client overlay is missing {marker}")
+    if "text-logo.png" in overlay or "text-logo.png" in image:
+        fail("NoBS native client build still depends on the retired raster wordmark")
     for marker in ("f9deca984f8a8d38a5f5e50600b45e22c90ebca1", "/mattermost/client/"):
         if marker not in image:
             fail(f"NoPing native client image is missing {marker}")

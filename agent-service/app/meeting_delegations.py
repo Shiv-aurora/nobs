@@ -105,7 +105,7 @@ class MeetingDelegationService:
             mission=mission,
             calendar_etag=meeting.etag,
             policy_snapshot_hash=self._policy_hash(request.actor_id, mission),
-            expires_at=meeting.end_at + timedelta(minutes=15),
+            expires_at=max(meeting.end_at + timedelta(minutes=15), now + timedelta(minutes=20)),
             created_at=existing.created_at if existing else now,
             updated_at=now,
         ) if existing else MeetingDelegation(
@@ -116,7 +116,7 @@ class MeetingDelegationService:
             mission=mission,
             calendar_etag=meeting.etag,
             policy_snapshot_hash=self._policy_hash(request.actor_id, mission),
-            expires_at=meeting.end_at + timedelta(minutes=15),
+            expires_at=max(meeting.end_at + timedelta(minutes=15), now + timedelta(minutes=20)),
             created_at=now,
             updated_at=now,
         )
@@ -198,9 +198,15 @@ class MeetingDelegationService:
 
         nonce = secrets.token_urlsafe(24)
         now = self.now_fn()
+        provider = "google_meet" if meeting.conference_uri else "in_app"
         session = LiveMeetingSession(
             delegation_id=delegation.id,
             status="connecting",
+            provider=provider,
+            conference_uri=meeting.conference_uri,
+            join_status="queued" if provider == "google_meet" else "not_started",
+            provider_display_name=f"NoBS Agent for {delegation.represented_user_name}",
+            join_updated_at=now,
             session_nonce_hash=sha256(nonce.encode()).hexdigest(),
             resume_expires_at=now + timedelta(minutes=20),
             updated_at=now,
@@ -214,11 +220,113 @@ class MeetingDelegationService:
             event_type="meeting.live_session_started",
             actor_id=delegation.represented_user_id,
             entity_ids=[delegation.meeting_id, delegation.id, session.id],
-            summary=f"{delegation.represented_user_name}'s agent joined as an explicitly identified representative.",
+            summary=f"{delegation.represented_user_name}'s explicitly identified agent was queued for the live meeting.",
             created_at=now,
-            metadata={"mode": delegation.mission.mode, "raw_audio_persisted": False},
+            metadata={"mode": delegation.mission.mode, "provider": provider, "raw_audio_persisted": False},
         ))
         return delegation, session, nonce
+
+    def claim_bridge_job(self, bridge_id: str) -> dict | None:
+        """Lease one Google Meet join without persisting a reusable media credential."""
+        now = self.now_fn()
+        with self.workspace.lock:
+            candidates = sorted(
+                (
+                    item for item in self.workspace.live_meeting_sessions.values()
+                    if item.provider == "google_meet"
+                    and item.status == "connecting"
+                    and (
+                        item.join_status == "queued"
+                        or (
+                            item.join_status == "joining"
+                            and item.bridge_lease_expires_at is not None
+                            and item.bridge_lease_expires_at <= now
+                        )
+                    )
+                ),
+                key=lambda item: item.updated_at,
+            )
+            if not candidates:
+                return None
+            session = candidates[0]
+            delegation = self.workspace.meeting_delegations[session.delegation_id]
+            meeting = self.workspace.meetings[delegation.meeting_id]
+            nonce = secrets.token_urlsafe(24)
+            session.session_nonce_hash = sha256(nonce.encode()).hexdigest()
+            session.bridge_id = bridge_id
+            session.bridge_lease_expires_at = now + timedelta(minutes=2)
+            session.join_status = "joining"
+            session.join_error = None
+            session.join_updated_at = now
+            session.updated_at = now
+            self.workspace.save_live_meeting_session(session)
+        self.workspace.append_audit(AuditEvent(
+            event_type="meeting.bridge_job_claimed",
+            actor_id=delegation.represented_user_id,
+            entity_ids=[meeting.id, delegation.id, session.id],
+            summary=f"Meet bridge {bridge_id} claimed the bounded join request.",
+            created_at=now,
+            metadata={"bridge_id": bridge_id, "provider": "google_meet"},
+        ))
+        return {
+            "session_id": session.id,
+            "delegation_id": delegation.id,
+            "represented_user_id": delegation.represented_user_id,
+            "represented_user_name": delegation.represented_user_name,
+            "participant_display_name": session.provider_display_name,
+            "meeting_id": meeting.id,
+            "meeting_title": meeting.title,
+            "conference_uri": session.conference_uri,
+            "session_nonce": nonce,
+            "resume_expires_at": session.resume_expires_at,
+        }
+
+    def update_bridge_status(
+        self,
+        session_id: str,
+        *,
+        bridge_id: str,
+        status: str,
+        participant_id: str | None = None,
+        participant_display_name: str | None = None,
+        error: str | None = None,
+    ) -> LiveMeetingSession:
+        session = self.workspace.live_meeting_sessions.get(session_id)
+        if not session or session.provider != "google_meet":
+            raise KeyError("Google Meet live session not found")
+        if session.bridge_id != bridge_id:
+            raise PermissionError("This bridge does not own the live-session lease")
+        now = self.now_fn()
+        session.join_status = status
+        session.join_error = error if status == "failed" else None
+        session.provider_participant_id = participant_id or session.provider_participant_id
+        session.provider_display_name = participant_display_name or session.provider_display_name
+        session.join_updated_at = now
+        session.updated_at = now
+        delegation = self.workspace.meeting_delegations[session.delegation_id]
+        if status == "live":
+            session.started_at = session.started_at or now
+            session.bridge_lease_expires_at = session.resume_expires_at
+            delegation.status = "live"
+        elif status == "ended":
+            session.status = "ended"
+        elif status == "failed":
+            session.status = "failed"
+            delegation.status = "failed"
+        delegation.updated_at = now
+        self.workspace.save_live_meeting_session(session)
+        self.workspace.save_meeting_delegation(delegation)
+        self.workspace.append_audit(AuditEvent(
+            event_type=f"meeting.bridge_{status}",
+            actor_id=delegation.represented_user_id,
+            entity_ids=[delegation.meeting_id, delegation.id, session.id],
+            summary=f"Google Meet bridge state changed to {status}.",
+            created_at=now,
+            metadata={"bridge_id": bridge_id, "participant_id": participant_id or "", "error": error or ""},
+        ))
+        if status == "ended" and self.handoff(delegation) is None:
+            self.end(delegation)
+        return session
 
     def session_for(self, delegation_id: str) -> LiveMeetingSession | None:
         matches = [item for item in self.workspace.live_meeting_sessions.values() if item.delegation_id == delegation_id]
@@ -262,6 +370,9 @@ class MeetingDelegationService:
         now = self.now_fn()
         session.started_at = session.started_at or now
         session.connection_started_at = session.connection_started_at or now
+        if session.provider == "google_meet":
+            session.join_status = "live"
+            session.join_updated_at = now
         session.updated_at = now
         self.workspace.save_live_meeting_session(session)
 

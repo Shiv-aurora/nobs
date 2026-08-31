@@ -19,8 +19,9 @@
 - [x] executor duplicate, lease, retry, stale-ETag, and envelope tests
 - [x] preference memory cannot alter authority
 - [x] injection/restricted-evidence tests
-- [ ] production executor identity/IAM/private revision verified after explicit approval
-- [ ] signed production mission and Firestore/trace proof captured
+- [x] production executor identity/IAM/private revision verified after explicit approval
+- [x] signed production mission and Firestore/trace proof captured
+- [x] Meet conference validation, bridge leasing, and provider-state tests
 
 ## Google Cloud
 
@@ -32,8 +33,9 @@
 - [x] immutable agent/executor/Mattermost images pushed
 - [x] Terraform Google provider 8.0.0 validates
 - [x] existing $25 guardrail and budget guard preserved
-- [ ] final Cloud Run revisions, Pub/Sub command path, narrow IAM, and private bindings recorded
-- [ ] final browser verification and VM stop decision recorded
+- [x] final Cloud Run revisions, Pub/Sub command path, narrow IAM, and private bindings recorded
+- [x] production browser mission proof recorded
+- [ ] stop the bounded demo VM after the final judging session
 
 ## Submission assets
 
@@ -41,7 +43,8 @@
 - [x] request, state, and action sequence diagrams
 - [x] identity/state/failure/cost tables
 - [x] architecture decisions, agent catalog, mission runtime, recovery, evaluation docs
-- [ ] final 1920×1080-readable `architecture.png` rendered and inspected
-- [ ] final deployment evidence reconciled with revisions/digests
+- [x] final 1920×1080-readable `architecture.png` rendered and inspected
+- [x] final deployment evidence reconciled with revisions/digests
+- [ ] dedicated Meet agent profile signed in and admission rehearsal completed
 - [ ] four-minute video recorded from final deployment
 - [ ] Devpost form submitted by the project owner

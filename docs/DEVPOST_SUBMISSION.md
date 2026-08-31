@@ -22,6 +22,8 @@ For Less Meeting, NoBS creates one durable mission. A Google ADK controller on V
 
 Models and meeting organizers cannot self-authorize a business decision. Seeded demo meetings can never create external commands. For a real Calendar projection, business approval resumes the same mission; separate organizer consent persists one ETag-bound typed command. Authenticated Pub/Sub sends only its ID to a separate private executor with no Gemini/query tools. The executor reloads both approvals, transactionally claims a lease, enforces idempotency and `If-Match`, applies the narrow write, reads the result, and records a hashed verified outcome.
 
+For **Send my Agent**, assigning the mission starts immediately rather than waiting for the Calendar time. Seeded meetings use the secure in-app huddle. A real event with a validated `meet.google.com` conference URI queues a disclosed local Chrome participant named `NoBS Agent for <employee>`, reports joining/admission/live/failure state truthfully, and relays ephemeral audio to the existing signed live adapter on `gemini-live-2.5-flash-native-audio`. The bridge is a single-session hackathon helper, not a claimed Google Cloud service, and it has no Calendar or business authority.
+
 ## Why this is more than a chatbot
 
 - Mission state survives process restarts in Firestore; completed nodes are not falsely rerun.
@@ -32,11 +34,13 @@ Models and meeting organizers cannot self-authorize a business decision. Seeded 
 - Vertex Agent Engine Sessions owns ADK context; Memory Bank owns only explicit non-authoritative preferences; confirmed decisions remain policy/facts/authority-bound in Firestore.
 - Model Armor fails closed around every ADK call, and permission-aware retrieval/local quarantine keeps unsafe evidence out of context.
 - At-least-once delivery is made safe with stable IDs, transactions, leases, ETags, bounded retries, terminal states, and post-write verification—not a false exactly-once claim.
+- Live delegation never equates a button click with provider success: Google Meet admission and participant state are visible, and failures remain explicit.
 
 ## Google Cloud and Google AI
 
 - Google ADK typed `LlmAgent` programs;
 - Vertex AI `gemini-3.5-flash` for the primary judged mission;
+- Vertex AI `gemini-live-2.5-flash-native-audio` for the separately disclosed Live Representative;
 - private Cloud Run gateway/runtime and separate executor;
 - Firestore Native for missions, steps, checkpoints, commands, attempts, manifests, memory, and audit;
 - Pub/Sub work/command topics, OIDC push, retry policy, and DLQs;
@@ -54,7 +58,7 @@ The useful enterprise-agent boundary is neither “one chatbot” nor “one ser
 
 ## Measured proof
 
-The source gate passes 95 agent-runtime, 8 budget-guard, and 7 executor tests plus Go, strict TypeScript, compilation, static validation, credential scanning, and Terraform validation. A real Vertex mission used four `gemini-3.5-flash` ADK calls with native Agent Registry discovery and Agent Engine Sessions. The two specialist calls overlapped (7,416.848 ms and 6,007.249 ms); no timings or conclusions came from a fixture execution transcript.
+The source gate passes 97 agent-runtime, 8 budget-guard, and 7 executor tests plus Go, strict TypeScript, compilation, static validation, credential scanning, and Terraform validation. A real Vertex mission used four `gemini-3.5-flash` ADK calls with native Agent Registry discovery and Agent Engine Sessions. The two specialist calls overlapped (7,416.848 ms and 6,007.249 ms); no timings or conclusions came from a fixture execution transcript.
 
 ## Open source
 

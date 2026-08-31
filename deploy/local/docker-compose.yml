@@ -39,6 +39,7 @@ services:
       GOOGLE_GENAI_USE_VERTEXAI: "true"
       NOPING_GEMINI_MODEL: gemini-3.5-flash
       NOPING_SERVICE_SIGNING_SECRET: ${NOPING_SERVICE_SIGNING_SECRET:?set NOPING_SERVICE_SIGNING_SECRET}
+      NOPING_MEET_BRIDGE_TOKEN: "${NOPING_MEET_BRIDGE_TOKEN:-dev-meet-bridge-token}"
       NOPING_PERSISTENCE_BACKEND: memory
       NOPING_ORGANIZATION_ID: acme
       NOPING_MAX_USER_PER_MINUTE: "6"
@@ -53,8 +54,8 @@ services:
       NOPING_MODEL_MAX_CALLS_PER_DAY: "200"
       NOPING_MODEL_MAX_INPUT_TOKENS_PER_DAY: "1000000"
       NOPING_MODEL_MAX_OUTPUT_TOKENS_PER_DAY: "100000"
-    expose:
-      - "8080"
+    ports:
+      - "127.0.0.1:8080:8080"
     volumes:
       - "${GOOGLE_APPLICATION_CREDENTIALS_HOST_PATH:-/dev/null}:/var/run/secrets/google/application_default_credentials.json:ro"
     logging:
