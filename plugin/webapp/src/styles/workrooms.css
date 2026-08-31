@@ -113,6 +113,10 @@
 .nobs-workroom-thread p { margin: 3px 0 0; color: var(--nobs-muted); font-size: 11px; line-height: 17px; }
 .nobs-workrooms .nobs-agent-avatar { width: 28px; height: 28px; background: var(--nobs-faint); }
 .nobs-workrooms .nobs-agent-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.nobs-workrooms .nobs-agent-avatar.is-nobs { border: 1px solid rgba(var(--button-bg-rgb, 28, 88, 217), .18); background: rgba(var(--button-bg-rgb, 28, 88, 217), .07); }
+.nobs-workrooms .nobs-agent-avatar.is-nobs img { padding: 4px; object-fit: contain; }
+.nobs-workrooms .nobs-agent-avatar.is-gemini { border: 1px solid rgba(92, 108, 255, .2); background: linear-gradient(145deg, #f4f8ff, #faf4ff); }
+.nobs-workrooms .nobs-gemini-mark { display: block; width: 18px; height: 18px; }
 
 .nobs-workroom-progress { height: 4px; margin-bottom: 10px; overflow: hidden; border-radius: 2px; background: var(--nobs-faint); }
 .nobs-workroom-progress span { display: block; height: 100%; border-radius: inherit; background: var(--nobs-button); }

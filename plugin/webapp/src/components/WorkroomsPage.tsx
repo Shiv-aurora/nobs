@@ -22,6 +22,8 @@ interface WorkroomProfile {
 }
 interface ActivityItem {post: MattermostPost; channel: MattermostChannel}
 
+const AGENT_USERNAMES = new Set(['nobs', 'master-agent', 'atlas-agent', 'gemini-enterprise', 'gemini-code-assist', 'github']);
+
 const PROFILES: Record<string, WorkroomProfile> = {
     'agent-workroom-pricing-launch-faq': {stage: 'Pre-work', status: 'Ready for approval', tone: 'planning', summary: 'Turn launch evidence into a customer-safe pricing FAQ.', activity: 'The execution brief is complete. One approval unlocks drafting.', outcome: 'Scope, owners, dependencies and authority are mapped.', progress: 100, agentCount: 5, owner: 'Maya', checks: ['Outcome defined', 'Owners confirmed', 'Dependencies available', 'Authority recorded']},
     'agent-workroom-atlas': {stage: 'Real work', status: 'Decision pending', tone: 'review', summary: 'Close Atlas launch readiness without weakening the security policy.', activity: 'Six agents resolved the evidence. Alex owns the remaining business decision.', outcome: 'Engineering is ready; Calendar action stays locked behind separate approval.', progress: 76, agentCount: 6, owner: 'Alex'},
@@ -66,7 +68,27 @@ function relativeTime(value: number): string {
 }
 function openChannel(channel: MattermostChannel): void {window.location.assign(channelPath(channel));}
 
+function GeminiMark(): JSX.Element {
+    return <svg className='nobs-gemini-mark' viewBox='0 0 64 64' role='img' aria-label='Gemini'>
+        <defs>
+            <linearGradient id='nobs-gemini-gradient' x1='9' y1='55' x2='55' y2='9' gradientUnits='userSpaceOnUse'>
+                <stop offset='0' stopColor='#3186ff'/>
+                <stop offset='.46' stopColor='#8e75ff'/>
+                <stop offset='1' stopColor='#e45cba'/>
+            </linearGradient>
+        </defs>
+        <path fill='url(#nobs-gemini-gradient)' d='M32 3c2.7 13.9 15.1 26.3 29 29-13.9 2.7-26.3 15.1-29 29C29.3 47.1 16.9 34.7 3 32 16.9 29.3 29.3 16.9 32 3Z'/>
+    </svg>;
+}
+
 function Avatar({user}: {user?: MattermostUser}): JSX.Element {
+    const username = user?.username || '';
+    if (username === 'nobs' || username === 'master-agent') {
+        return <span className='nobs-agent-avatar is-nobs' aria-hidden='true'><img src={logo} alt=''/></span>;
+    }
+    if (username === 'gemini-enterprise' || username === 'gemini-code-assist') {
+        return <span className='nobs-agent-avatar is-gemini'><GeminiMark/></span>;
+    }
     return <span className='nobs-agent-avatar' aria-hidden='true'>{user ? <img src={`/api/v4/users/${encodeURIComponent(user.id)}/image`} alt=''/> : <img src={logo} alt=''/>}</span>;
 }
 
@@ -82,7 +104,7 @@ function WorkroomRow({channel, active, onSelect}: {channel: MattermostChannel; a
 }
 
 function ActivityEntry({item, user}: {item: ActivityItem; user?: MattermostUser}): JSX.Element {
-    const agent = user?.username === 'nobs' || item.post.props?.noping_agent === true;
+    const agent = Boolean(user && AGENT_USERNAMES.has(user.username)) || item.post.props?.noping_agent === true;
     return <li>
         <Avatar user={user}/>
         <div>
@@ -165,11 +187,11 @@ export function WorkroomsPage(): JSX.Element {
         setChannels(next);
         const ordered = GROUPS.flatMap((group) => next.filter((channel) => group.match(profile(channel))));
         setSelectedID((current) => current || ordered[0]?.id || '');
-        const pages = await Promise.all(next.map(async (channel) => ({channel, page: await request<MattermostPostPage>(`/api/v4/channels/${encodeURIComponent(channel.id)}/posts?page=0&per_page=20`).catch((): MattermostPostPage => ({order: [], posts: {}}))})));
+        const pages = await Promise.all(next.map(async (channel) => ({channel, page: await request<MattermostPostPage>(`/api/v4/channels/${encodeURIComponent(channel.id)}/posts?page=0&per_page=100`).catch((): MattermostPostPage => ({order: [], posts: {}}))})));
         const nextPosts: Record<string, ActivityItem[]> = {};
         const userIDs = new Set<string>();
         for (const {channel, page} of pages) {
-            nextPosts[channel.id] = page.order.map((postID) => page.posts[postID]).filter((post): post is MattermostPost => Boolean(post && !post.root_id && post.message.trim())).slice(0, 8).map((post) => ({post, channel}));
+            nextPosts[channel.id] = page.order.map((postID) => page.posts[postID]).filter((post): post is MattermostPost => Boolean(post && !post.root_id && post.message.trim())).map((post) => ({post, channel}));
             nextPosts[channel.id].forEach(({post}) => userIDs.add(post.user_id));
         }
         setPosts(nextPosts);
@@ -275,7 +297,7 @@ export function WorkroomsPage(): JSX.Element {
                             <section className='nobs-surface'>
                                 <div className='nobs-section-title'>
                                     <div><strong>Activity</strong></div>
-                                    <em>{selected.total_msg_count || activity.length} update{(selected.total_msg_count || activity.length) === 1 ? '' : 's'}</em>
+                                    <em>{activity.length} visible update{activity.length === 1 ? '' : 's'}</em>
                                 </div>
                                 {activity.length ? <ol className='nobs-workroom-thread'>
                                     {activity.map((entry) => <ActivityEntry key={entry.post.id} item={entry} user={users[entry.post.user_id]}/>)}
