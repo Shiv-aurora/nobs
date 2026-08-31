@@ -31,6 +31,12 @@ const PROFILES: Record<string, WorkroomProfile> = {
 };
 const FALLBACK_PROFILE: WorkroomProfile = {stage: 'Pre-work', status: 'Gathering requirements', tone: 'planning', summary: 'The Master Agent is defining the outcome and execution boundary.', activity: 'Requirements and dependency checks are still running.', outcome: 'Waiting for an approval-ready execution brief.', progress: 25, agentCount: 3, owner: 'Unassigned'};
 
+const GROUPS: Array<{id: string; label: string; match: (item: WorkroomProfile) => boolean}> = [
+    {id: 'attention', label: 'Waiting on you', match: (item) => item.stage === 'Pre-work'},
+    {id: 'running', label: 'In progress', match: (item) => item.stage === 'Real work' && item.tone !== 'complete'},
+    {id: 'done', label: 'Completed', match: (item) => item.stage === 'Real work' && item.tone === 'complete'},
+];
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
     const response = await fetch(path, {credentials: 'same-origin', headers: {'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', ...(options?.headers || {})}, ...options});
     const body = await response.json().catch(() => ({message: response.statusText}));
@@ -47,58 +53,94 @@ function displayName(user?: MattermostUser): string {
     const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
     return user.username === 'nobs' ? 'NoBS Agent' : fullName || `@${user.username}`;
 }
-function plainText(value: string): string {
+function plainText(value: string, limit: number): string {
     const clean = value.replace(/```[\s\S]*?```/g, ' attached evidence ').replace(/[*_`>#\[\]]/g, '').replace(/\([^)]*\)/g, '').replace(/\s+/g, ' ').trim();
-    return clean.length > 150 ? `${clean.slice(0, 147)}…` : clean;
+    return clean.length > limit ? `${clean.slice(0, limit - 1)}…` : clean;
 }
 function relativeTime(value: number): string {
     const minutes = Math.max(0, Math.round((Date.now() - value) / 60000));
     if (minutes < 2) {return 'now';}
-    if (minutes < 60) {return `${minutes}m`;}
+    if (minutes < 60) {return `${minutes}m ago`;}
     const hours = Math.round(minutes / 60);
-    return hours < 24 ? `${hours}h` : `${Math.round(hours / 24)}d`;
+    return hours < 24 ? `${hours}h ago` : `${Math.round(hours / 24)}d ago`;
 }
-function open(channel: MattermostChannel): void {window.location.assign(channelPath(channel));}
+function openChannel(channel: MattermostChannel): void {window.location.assign(channelPath(channel));}
 
-function Avatar({user, small = false}: {user?: MattermostUser; small?: boolean}): JSX.Element {
-    return <span className={`nobs-workroom-avatar${small ? ' is-small' : ''}`} title={displayName(user)}>{user ? <img src={`/api/v4/users/${encodeURIComponent(user.id)}/image`} alt=''/> : <img src={logo} alt='NoBS'/>}</span>;
+function Avatar({user}: {user?: MattermostUser}): JSX.Element {
+    return <span className='nobs-agent-avatar' aria-hidden='true'>{user ? <img src={`/api/v4/users/${encodeURIComponent(user.id)}/image`} alt=''/> : <img src={logo} alt=''/>}</span>;
 }
 
-function RecentUpdate({item, user}: {item: ActivityItem; user?: MattermostUser}): JSX.Element {
+function WorkroomRow({channel, active, onSelect}: {channel: MattermostChannel; active: boolean; onSelect: () => void}): JSX.Element {
+    const item = profile(channel);
+    return <button type='button' className={`nobs-workroom-row ${active ? 'is-active' : ''}`} onClick={onSelect}>
+        <i className={`nobs-workroom-dot is-${item.tone}`} aria-hidden='true'/>
+        <span>
+            <strong>{title(channel)}</strong>
+            <small><em className={`nobs-status nobs-status--${item.tone}`}>{item.status}</em> · {item.agentCount} agents</small>
+        </span>
+    </button>;
+}
+
+function ActivityEntry({item, user}: {item: ActivityItem; user?: MattermostUser}): JSX.Element {
     const agent = user?.username === 'nobs' || item.post.props?.noping_agent === true;
-    return <div className='nobs-workroom-update'>
-        <Avatar user={user} small/>
-        <div><span><strong>{displayName(user)}</strong>{agent ? <em>agent</em> : null}<time>{relativeTime(item.post.create_at)}</time></span><p>{plainText(item.post.message)}</p></div>
-    </div>;
-}
-
-function WorkroomCard({channel, activity, users}: {channel: MattermostChannel; activity: ActivityItem[]; users: Record<string, MattermostUser>}): JSX.Element {
-    const item = profile(channel);
-    const recentPeople = Array.from(new Set(activity.map((entry) => entry.post.user_id))).slice(0, 4);
-    return <article className={`nobs-workroom-card nobs-workroom-card--${item.tone}`}>
-        <button type='button' className='nobs-workroom-card__open' onClick={() => open(channel)} aria-label={`Open ${title(channel)}`}/>
-        <div className='nobs-workroom-card__heading'>
-            <span className='nobs-workroom-card__icon'><img src={logo} alt=''/></span>
-            <div><span className={`nobs-workroom-status nobs-workroom-status--${item.tone}`}><i/>{item.status}</span><strong>{title(channel)}</strong><p>{item.summary}</p></div>
-            <i className='icon-chevron-right nobs-workroom-card__chevron' aria-hidden='true'/>
+    return <li>
+        <Avatar user={user}/>
+        <div>
+            <header><strong>{displayName(user)}</strong>{agent ? <em>Agent</em> : null}<span>{relativeTime(item.post.create_at)}</span></header>
+            <p>{plainText(item.post.message, 260)}</p>
         </div>
-        <div className='nobs-workroom-card__now'><span>Working now</span><strong>{item.activity}</strong></div>
-        {activity.length ? <div className='nobs-workroom-card__updates'>{activity.slice(0, 3).map((entry) => <RecentUpdate key={entry.post.id} item={entry} user={users[entry.post.user_id]}/>)}</div> : <p className='nobs-workroom-card__activity'>{item.outcome}</p>}
-        <div className='nobs-workroom-card__progress-row'><div><span style={{width: `${item.progress}%`}}/></div><strong>{item.progress}%</strong></div>
-        <footer>
-            <div className='nobs-workroom-people'>{recentPeople.map((userID) => <Avatar key={userID} user={users[userID]}/>)}</div>
-            <span>{item.agentCount} agents</span><span>{channel.total_msg_count || 0} updates</span><span>Review: {item.owner}</span>
-        </footer>
-    </article>;
+    </li>;
 }
 
-function PreWorkCard({channel}: {channel: MattermostChannel}): JSX.Element {
-    const item = profile(channel);
-    return <article className='nobs-workroom-attention'>
-        <div className='nobs-workroom-attention__copy'><span>YOUR REVIEW UNLOCKS REAL WORK</span><h2>{title(channel)}</h2><p>{item.activity}</p><div className='nobs-workroom-attention__meta'><strong>{item.agentCount} agents ready</strong><i/>No execution started<i/>Authority boundary preserved</div></div>
-        <div className='nobs-workroom-checks' aria-label='Pre-work readiness'>{(item.checks || []).map((check) => <span key={check}><i className='icon-check' aria-hidden='true'/>{check}</span>)}</div>
-        <button type='button' className='nobs-primary-button' onClick={() => open(channel)}>Review execution brief<i className='icon-chevron-right' aria-hidden='true'/></button>
-    </article>;
+function CreateWorkroom({working, error, onClose, onCreate}: {
+    working: boolean;
+    error: string;
+    onClose: () => void;
+    onCreate: (name: string, goal: string, people: string) => void;
+}): JSX.Element {
+    const [name, setName] = useState('');
+    const [goal, setGoal] = useState('');
+    const [people, setPeople] = useState('daniel, priya');
+
+    useEffect(() => {
+        const close = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {onClose();}
+        };
+        window.addEventListener('keydown', close);
+        return () => window.removeEventListener('keydown', close);
+    }, [onClose]);
+
+    return <div className='nobs-modal-backdrop' role='presentation' onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+        <section className='nobs-workroom-modal' role='dialog' aria-modal='true' aria-labelledby='nobs-workroom-modal-title'>
+            <header>
+                <div>
+                    <h2 id='nobs-workroom-modal-title'>New workroom</h2>
+                    <p>The Master Agent gathers requirements, checks dependencies and authority, then asks you to approve the brief before any real work starts.</p>
+                </div>
+                <button type='button' className='nobs-icon-button' aria-label='Close' onClick={onClose}><i className='icon-close'/></button>
+            </header>
+            <div className='nobs-workroom-modal__body'>
+                <label>
+                    <strong>Project</strong>
+                    <input value={name} onChange={(event) => setName(event.target.value)} placeholder='Pricing launch FAQ'/>
+                </label>
+                <label>
+                    <strong>What done looks like</strong>
+                    <textarea rows={4} value={goal} onChange={(event) => setGoal(event.target.value)} placeholder='Describe the outcome and the constraints that matter.'/>
+                </label>
+                <label>
+                    <strong>People</strong>
+                    <input value={people} onChange={(event) => setPeople(event.target.value)} placeholder='daniel, priya'/>
+                    <span>Their personal agents join after you approve the scope.</span>
+                </label>
+            </div>
+            {error ? <div className='nobs-inline-error' role='alert'>{error}</div> : null}
+            <footer>
+                <button type='button' className='nobs-secondary-button' onClick={onClose}>Cancel</button>
+                <button type='button' className='nobs-primary-button' disabled={working || !name.trim() || !goal.trim()} onClick={() => onCreate(name, goal, people)}>{working ? 'Starting…' : 'Start pre-work'}</button>
+            </footer>
+        </section>
+    </div>;
 }
 
 export function WorkroomsPage(): JSX.Element {
@@ -106,10 +148,10 @@ export function WorkroomsPage(): JSX.Element {
     const [posts, setPosts] = useState<Record<string, ActivityItem[]>>({});
     const [users, setUsers] = useState<Record<string, MattermostUser>>({});
     const [teamID, setTeamID] = useState('');
+    const [selectedID, setSelectedID] = useState('');
+    const [loading, setLoading] = useState(true);
     const [showCreate, setShowCreate] = useState(false);
-    const [name, setName] = useState('');
-    const [goal, setGoal] = useState('');
-    const [people, setPeople] = useState('daniel, priya');
+    const [mobileDetail, setMobileDetail] = useState(false);
     const [working, setWorking] = useState(false);
     const [error, setError] = useState('');
 
@@ -121,11 +163,13 @@ export function WorkroomsPage(): JSX.Element {
         const available = await request<MattermostChannel[]>(`/api/v4/users/me/teams/${encodeURIComponent(id)}/channels`);
         const next = available.filter((channel) => channel.name.startsWith('agent-workroom-')).sort((a, b) => (b.update_at || 0) - (a.update_at || 0));
         setChannels(next);
+        const ordered = GROUPS.flatMap((group) => next.filter((channel) => group.match(profile(channel))));
+        setSelectedID((current) => current || ordered[0]?.id || '');
         const pages = await Promise.all(next.map(async (channel) => ({channel, page: await request<MattermostPostPage>(`/api/v4/channels/${encodeURIComponent(channel.id)}/posts?page=0&per_page=20`).catch((): MattermostPostPage => ({order: [], posts: {}}))})));
         const nextPosts: Record<string, ActivityItem[]> = {};
         const userIDs = new Set<string>();
         for (const {channel, page} of pages) {
-            nextPosts[channel.id] = page.order.map((postID) => page.posts[postID]).filter((post): post is MattermostPost => Boolean(post && !post.root_id && post.message.trim())).slice(0, 5).map((post) => ({post, channel}));
+            nextPosts[channel.id] = page.order.map((postID) => page.posts[postID]).filter((post): post is MattermostPost => Boolean(post && !post.root_id && post.message.trim())).slice(0, 8).map((post) => ({post, channel}));
             nextPosts[channel.id].forEach(({post}) => userIDs.add(post.user_id));
         }
         setPosts(nextPosts);
@@ -134,16 +178,30 @@ export function WorkroomsPage(): JSX.Element {
             setUsers(Object.fromEntries(resolved.map((user) => [user.id, user])));
         }
     };
-    useEffect(() => {window.history.replaceState(null, '', `/${teamName()}/nobs/workrooms`); document.title = 'Workrooms - NoBS'; void load().catch((caught) => setError(caught instanceof Error ? caught.message : 'Workrooms are temporarily unavailable.'));}, []);
 
-    const usernames = useMemo(() => people.split(',').map((item) => item.trim().replace(/^@/, '')).filter(Boolean), [people]);
-    const preWork = channels.filter((channel) => profile(channel).stage === 'Pre-work');
-    const realWork = channels.filter((channel) => profile(channel).stage === 'Real work');
-    const activity = Object.values(posts).flat().sort((a, b) => b.post.create_at - a.post.create_at);
-    const totalUpdates = channels.reduce((sum, channel) => sum + (channel.total_msg_count || 0), 0);
-    const needsReview = channels.filter((channel) => ['planning', 'review'].includes(profile(channel).tone)).length;
-    const agentSeats = channels.reduce((sum, channel) => sum + profile(channel).agentCount, 0);
-    const create = async () => {
+    useEffect(() => {
+        window.history.replaceState(null, '', `/${teamName()}/nobs/workrooms`);
+        document.title = 'Workrooms - NoBS';
+        void load().
+            catch((caught) => setError(caught instanceof Error ? caught.message : 'Workrooms are temporarily unavailable.')).
+            finally(() => setLoading(false));
+    }, []);
+
+    const groups = useMemo(() => GROUPS.map((group) => ({...group, items: channels.filter((channel) => group.match(profile(channel)))})).filter((group) => group.items.length), [channels]);
+    const selected = channels.find((channel) => channel.id === selectedID) || null;
+    const item = selected ? profile(selected) : null;
+    const activity = selected ? posts[selected.id] || [] : [];
+    const participants = useMemo(() => {
+        const seen = new Set<string>();
+        return activity.map((entry) => users[entry.post.user_id]).filter((user): user is MattermostUser => {
+            if (!user || seen.has(user.id)) {return false;}
+            seen.add(user.id);
+            return true;
+        });
+    }, [activity, users]);
+
+    const create = async (name: string, goal: string, people: string) => {
+        const usernames = people.split(',').map((entry) => entry.trim().replace(/^@/, '')).filter(Boolean);
         if (!teamID || !name.trim() || !goal.trim()) {return;}
         setWorking(true); setError('');
         try {
@@ -155,22 +213,99 @@ export function WorkroomsPage(): JSX.Element {
         } catch (caught) {setError(caught instanceof Error ? caught.message : 'The workroom could not be created.'); setWorking(false);}
     };
 
-    return <main className='nobs-workrooms'>
-        <header className='nobs-workrooms__header'><div><img src={logo} alt=''/><span><strong>Workrooms</strong><small>Agents doing bounded work, with evidence and human authority kept visible.</small></span></div><button type='button' className='nobs-primary-button' onClick={() => setShowCreate((value) => !value)}>{showCreate ? 'Close' : 'New project'}</button></header>
-        {error ? <div className='nobs-workrooms__error' role='alert'>{error}</div> : null}
-        <div className='nobs-workrooms__body'>
-            {showCreate ? <section className='nobs-workroom-create'><div><span>NEW AGENT PROJECT</span><h1>Start with Pre-work</h1><p>The Master Agent gathers requirements, checks dependencies and authority, then asks you to approve the execution brief before any Real work begins.</p></div><label><strong>Project</strong><input value={name} onChange={(event) => setName(event.target.value)} placeholder='e.g. Pricing launch FAQ'/></label><label><strong>Desired outcome</strong><textarea rows={4} value={goal} onChange={(event) => setGoal(event.target.value)} placeholder='Describe what done looks like and the constraints that matter.'/></label><label><strong>People</strong><input value={people} onChange={(event) => setPeople(event.target.value)} placeholder='daniel, priya'/><small>Their personal agents join after scope approval.</small></label><button type='button' className='nobs-primary-button' disabled={working || !name.trim() || !goal.trim()} onClick={() => void create()}>{working ? 'Starting Pre-work…' : 'Create Pre-work room'}</button></section> : null}
-            <section className='nobs-workroom-summary' aria-label='Workroom summary'>
-                <div><span>WORKROOMS</span><strong>{channels.length}</strong><small>bounded projects</small></div>
-                <div><span>AGENT ACTIVITY</span><strong>{totalUpdates}</strong><small>auditable updates</small></div>
-                <div><span>COLLABORATION</span><strong>{agentSeats}</strong><small>agent assignments</small></div>
-                <div className={needsReview ? 'is-attention' : ''}><span>HUMAN INPUT</span><strong>{needsReview}</strong><small>focused reviews</small></div>
-            </section>
-            {preWork.length ? <section className='nobs-workrooms__list' aria-label='Needs your attention'><div className='nobs-workrooms__section-title'><div><strong>Needs your attention</strong><span>Agents finished the preparation; a human boundary is next.</span></div><em>{preWork.length} ready</em></div>{preWork.map((channel) => <PreWorkCard key={channel.id} channel={channel}/>)}</section> : null}
-            <section className='nobs-workrooms__workspace'>
-                <div className='nobs-workrooms__list' aria-label='Agent project execution'><div className='nobs-workrooms__section-title'><div><strong>Agent project execution</strong><span>Open a room to inspect the full multi-agent conversation and evidence.</span></div><em>{realWork.length} projects</em></div><div className='nobs-workroom-grid'>{realWork.map((channel) => <WorkroomCard key={channel.id} channel={channel} activity={posts[channel.id] || []} users={users}/>)}</div>{!channels.length ? <div className='nobs-workrooms__empty'><img src={logo} alt=''/><strong>No workrooms yet</strong><span>Create a bounded project and let the Master Agent prepare it for execution.</span></div> : null}</div>
-                <aside className='nobs-workroom-feed' aria-label='Live agent activity'><header><div><i/><span><strong>Live agent activity</strong><small>Across every workroom</small></span></div><em>{activity.length ? 'Live' : 'Waiting'}</em></header><div>{activity.slice(0, 10).map((entry) => <button type='button' key={entry.post.id} onClick={() => open(entry.channel)}><RecentUpdate item={entry} user={users[entry.post.user_id]}/><span>{title(entry.channel)}<i className='icon-chevron-right' aria-hidden='true'/></span></button>)}</div><footer><span>Every update stays in its native NoBS conversation.</span></footer></aside>
+    return <main className={`nobs-workrooms ${mobileDetail ? 'is-mobile-detail' : ''}`}>
+        <header className='nobs-workrooms__header'>
+            <div className='nobs-workrooms__identity'>
+                <img src={logo} alt=''/>
+                <div><strong>Workrooms</strong><span>Projects agents run end to end</span></div>
+            </div>
+            <button type='button' className='nobs-primary-button' onClick={() => setShowCreate(true)}>New workroom</button>
+        </header>
+        {error && !showCreate ? <div className='nobs-workrooms__notice' role='alert'>{error}</div> : null}
+        <div className='nobs-workrooms__workspace'>
+            <aside className='nobs-workrooms__rail' aria-label='Workrooms'>
+                <div className='nobs-workrooms__rail-heading'>
+                    <strong>Projects</strong>
+                    <em>{channels.length}</em>
+                </div>
+                {loading ? <p className='nobs-workrooms__rail-note'>Loading workrooms…</p> : null}
+                {!loading && !channels.length ? <p className='nobs-workrooms__rail-note'>No workrooms yet.</p> : null}
+                {groups.map((group) => <section key={group.id} className='nobs-workroom-group'>
+                    <h2>{group.label}</h2>
+                    {group.items.map((channel) => <WorkroomRow
+                        key={channel.id}
+                        channel={channel}
+                        active={channel.id === selectedID}
+                        onSelect={() => {setSelectedID(channel.id); setMobileDetail(true);}}
+                    />)}
+                </section>)}
+            </aside>
+            <section className='nobs-workrooms__detail' aria-live='polite'>
+                {!selected || !item ? <div className='nobs-workrooms__empty'>
+                    <img src={logo} alt=''/>
+                    <strong>{loading ? 'Loading workrooms…' : 'Select a workroom'}</strong>
+                    <span>Each workroom is one bounded project agents carry from brief to finished work.</span>
+                </div> : <>
+                    <button type='button' className='nobs-mobile-back' onClick={() => setMobileDetail(false)}>Back to projects</button>
+                    <header className='nobs-workroom-hero'>
+                        <div>
+                            <span className='nobs-workroom-hero__meta'>
+                                <em className={`nobs-status nobs-status--${item.tone}`}>{item.status}</em>
+                                <i aria-hidden='true'/>
+                                {item.stage}
+                            </span>
+                            <h1>{title(selected)}</h1>
+                            <p>{item.summary}</p>
+                        </div>
+                        <button type='button' className='nobs-primary-button' onClick={() => openChannel(selected)}>
+                            {item.stage === 'Pre-work' ? 'Review brief' : 'Open workroom'}
+                        </button>
+                    </header>
+                    {participants.length ? <ul className='nobs-workroom-people' aria-label='Working in this room'>
+                        {participants.map((user) => <li key={user.id}><Avatar user={user}/>{displayName(user)}</li>)}
+                    </ul> : null}
+                    <div className='nobs-workroom-grid'>
+                        <div className='nobs-workroom-main'>
+                            {item.checks?.length ? <section className='nobs-surface'>
+                                <div className='nobs-section-title'><div><strong>Readiness</strong></div><em>Approval unlocks execution</em></div>
+                                <ul className='nobs-workroom-checks'>
+                                    {item.checks.map((check) => <li key={check}><i className='icon-check' aria-hidden='true'/>{check}</li>)}
+                                </ul>
+                            </section> : null}
+                            <section className='nobs-surface'>
+                                <div className='nobs-section-title'>
+                                    <div><strong>Activity</strong></div>
+                                    <em>{selected.total_msg_count || activity.length} update{(selected.total_msg_count || activity.length) === 1 ? '' : 's'}</em>
+                                </div>
+                                {activity.length ? <ol className='nobs-workroom-thread'>
+                                    {activity.map((entry) => <ActivityEntry key={entry.post.id} item={entry} user={users[entry.post.user_id]}/>)}
+                                </ol> : <p className='nobs-muted'>Agents have not posted in this workroom yet.</p>}
+                            </section>
+                        </div>
+                        <aside className='nobs-workroom-aside'>
+                            <section className='nobs-surface'>
+                                <div className='nobs-section-title'><div><strong>Progress</strong></div><em>{item.progress}%</em></div>
+                                <div className={`nobs-workroom-progress is-${item.tone}`}><span style={{width: `${item.progress}%`}}/></div>
+                                <p>{item.activity}</p>
+                                <dl className='nobs-workroom-facts'>
+                                    <div><dt>Reviewer</dt><dd>{item.owner}</dd></div>
+                                    <div><dt>Agents</dt><dd>{item.agentCount}</dd></div>
+                                </dl>
+                            </section>
+                            <section className='nobs-surface'>
+                                <div className='nobs-section-title'><div><strong>What done looks like</strong></div></div>
+                                <p className='nobs-muted'>{item.outcome}</p>
+                            </section>
+                        </aside>
+                    </div>
+                </>}
             </section>
         </div>
+        {showCreate ? <CreateWorkroom
+            working={working}
+            error={error}
+            onClose={() => {setShowCreate(false); setError('');}}
+            onCreate={(name, goal, people) => void create(name, goal, people)}
+        /> : null}
     </main>;
 }
